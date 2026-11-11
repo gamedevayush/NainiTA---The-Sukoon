@@ -1,0 +1,20 @@
+{
+ "name": "Proto_Temple",
+ "size": [
+  8.772,
+  7.37,
+  16.0
+ ],
+ "tris": [
+  20000,
+  6500,
+  2000
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_34d83b34-862d-4b91-a666-486e3be15ff2",
+   "color": "Proto_Temple_m0_color.jpg",
+   "normal": "Proto_Temple_m0_normal.jpg"
+  }
+ ]
+}

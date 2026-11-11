@@ -1,0 +1,20 @@
+{
+ "name": "Proto_PoliceStation",
+ "size": [
+  7.178,
+  7.55,
+  5.0
+ ],
+ "tris": [
+  16000,
+  5000,
+  1600
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_9384121c-d5d6-4d41-8cec-1c0c02f0533a",
+   "color": "Proto_PoliceStation_m0_color.jpg",
+   "normal": "Proto_PoliceStation_m0_normal.jpg"
+  }
+ ]
+}

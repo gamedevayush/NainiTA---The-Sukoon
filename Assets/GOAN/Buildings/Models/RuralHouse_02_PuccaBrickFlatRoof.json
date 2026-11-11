@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_02_PuccaBrickFlatRoof",
+ "size": [
+  6.407,
+  5.605,
+  3.0
+ ],
+ "tris": [
+  8999,
+  3000,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_469ad780-60dc-4470-b9db-96e2ced6948b",
+   "color": "RuralHouse_02_PuccaBrickFlatRoof_m0_color.jpg",
+   "normal": "RuralHouse_02_PuccaBrickFlatRoof_m0_normal.jpg"
+  }
+ ]
+}

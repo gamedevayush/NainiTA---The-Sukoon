@@ -1,0 +1,20 @@
+{
+ "name": "Proto_WaterTower",
+ "size": [
+  5.62,
+  5.582,
+  20.0
+ ],
+ "tris": [
+  7999,
+  2500,
+  800
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_4687bf8f-3513-483b-b0cc-226f4f7d3027",
+   "color": "Proto_WaterTower_m0_color.jpg",
+   "normal": "Proto_WaterTower_m0_normal.jpg"
+  }
+ ]
+}

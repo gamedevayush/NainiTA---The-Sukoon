@@ -1,0 +1,20 @@
+{
+ "name": "Proto_MarketRow",
+ "size": [
+  13.065,
+  4.045,
+  6.5
+ ],
+ "tris": [
+  12000,
+  4000,
+  1200
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_54856146-acd6-4362-88c0-3e1a50c72b6c",
+   "color": "Proto_MarketRow_m0_color.jpg",
+   "normal": "Proto_MarketRow_m0_normal.jpg"
+  }
+ ]
+}

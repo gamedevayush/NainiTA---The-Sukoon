@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_08_ExposedBrickHouse",
+ "size": [
+  3.51,
+  3.614,
+  2.6
+ ],
+ "tris": [
+  8766,
+  2999,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_05a6b8fe-f8a8-40ad-bf14-de241540e813",
+   "color": "RuralHouse_08_ExposedBrickHouse_m0_color.jpg",
+   "normal": "RuralHouse_08_ExposedBrickHouse_m0_normal.jpg"
+  }
+ ]
+}

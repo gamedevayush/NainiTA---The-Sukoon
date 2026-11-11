@@ -1,0 +1,135 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 97fbd945665ddd843af352132bdc70f2, type: 3}
+  m_Name: CharacterLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::Nainital.CharacterLibrary
+  entries:
+  - id: m_young_puffer
+    displayName: Tourist bhaiya
+    prefab: {fileID: 2852773272035631749, guid: a10787d65c47eb4499a63d4b6038c8dd, type: 3}
+    bodyType: 0
+    height: 1.74
+    weight: 0.35
+  - id: m_man_flannel
+    displayName: Local bhaiya
+    prefab: {fileID: 2378312895372437705, guid: a8799495d0556174080e9f24a91ce847, type: 3}
+    bodyType: 0
+    height: 1.78
+    weight: 1
+  - id: f_young_hoodie
+    displayName: College student
+    prefab: {fileID: 8907173783120786550, guid: 72c6281fac88fae45a9d639fda6596e0, type: 3}
+    bodyType: 1
+    height: 1.62
+    weight: 1
+  - id: f_young_denim
+    displayName: Tourist didi
+    prefab: {fileID: 4584564985441025002, guid: 2acb5e94bb26b444cb5d159a23d92164, type: 3}
+    bodyType: 1
+    height: 1.64
+    weight: 1
+  - id: m_old_sweater
+    displayName: Retired uncle
+    prefab: {fileID: 3367933682604547028, guid: d554050651e7a8545a5605c5ed577725, type: 3}
+    bodyType: 4
+    height: 1.68
+    weight: 1
+  - id: m_old_kurta
+    displayName: Pahadi Dada
+    prefab: {fileID: 2281213535879517390, guid: 79c9f98aaad14b54583be87d089287d6, type: 3}
+    bodyType: 4
+    height: 1.66
+    weight: 1
+  - id: f_old_salwar
+    displayName: Kumaoni Amma
+    prefab: {fileID: 6082075618123846598, guid: 06389c19a57cdfa4faca0a873045de53, type: 3}
+    bodyType: 5
+    height: 1.55
+    weight: 1
+  - id: f_old_saree
+    displayName: Dadi
+    prefab: {fileID: 5423900943832749678, guid: e022d8dedaea4e248af55e813a03e365, type: 3}
+    bodyType: 5
+    height: 1.53
+    weight: 1
+  - id: m_boy_school
+    displayName: School bachcha
+    prefab: {fileID: 2334772040775293581, guid: 5964e937d45e36e478920ac60298ed39, type: 3}
+    bodyType: 2
+    height: 1.4
+    weight: 1
+  - id: m_boy_hoodie
+    displayName: Ladka
+    prefab: {fileID: 6999305403088036236, guid: 9132fcb76aab8e346a59cd69429734a3, type: 3}
+    bodyType: 2
+    height: 1.45
+    weight: 1
+  - id: f_girl
+    displayName: School wali bachchi
+    prefab: {fileID: 4050224560218391388, guid: ded4beecf6226784e99d2300eadb1d2e, type: 3}
+    bodyType: 3
+    height: 1.36
+    weight: 1
+  - id: f_girl_small
+    displayName: Chhoti bachchi
+    prefab: {fileID: 5918929790646870870, guid: faceccb4e3ffa404585444855a823038, type: 3}
+    bodyType: 3
+    height: 1.12
+    weight: 1
+  - id: goan_kisaan
+    displayName: Kisaan bhaiya
+    prefab: {fileID: 554002436444749529, guid: 82f04caef3098c34e879b0578d95fbf3, type: 3}
+    bodyType: 0
+    height: 1.7
+    weight: 0.7
+  - id: goan_buzurg
+    displayName: Buzurg chacha
+    prefab: {fileID: 4631127658953499641, guid: 8be3b79640a84ef4785192fee3d3dbad, type: 3}
+    bodyType: 4
+    height: 1.65
+    weight: 0.7
+  - id: goan_mistri
+    displayName: Mistri ji
+    prefab: {fileID: 829292064665310485, guid: dceeb4edd5ce98d45920aa6a542a32be, type: 3}
+    bodyType: 0
+    height: 1.7
+    weight: 0.7
+  - id: goan_ladka
+    displayName: Gaon ka ladka
+    prefab: {fileID: 3225631319937160135, guid: 093da88588a427c4dabde0129685733a, type: 3}
+    bodyType: 2
+    height: 1.35
+    weight: 0.7
+  - id: goan_kuli
+    displayName: Kuli bhaiya
+    prefab: {fileID: 229487067193566018, guid: 588e6683eb40658408451f0cdb08ad57, type: 3}
+    bodyType: 0
+    height: 1.72
+    weight: 0.7
+  - id: goan_pandit
+    displayName: Pandit ji
+    prefab: {fileID: 4685420109520142465, guid: 34642fb34d5d29e459682d4afe8734c9, type: 3}
+    bodyType: 4
+    height: 1.66
+    weight: 0.7
+  - id: goan_sardar
+    displayName: Sardar ji
+    prefab: {fileID: 289930068419241085, guid: c10d6c57c6481124a8dd3a5efce3f138, type: 3}
+    bodyType: 0
+    height: 1.76
+    weight: 0.7
+  - id: goan_didi
+    displayName: Gaon ki didi
+    prefab: {fileID: 1188989915223953416, guid: 61d21d3a9c526464d9170d91e429d3bb, type: 3}
+    bodyType: 1
+    height: 1.58
+    weight: 0.7

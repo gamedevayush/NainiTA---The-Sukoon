@@ -1,0 +1,20 @@
+{
+ "name": "Proto_Hospital",
+ "size": [
+  15.238,
+  16.544,
+  20.0
+ ],
+ "tris": [
+  24000,
+  7999,
+  2500
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_e016541e-523b-485f-9c71-31c4390dfcd0",
+   "color": "Proto_Hospital_m0_color.jpg",
+   "normal": "Proto_Hospital_m0_normal.jpg"
+  }
+ ]
+}

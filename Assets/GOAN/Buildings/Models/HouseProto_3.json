@@ -1,0 +1,20 @@
+{
+ "name": "HouseProto_3",
+ "size": [
+  10.758,
+  8.242,
+  7.467
+ ],
+ "tris": [
+  13999,
+  4500,
+  1400
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_8dd5bcaf-721e-4e21-8571-75a22e7d0cff",
+   "color": "HouseProto_3_m0_color.jpg",
+   "normal": "HouseProto_3_m0_normal.jpg"
+  }
+ ]
+}

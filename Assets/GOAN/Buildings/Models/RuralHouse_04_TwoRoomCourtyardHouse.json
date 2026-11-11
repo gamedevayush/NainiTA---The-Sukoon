@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_04_TwoRoomCourtyardHouse",
+ "size": [
+  5.735,
+  5.235,
+  2.8
+ ],
+ "tris": [
+  8999,
+  3000,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_02cd6df9-247b-4b53-afb1-ad8467d9e75b",
+   "color": "RuralHouse_04_TwoRoomCourtyardHouse_m0_color.jpg",
+   "normal": "RuralHouse_04_TwoRoomCourtyardHouse_m0_normal.jpg"
+  }
+ ]
+}

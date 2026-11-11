@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_06_HouseWithVerandah",
+ "size": [
+  4.795,
+  6.059,
+  3.3
+ ],
+ "tris": [
+  9000,
+  3000,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_ef109064-4231-4474-b02b-04482a29d838",
+   "color": "RuralHouse_06_HouseWithVerandah_m0_color.jpg",
+   "normal": "RuralHouse_06_HouseWithVerandah_m0_normal.jpg"
+  }
+ ]
+}

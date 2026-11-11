@@ -1,0 +1,20 @@
+{
+ "name": "Proto_BusStand",
+ "size": [
+  4.213,
+  2.793,
+  4.0
+ ],
+ "tris": [
+  8000,
+  2500,
+  799
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_42c6680a-312a-4cb6-9d9a-ceab66532a35",
+   "color": "Proto_BusStand_m0_color.jpg",
+   "normal": "Proto_BusStand_m0_normal.jpg"
+  }
+ ]
+}

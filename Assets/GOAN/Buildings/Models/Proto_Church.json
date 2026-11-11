@@ -1,0 +1,20 @@
+{
+ "name": "Proto_Church",
+ "size": [
+  12.128,
+  10.552,
+  16.0
+ ],
+ "tris": [
+  17999,
+  5999,
+  1999
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_9881bb42-2460-4e15-ab87-84efb50cf7c0",
+   "color": "Proto_Church_m0_color.jpg",
+   "normal": "Proto_Church_m0_normal.jpg"
+  }
+ ]
+}

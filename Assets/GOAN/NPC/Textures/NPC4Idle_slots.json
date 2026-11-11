@@ -1,0 +1,31 @@
+{
+ "slots": [
+  {
+   "name": "tripo_material_628177ea-2855-40c4-9619-688a10f8163b",
+   "textured": true,
+   "color": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "name": "Clothes1.004",
+   "textured": false,
+   "color": [
+    0.9035,
+    0.9035,
+    0.9035
+   ]
+  },
+  {
+   "name": "Clothes2.002",
+   "textured": false,
+   "color": [
+    0.0696,
+    0.379,
+    0.9035
+   ]
+  }
+ ]
+}

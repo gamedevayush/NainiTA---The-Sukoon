@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_11_TulsiCourtyardHouse",
+ "size": [
+  5.999,
+  4.496,
+  3.2
+ ],
+ "tris": [
+  9000,
+  3000,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_8eb59f5f-fa6c-478e-a440-338f20db97c2",
+   "color": "RuralHouse_11_TulsiCourtyardHouse_m0_color.jpg",
+   "normal": "RuralHouse_11_TulsiCourtyardHouse_m0_normal.jpg"
+  }
+ ]
+}

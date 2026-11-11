@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_13_HouseWithSolarAndTank",
+ "size": [
+  3.925,
+  3.357,
+  3.4
+ ],
+ "tris": [
+  8912,
+  3000,
+  899
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_05d16367-abbd-4009-bc89-ded9fff1cdfa",
+   "color": "RuralHouse_13_HouseWithSolarAndTank_m0_color.jpg",
+   "normal": "RuralHouse_13_HouseWithSolarAndTank_m0_normal.jpg"
+  }
+ ]
+}

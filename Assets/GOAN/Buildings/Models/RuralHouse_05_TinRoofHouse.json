@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_05_TinRoofHouse",
+ "size": [
+  4.007,
+  3.897,
+  3.0
+ ],
+ "tris": [
+  8988,
+  3000,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_2effe956-e2ff-4c7e-b658-c852e02ae5dc",
+   "color": "RuralHouse_05_TinRoofHouse_m0_color.jpg",
+   "normal": "RuralHouse_05_TinRoofHouse_m0_normal.jpg"
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+{
+ "name": "Proto_Mosque",
+ "size": [
+  8.005,
+  8.99,
+  15.0
+ ],
+ "tris": [
+  17999,
+  5999,
+  1999
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_1fcf30e0-317c-4dff-b8da-446dec644788",
+   "color": "Proto_Mosque_m0_color.jpg",
+   "normal": "Proto_Mosque_m0_normal.jpg"
+  }
+ ]
+}

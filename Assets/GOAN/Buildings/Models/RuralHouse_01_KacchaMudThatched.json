@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_01_KacchaMudThatched",
+ "size": [
+  3.22,
+  3.998,
+  3.0
+ ],
+ "tris": [
+  8936,
+  3000,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_ca8cb3f9-5edf-4d23-adf1-8d224e32d74b",
+   "color": "RuralHouse_01_KacchaMudThatched_m0_color.jpg",
+   "normal": "RuralHouse_01_KacchaMudThatched_m0_normal.jpg"
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_07_WhitewashedBluebaseHouse",
+ "size": [
+  4.905,
+  4.684,
+  3.0
+ ],
+ "tris": [
+  9009,
+  3000,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_a921f85f-72bc-4262-be3f-fa9c71a5751b",
+   "color": "RuralHouse_07_WhitewashedBluebaseHouse_m0_color.jpg",
+   "normal": "RuralHouse_07_WhitewashedBluebaseHouse_m0_normal.jpg"
+  }
+ ]
+}

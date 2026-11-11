@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_09_HouseWithHayStack",
+ "size": [
+  5.929,
+  5.485,
+  3.2
+ ],
+ "tris": [
+  9000,
+  2999,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_107f7105-b4ef-4a27-83d0-6abd579b53b3",
+   "color": "RuralHouse_09_HouseWithHayStack_m0_color.jpg",
+   "normal": "RuralHouse_09_HouseWithHayStack_m0_normal.jpg"
+  }
+ ]
+}

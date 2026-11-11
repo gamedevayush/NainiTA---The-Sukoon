@@ -1,0 +1,20 @@
+{
+ "name": "Proto_School",
+ "size": [
+  12.352,
+  17.446,
+  14.0
+ ],
+ "tris": [
+  24000,
+  8000,
+  2500
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_bfa1ffc8-48c5-4f74-be23-24c50c08c635",
+   "color": "Proto_School_m0_color.jpg",
+   "normal": "Proto_School_m0_normal.jpg"
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_03_HouseWithCattleShed",
+ "size": [
+  6.734,
+  6.033,
+  3.2
+ ],
+ "tris": [
+  8772,
+  2999,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_f6a6d049-6b80-48b7-a90e-83bdfb38e3aa",
+   "color": "RuralHouse_03_HouseWithCattleShed_m0_color.jpg",
+   "normal": "RuralHouse_03_HouseWithCattleShed_m0_normal.jpg"
+  }
+ ]
+}

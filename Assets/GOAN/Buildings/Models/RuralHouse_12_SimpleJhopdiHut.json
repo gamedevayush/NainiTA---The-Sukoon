@@ -1,0 +1,20 @@
+{
+ "name": "RuralHouse_12_SimpleJhopdiHut",
+ "size": [
+  2.858,
+  2.935,
+  2.3
+ ],
+ "tris": [
+  8834,
+  3000,
+  900
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_18376a07-3adb-448e-86e7-a5e8c56acca7",
+   "color": "RuralHouse_12_SimpleJhopdiHut_m0_color.jpg",
+   "normal": "RuralHouse_12_SimpleJhopdiHut_m0_normal.jpg"
+  }
+ ]
+}

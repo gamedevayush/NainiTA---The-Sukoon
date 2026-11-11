@@ -1,0 +1,36 @@
+# Unity cache and local files (Unity rebuilds these)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+*.csproj
+*.sln
+*.suo
+*.user
+*.pidb
+*.booproj
+.vs/
+.idea/
+.utmp/
+.mcp.json
+# builds (APKs go to GitHub Releases)
+/[Bb]uilds/
+*.apk
+*.aab
+# private / local only
+.brave-profile/
+.browser-profile/
+.secrets/
+/CharacterRefs/
+/Bridge/
+/Shots/
+/Tools/.venv/
+__pycache__/
+*.bak
+*.before_*
+
+# the built world: made by Nainital > 2. Build World (see README)
+/Assets/Nainital/Generated/
+/Assets/Nainital/Generated.meta
