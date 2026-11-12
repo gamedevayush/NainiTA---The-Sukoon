@@ -79,6 +79,7 @@ namespace Nainital
                 rb.isKinematic = false;
                 rb.WakeUp();
                 p.EnterVehicle(this);
+                if (GetComponent<VehicleInfo>() && p.Rig) p.Rig.gameObject.SetActive(false);   // library models: the driver is inside, unseen
                 GameEvents.ShowToast("W/S: race-brake, A/D: steering, Space: handbrake, E: utro", 3.5f);
                 return;
             }
@@ -101,6 +102,7 @@ namespace Nainital
                 if (!Physics.CheckCapsule(t + Vector3.up * 0.4f, t + Vector3.up * 1.5f, 0.3f, ~((1 << 8) | (1 << 2)), QueryTriggerInteraction.Ignore)) { at = t; break; }
             driver = null;
             Driving = null;
+            if (p.Rig && !p.Rig.gameObject.activeSelf) p.Rig.gameObject.SetActive(true);
             p.ExitVehicle(at);
             sleepTimer = 0f;
         }
