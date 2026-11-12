@@ -1,0 +1,55 @@
+# Turns the Xcode project that Unity writes on Windows (Nainital > 9. iOS: build Xcode project) into an unsigned .ipa,
+# on GitHub's free macOS runner. The project zip is attached to a release (default tag "ios-build"); the .ipa is
+# attached to the same release. Install it on an iPhone with Sideloadly (signs it with your own Apple ID).
+name: iOS IPA (unsigned, for Sideloadly)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag that holds NainitalGame-iOS-Xcode.zip
+        required: true
+        default: ios-build
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 300
+    steps:
+      - name: Download the Xcode project
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ inputs.tag }}" -R "${{ github.repository }}" -p "NainitalGame-iOS-Xcode.zip" -D .
+          unzip -q NainitalGame-iOS-Xcode.zip -d xc
+          ls xc
+          df -h .
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Build the app (no signing)
+        run: |
+          cd xc
+          xcodebuild -project Unity-iPhone.xcodeproj -scheme Unity-iPhone -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/build/NainiTA.xcarchive" archive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
+            -quiet
+
+      - name: Package the .ipa
+        run: |
+          APP=$(find xc/build/NainiTA.xcarchive/Products/Applications -maxdepth 1 -name "*.app" | head -1)
+          echo "app: $APP"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry NainiTA-unsigned.ipa Payload
+          ls -la NainiTA-unsigned.ipa
+
+      - name: Attach the .ipa to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" NainiTA-unsigned.ipa --clobber -R "${{ github.repository }}"

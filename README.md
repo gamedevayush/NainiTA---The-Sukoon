@@ -83,6 +83,20 @@ The phone controls only show on a phone. To try them on PC, set PlayerPrefs `nt_
    adb install -r Builds/Android/NainitalOpenWorld.apk
    ```
 
+### 7. Install on an iPhone (optional; no Mac and no paid Apple account needed)
+
+1. **Make the Xcode project (on Windows).** Install the iOS Build Support module for 6000.3.28f1. Then choose **Nainital → 8. iOS: switch platform**, then **Nainital → 9. iOS: build Xcode project**. The project is written to `Builds/iOS`.
+2. **Compile it on GitHub's free Mac.**
+   - Zip the contents of `Builds/iOS` as `NainitalGame-iOS-Xcode.zip`.
+   - Attach it to a GitHub release with the tag `ios-build`.
+   - Run the **iOS IPA (unsigned, for Sideloadly)** workflow (Actions tab). About 30–60 minutes later, `NainiTA-unsigned.ipa` appears on the same release.
+3. **Install it with [Sideloadly](https://sideloadly.io)** on the Windows PC.
+   - Install iTunes and iCloud from Apple's website and connect the iPhone by cable.
+   - On the iPhone, turn on **Settings → Privacy & Security → Developer Mode** (iOS 16+).
+   - In Sideloadly, drop the .ipa, sign in with your Apple ID and press Start.
+   - On the iPhone, allow the app in **Settings → General → VPN & Device Management**.
+   - With a free Apple ID the app works for 7 days. Re-install it from Sideloadly to refresh.
+
 ## If something looks wrong
 
 | Problem | Fix |
