@@ -69,8 +69,15 @@ Press **Play**.
 | Map | M | **Map** |
 | Cheats | Type the code: UDAAN, SAFAR, JEEVAN, AMAR, GAADI, JEEP, TAXI, BUS | **Cheat** button |
 | In a car | W/S throttle and brake, A/D steer, Space handbrake, G horn | Joystick; **Brake**; **Horn** |
+| Take a moving car | E near it: it pulls up, the driver gets out, then you get in | **Use** |
+| Weather and time | Pause menu | **Mausam**: Saaf / Baadal / Kohra / Baarish, time presets, ±1 hour, stop the clock |
+| Report a bug | F8 (or **Nainital → Bug capture karo**, Ctrl+Shift+B, in the editor) | **Bug** |
 
 The phone controls only show on a phone. To try them on PC, set PlayerPrefs `nt_touch = 1`.
+
+Traffic runs on real car physics, each vehicle with its own mass. Crashes add up: after 4 or 5 knocks black smoke comes out of the bonnet, after 7 or 8 the car catches fire and then blows up.
+
+A bug report grabs the screen, asks what is wrong (in the editor it can also attach more photos), and saves a folder in `BugReports/` with `screen.png` and `note.txt`. The note has the player and camera position, the hour and the weather. On a phone the folder goes to the app's data folder. `BugReports/` is not in git.
 
 ### 6. Build the Android APK (optional)
 

@@ -31,6 +31,28 @@ namespace Nainital
         static readonly int[] Skins = { Pal.SkinLight, Pal.SkinMid, Pal.SkinDark };
         static readonly string[] Names = { "Raahgir", "Tourist", "Local bhaiya", "College student", "Pahadi Dada", "Didi", "Porter (kuli)", "Shopkeeper", "Honeymoon couple", "School bachcha" };
 
+        public static PedestrianManager Instance { get; private set; }
+
+        void Awake() => Instance = this;
+
+        /// <summary>A townsperson in the driving seat of an AI car (TrafficCar); not part of the crowd count.</summary>
+        public NpcWalker MakeDriver(TrafficCar car)
+        {
+            NpcWalker w = null;
+            while (pool.Count > 0 && !w) w = pool.Dequeue();
+            if (!w) w = Create();
+            w.ResetState();
+            w.gameObject.SetActive(true);
+            w.EnterCar(car.transform, car.DriverSeatLocal());
+            return w;
+        }
+
+        /// <summary>The house door nearest p (where a driver whose car was taken walks off to).</summary>
+        public Vector3 NearestDoor(Vector3 p) => NearestHome(p);
+
+        /// <summary>A driver who got out joins the crowd (recycled like any walker once home or far away).</summary>
+        public void Adopt(NpcWalker w) { if (w && !active.Contains(w)) active.Add(w); }
+
         void Start()
         {
             if (Application.isMobilePlatform) { maxPeds = Mathf.Min(maxPeds, 18); maxBrowsers = Mathf.Min(maxBrowsers, 8); spawnMax = 95f; }

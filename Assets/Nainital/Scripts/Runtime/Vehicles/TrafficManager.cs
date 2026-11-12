@@ -81,15 +81,11 @@ namespace Nainital
                 int model = lib ? lib.Pick(type, Random.value) : -1;
                 int paint = type == CarType.Taxi || type == CarType.Bus || type == CarType.Pickup ? Px.CarWhite
                           : VehicleFactory.CarPaints[Random.Range(0, VehicleFactory.CarPaints.Length)];
-                var go = VehicleFactory.Create(type, paint, material, false, "Traffic " + type, model);
+                // a real car: CarController physics (its own mass), driven by TrafficCar
+                var go = VehicleFactory.Create(type, paint, material, true, "Traffic " + type, model);
                 go.transform.SetParent(transform, true);
-                var rb = go.AddComponent<Rigidbody>();
-                rb.isKinematic = true;
                 var t = go.AddComponent<TrafficCar>();
                 t.type = type;
-                var wheels = new Transform[4];
-                for (int w = 0; w < 4; w++) wheels[w] = go.transform.Find("Wheel" + w);
-                t.wheels = wheels;
                 t.cruise = type == CarType.Bus || type == CarType.Pickup ? Random.Range(7f, 9f) : Random.Range(9f, 13f);
                 t.Begin(network, r, i, Random.value < 0.5f ? 1 : -1);
                 var entry = go.AddComponent<TrafficCarEntry>();   // the player can take it over

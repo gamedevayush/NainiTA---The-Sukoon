@@ -37,13 +37,26 @@ namespace Nainital.EditorTools
                 int n = pts.Count;
                 var raw = new float[n];
                 for (int i = 0; i < n; i++) raw[i] = ctx.InLake(pts[i]) ? ctx.lakeY + 0.3f : ctx.H(pts[i]);
-                var prof = new float[n];   // ±8 samples (±16 m) moving average, shorter at the ends
+                // two passes of a ±10-sample (±20 m) moving average (a smooth bell, about ±40 m in all), shorter at the
+                // ends: no hump or dip a car would feel (user, 2026-11-12: roads still went up and down in places)
+                var prof = raw;
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    var next = new float[n];
+                    for (int i = 0; i < n; i++)
+                    {
+                        int a = Mathf.Max(0, i - 10), b = Mathf.Min(n - 1, i + 10);
+                        float s = 0f;
+                        for (int k = a; k <= b; k++) s += prof[k];
+                        next[i] = s / (b - a + 1);
+                    }
+                    prof = next;
+                }
+                // the road's own ends meet other roads: keep them at the ground there, easing in over 12 m
                 for (int i = 0; i < n; i++)
                 {
-                    int a = Mathf.Max(0, i - 8), b = Mathf.Min(n - 1, i + 8);
-                    float s = 0f;
-                    for (int k = a; k <= b; k++) s += raw[k];
-                    prof[i] = s / (b - a + 1);
+                    float e = Mathf.Min(i, n - 1 - i) * 2f;
+                    if (e < 12f) prof[i] = Mathf.Lerp(raw[i], prof[i], Mathf.SmoothStep(0f, 1f, e / 12f));
                 }
                 float half = Mathf.Max(1.2f, r.width * 0.5f) + 0.4f, reach = half + Ease;
                 for (int i = 0; i + 1 < n; i++)

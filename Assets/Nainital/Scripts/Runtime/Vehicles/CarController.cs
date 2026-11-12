@@ -17,6 +17,16 @@ namespace Nainital
         public Light[] headlights;
 
         public float Speed => rb ? rb.linearVelocity.magnitude : 0f;
+        public float ForwardSpeed => rb ? Vector3.Dot(rb.linearVelocity, transform.forward) : 0f;
+
+        // AI traffic drives the same physics as the player (TrafficCar sets these every step): throttle -1..1 (against
+        // the motion = brake), steer in degrees, handbrake 0/1. Each car has its own mass, so a crash is a real one.
+        [System.NonSerialized] public bool ai;
+        [System.NonSerialized] public float aiThrottle, aiSteer, aiHandbrake;
+        /// <summary>Burnt out (VehicleDamage): no engine, nobody can drive it.</summary>
+        [System.NonSerialized] public bool wrecked;
+        public bool HasDriver => driver != null;
+        public VehicleFactory.Spec Spec => spec;
         /// <summary>The driver is braking: pedal against the motion, or the handbrake (VehicleFX lights the tail lamps).</summary>
         public bool Braking { get; private set; }
         public float SpeedKmh => Speed * 3.6f;
@@ -31,7 +41,7 @@ namespace Nainital
         int groundMask;
 
         public override string Prompt => driver ? "Gaadi se utro" : (type == CarType.Bus ? "Bus chalao" : "Gaadi chalao");
-        public override bool CanInteract(PlayerController p) => !driver && Driving == null;
+        public override bool CanInteract(PlayerController p) => !driver && Driving == null && !ai && !wrecked;
         public override Vector3 Point => transform.TransformPoint(new Vector3(spec.width * 0.5f + 0.3f, 0.5f, 0f));
 
         bool initialised;
@@ -140,14 +150,15 @@ namespace Nainital
             if (!initialised || rb.isKinematic) return;
             float dt = Time.fixedDeltaTime;
             Rescue();
-            bool driving = driver != null && !GameInput.UiBlocking;
-            Vector2 mv = driving ? GameInput.Move : Vector2.zero;
-            bool handbrake = !driving || GameInput.JumpHeld;
+            bool player = driver != null && !GameInput.UiBlocking && !wrecked;
+            bool driving = player || (ai && !wrecked);
+            Vector2 mv = player ? GameInput.Move : ai && !wrecked ? new Vector2(0f, aiThrottle) : Vector2.zero;
+            bool handbrake = ai && !wrecked ? aiHandbrake > 0.5f : (!driving || GameInput.JumpHeld);
             Vector3 up = transform.up;
             float fwdSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
             float speed01 = Mathf.Clamp01(Mathf.Abs(fwdSpeed) / spec.maxSpeed);
-            Braking = driving && ((Mathf.Abs(mv.y) > 0.05f && Mathf.Sign(mv.y) != Mathf.Sign(fwdSpeed) && Mathf.Abs(fwdSpeed) > 0.5f) || GameInput.JumpHeld);
-            float steerTarget = mv.x * Mathf.Lerp(spec.steer, spec.steer * 0.35f, speed01);
+            Braking = driving && ((Mathf.Abs(mv.y) > 0.05f && Mathf.Sign(mv.y) != Mathf.Sign(fwdSpeed) && Mathf.Abs(fwdSpeed) > 0.5f) || (player ? GameInput.JumpHeld : handbrake));
+            float steerTarget = ai && !player ? Mathf.Clamp(aiSteer, -spec.steer, spec.steer) : mv.x * Mathf.Lerp(spec.steer, spec.steer * 0.35f, speed01);
             steer = Mathf.MoveTowards(steer, steerTarget, 110f * dt);
 
             float massPerWheel = spec.mass * 0.25f;
@@ -217,8 +228,8 @@ namespace Nainital
                 rb.angularVelocity = Vector3.zero;
             }
 
-            // go back to sleep when abandoned and still
-            if (!driver)
+            // go back to sleep when abandoned and still (an AI car never sleeps: it is driving)
+            if (!driver && !ai)
             {
                 sleepTimer = rb.linearVelocity.magnitude < 0.25f ? sleepTimer + dt : 0f;
                 if (sleepTimer > 1.5f) rb.isKinematic = true;

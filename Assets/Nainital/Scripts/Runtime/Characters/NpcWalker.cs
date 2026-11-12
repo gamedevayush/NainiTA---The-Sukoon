@@ -29,6 +29,8 @@ namespace Nainital
         public float laneOffset = -1f;   // how far left of the path line this walker keeps (set at random if < 0)
 
         public bool GoingHome { get; private set; }
+        /// <summary>Driving an AI car (TrafficCar): seated, no collider, carried by the car.</summary>
+        public bool InCar { get; private set; }
         public bool Home { get; private set; }   // at the door: PedestrianManager takes this walker away
 
         CharacterMotor motor;
@@ -71,7 +73,49 @@ namespace Nainital
             scanTimer = Random.Range(0f, 0.25f);
         }
 
-        public override bool CanInteract(PlayerController p) => (!health || !health.IsDead) && knockTimer <= 0f && !hidden;
+        public override bool CanInteract(PlayerController p) => (!health || !health.IsDead) && knockTimer <= 0f && !hidden && !InCar;
+
+        /// <summary>Sit in a car's driving seat (PedestrianManager.MakeDriver).</summary>
+        public void EnterCar(Transform car, Vector3 seatLocal)
+        {
+            InCar = true;
+            if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
+            if (!cc) cc = GetComponent<CharacterController>();
+            if (cc) cc.enabled = false;
+            transform.SetParent(car, false);
+            transform.localPosition = seatLocal;
+            transform.localRotation = Quaternion.identity;
+            GoingHome = Home = false;
+            path = null;
+            sit = true;
+            idle = false;
+            if (rig) { rig.seated = true; rig.speed = 0f; rig.dead = false; }
+        }
+
+        /// <summary>Out of the car at the door, then off on foot to the nearest house (the car has been taken).</summary>
+        public void LeaveCar(Vector3 door, Vector3 face)
+        {
+            InCar = false;
+            var pm = PedestrianManager.Instance;
+            transform.SetParent(pm ? pm.transform : null, true);
+            transform.SetPositionAndRotation(door, Quaternion.LookRotation(new Vector3(face.x, 0f, face.z).sqrMagnitude > 0.01f ? new Vector3(face.x, 0f, face.z) : Vector3.forward));
+            Physics.SyncTransforms();
+            if (cc) cc.enabled = true;
+            sit = false;
+            if (rig) rig.seated = false;
+            pause = 0.6f;
+            GoHome(pm ? pm.NearestDoor(door) : door + face * 25f);
+            fleeDir = new Vector3(face.x, 0f, face.z).normalized;   // first a few steps clear of the car
+            fleeTimer = 1.1f;
+            if (pm) pm.Adopt(this);
+        }
+
+        /// <summary>Run this way for a while (a car on fire).</summary>
+        public void Flee(Vector3 dir, float seconds)
+        {
+            fleeDir = new Vector3(dir.x, 0f, dir.z).normalized;
+            fleeTimer = seconds;
+        }
 
         public override void Interact(PlayerController p)
         {
@@ -171,6 +215,7 @@ namespace Nainital
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
             if (!rig) return;
             float dt = Time.deltaTime;
+            if (InCar) { rig.seated = true; rig.speed = 0f; rig.grounded = true; return; }
             if (homeAtNight)
             {
                 bool away = !TownClock.LocalsOut(TownClock.Hour);

@@ -55,7 +55,7 @@ namespace Nainital.EditorTools
 
         public float H(float x, float z) => terrain.SampleHeight(new Vector3(x, 0, z)) + terrain.transform.position.y;
         public float H(Vector2 p) => H(p.x, p.y);
-        public bool InLake(Vector2 p) => Geo.PointInPolygon(lake, p) || WorldBuilder.InExtraWater(p);   // + the strip by Lower Mall
+        public bool InLake(Vector2 p) => Geo.PointInPolygon(lake, p);
         public float LakeDistance(Vector2 p) => Geo.DistanceToPolyline(lake, p, true);
 
         /// <summary>Move a point straight away from the lake until it is at least minDist from the shore.</summary>
@@ -203,6 +203,7 @@ namespace Nainital.EditorTools
             ctx.worldRoot = new GameObject("World (real Nainital data)").transform;
             ctx.gameplayRoot = new GameObject("Gameplay").transform;
 
+            Step("Round the sharp road corners", () => SmoothRoadCorners(ctx));   // first: everything reads the roads
             Step("Terrain", () => BuildTerrain(ctx));
             Step("Lake", () => BuildLake(ctx));
             Step("Small lakes (Sariyatal, Khurpatal)", () => BuildPonds(ctx));
@@ -222,6 +223,7 @@ namespace Nainital.EditorTools
             Step("Road lamps", () => BuildRoadLamps(ctx));
             Step("Street details (signs, poles, wires, boats, gate)", () => BuildStreetDetails(ctx));
             Step("Mall Road (walls, railings, lamps, shops)", () => BuildMallRoad(ctx));
+            Step("Lake embankment", () => BuildLakeEmbankment(ctx));   // after the Lower Mall bank is shaped
             Step("Town details (bazaars, gates, boards, zoo)", () => BuildTownDetails(ctx));
             Step("Road junctions (curved corners)", () => BuildJunctions(ctx));
             Step("Road walls and parapets", () => BuildRoadWalls(ctx));
@@ -387,12 +389,39 @@ namespace Nainital.EditorTools
         }
 
         // ------------------------------------------------------------------ lake
+        /// <summary>The stone edge along the real shore line. Built after Mall Road, so it reads the finished ground
+        /// (the Lower Mall bank is shaped there) and stands just above it, not at the height of the old ground.</summary>
+        static void BuildLakeEmbankment(WorldCtx ctx)
+        {
+            var parent = ctx.worldRoot.Find("Naini Lake");
+            if (!parent) parent = ctx.worldRoot;
+            float y = ctx.lakeY;
+            // stone embankment along the real shore line
+            var shore = Resample(ctx.lake, 3f, true);
+            var emb = new MeshBuilder();
+            Rect stone = Atlas.Material(Atlas.MatStone);
+            var shoreArr = shore.ToArray();
+            for (int i = 0; i < shoreArr.Length; i++)
+            {
+                Vector2 a = shoreArr[i], b = shoreArr[(i + 1) % shoreArr.Length];
+                Vector2 oa = Outward(shoreArr, i), ob = Outward(shoreArr, (i + 1) % shoreArr.Length);
+                bool mall = NearMallRoad(ctx, a, 40f);   // Lower Mall's bank: a level ledge behind the wall (LowerMallBank)
+                float back = mall ? 2.8f : 2f;
+                float ta = Mathf.Max(ctx.H(a + oa * back), y + 0.6f) + 0.05f, tb = Mathf.Max(ctx.H(b + ob * back), y + 0.6f) + 0.05f;
+                Vector3 inward = new Vector3(-(oa.x + ob.x), 0, -(oa.y + ob.y));
+                emb.Quad(new Vector3(a.x, y - 2.5f, a.y), new Vector3(b.x, y - 2.5f, b.y), new Vector3(b.x, tb, b.y), new Vector3(a.x, ta, a.y), stone, inward);
+                float capW = mall ? 2.2f : 0.7f;   // by Lower Mall a wide stone top covers the ground just behind the wall
+                Vector2 a2 = a + oa * capW, b2 = b + ob * capW;
+                emb.Quad(new Vector3(a.x, ta, a.y), new Vector3(b.x, tb, b.y), new Vector3(b2.x, tb, b2.y), new Vector3(a2.x, ta, a2.y), Atlas.MaterialUV(Atlas.MatStone), Vector3.up);
+            }
+            ctx.MeshObject("Stone embankment", parent, emb, ctx.mats.atlas);
+        }
+
         static void BuildLake(WorldCtx ctx)
         {
             var parent = new GameObject("Naini Lake").transform;
             parent.SetParent(ctx.worldRoot, false);
             float y = ctx.lakeY;
-            var mallWater = LowerMallWater(ctx);   // the lake up to Lower Mall's parapet
 
             // water surface (slightly larger than the shore line, the banks hide the edge)
             var water = Offset(ctx.lake, 5f);
@@ -403,33 +432,8 @@ namespace Nainital.EditorTools
                 Vector2 p0 = water[tris[i]], p1 = water[tris[i + 1]], p2 = water[tris[i + 2]];
                 wmb.Tri(new Vector3(p0.x, y, p0.y), new Vector3(p1.x, y, p1.y), new Vector3(p2.x, y, p2.y), Vector2.zero, Vector3.up);
             }
-            foreach (var q in mallWater)
-            {
-                var qq = (Vector2[])q.Clone();
-                if (Geo.SignedArea(qq) < 0) System.Array.Reverse(qq);   // same turn as the lake's own triangles
-                wmb.Tri(new Vector3(qq[0].x, y, qq[0].y), new Vector3(qq[1].x, y, qq[1].y), new Vector3(qq[2].x, y, qq[2].y), Vector2.zero, Vector3.up);
-                wmb.Tri(new Vector3(qq[0].x, y, qq[0].y), new Vector3(qq[2].x, y, qq[2].y), new Vector3(qq[3].x, y, qq[3].y), Vector2.zero, Vector3.up);
-            }
             var wgo = ctx.MeshObject("Water", parent, wmb, ctx.mats.water, null, false);
             wgo.layer = 4;
-
-            // stone embankment along the real shore line
-            var shore = Resample(ctx.lake, 3f, true);
-            var emb = new MeshBuilder();
-            Rect stone = Atlas.Material(Atlas.MatStone);
-            var shoreArr = shore.ToArray();
-            for (int i = 0; i < shoreArr.Length; i++)
-            {
-                Vector2 a = shoreArr[i], b = shoreArr[(i + 1) % shoreArr.Length];
-                if (InExtraWater((a + b) * 0.5f)) continue;   // under water now, by Lower Mall
-                Vector2 oa = Outward(shoreArr, i), ob = Outward(shoreArr, (i + 1) % shoreArr.Length);
-                float ta = Mathf.Max(ctx.H(a + oa * 2f), y + 0.6f) + 0.05f, tb = Mathf.Max(ctx.H(b + ob * 2f), y + 0.6f) + 0.05f;
-                Vector3 inward = new Vector3(-(oa.x + ob.x), 0, -(oa.y + ob.y));
-                emb.Quad(new Vector3(a.x, y - 2.5f, a.y), new Vector3(b.x, y - 2.5f, b.y), new Vector3(b.x, tb, b.y), new Vector3(a.x, ta, a.y), stone, inward);
-                Vector2 a2 = a + oa * 0.7f, b2 = b + ob * 0.7f;
-                emb.Quad(new Vector3(a.x, ta, a.y), new Vector3(b.x, tb, b.y), new Vector3(b2.x, tb, b2.y), new Vector3(a2.x, ta, a2.y), Atlas.MaterialUV(Atlas.MatStone), Vector3.up);
-            }
-            ctx.MeshObject("Stone embankment", parent, emb, ctx.mats.atlas);
 
             // Mallital (north) and Tallital (south) ends
             int north = 0, south = 0;
@@ -907,6 +911,14 @@ namespace Nainital.EditorTools
                 if ((int)type == 2 && h - ctx.lakeY > 90f && rnd.NextDouble() < 0.3) type = 4;   // buransh in the oak forests
                 data.Add(p.x); data.Add(h - 0.15f); data.Add(p.y);
                 data.Add(type); data.Add(t[i + 3]); data.Add((float)rnd.NextDouble() * 360f);
+            }
+            for (int k = 0; k < bankTrees.Count; k++)   // the Mall's own trees (LowerMallBank)
+            {
+                var b = bankTrees[k];
+                var p = new Vector2(b.x, b.y);
+                float by = k < bankTreeY.Count ? bankTreeY[k] : float.NaN;
+                data.Add(p.x); data.Add(float.IsNaN(by) ? ctx.H(p) - 0.15f : by); data.Add(p.y);
+                data.Add(b.z); data.Add(b.w); data.Add((float)rnd.NextDouble() * 360f);
             }
             string path = Gen + "/TreeField.asset";
             if (File.Exists(path)) AssetDatabase.DeleteAsset(path);

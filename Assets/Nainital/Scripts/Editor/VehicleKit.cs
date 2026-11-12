@@ -213,6 +213,35 @@ namespace Nainital.EditorTools
             mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
             mat.SetOverrideTag("RenderType", "Transparent");
             EditorUtility.SetDirty(mat);
+            FireMaterial(AssetDatabase.LoadAssetAtPath<Texture2D>(texPath));
+        }
+
+        /// <summary>Additive puffs for flames and the explosion's fireball (VehicleDamage).</summary>
+        static void FireMaterial(Texture2D puff)
+        {
+            const string mp = "Assets/Resources/VehicleFX/M_Fire.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(mp);
+            if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")) { name = "M_Fire" }; AssetDatabase.CreateAsset(mat, mp); }
+            mat.SetTexture("_BaseMap", puff);
+            mat.SetColor("_BaseColor", new Color(1.6f, 1.25f, 1.0f, 0.9f));
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 2f);   // additive
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.EnableKeyword("_BLENDMODE_ADD");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 10;
+            mat.SetOverrideTag("RenderType", "Transparent");
+            EditorUtility.SetDirty(mat);
+        }
+
+        /// <summary>Bridge: (re)make the vehicle effect materials (exhaust smoke, fire).</summary>
+        public static void FxMaterials()
+        {
+            ExhaustMaterial();
+            AssetDatabase.SaveAssets();
+            Debug.Log("[Nainital] vehicle FX materials: " + (AssetDatabase.LoadAssetAtPath<Material>("Assets/Resources/VehicleFX/M_Fire.mat") ? "M_Exhaust, M_Fire" : "fire missing"));
         }
 
         static Material LampMaterial(string id, Color hdr)

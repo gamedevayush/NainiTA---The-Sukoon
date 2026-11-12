@@ -258,6 +258,90 @@ namespace Nainital.EditorTools
             best.Interact(p);
         }
 
+        /// <summary>Every AI car: mode, driver, speed, upright, height over the ground.</summary>
+        public static void TrafficReport()
+        {
+            Need();
+            var sb = new System.Text.StringBuilder("[Nainital] traffic:");
+            int n = 0, drivers = 0;
+            var t = Terrain.activeTerrain;
+            foreach (var c in Object.FindObjectsByType<TrafficCar>(FindObjectsSortMode.None))
+            {
+                n++;
+                if (c.HasDriver) drivers++;
+                var rb = c.GetComponent<Rigidbody>();
+                float g = t ? t.SampleHeight(c.transform.position) + t.transform.position.y : 0f;
+                sb.Append("\n").Append($"  {c.name} {c.State} v {c.Speed:F1} kin {rb.isKinematic} up {Vector3.Dot(c.transform.up, Vector3.up):F2} yaw {c.transform.eulerAngles.y:F0} above-terrain {c.transform.position.y - g:F1} at {c.transform.position:F0}");
+            }
+            sb.Insert(0, $"[Nainital] {n} AI cars, {drivers} with a driver" + "\n");
+            Debug.Log(sb.ToString());
+        }
+
+        static TrafficCar NearestTraffic()
+        {
+            var cam = Camera.main;
+            Vector3 c = cam ? cam.transform.position : Vector3.zero;
+            TrafficCar best = null;
+            float bd = float.MaxValue;
+            foreach (var t in Object.FindObjectsByType<TrafficCar>(FindObjectsSortMode.None))
+            {
+                float d = (t.transform.position - c).sqrMagnitude;
+                if (d < bd) { bd = d; best = t; }
+            }
+            if (!best) throw new System.Exception("no traffic car");
+            return best;
+        }
+
+        /// <summary>Knock the nearest AI car N times (Bridge/arg.txt), as crashes would.</summary>
+        public static void Knock()
+        {
+            Need();
+            int n = int.Parse(System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "../Bridge/arg.txt")).Trim());
+            var cam = Camera.main;
+            VehicleDamage d = null;
+            float bd = float.MaxValue;
+            foreach (var v in Object.FindObjectsByType<VehicleDamage>(FindObjectsSortMode.None))
+            {
+                if (v.Wrecked) continue;
+                float dd = (v.transform.position - cam.transform.position).sqrMagnitude;
+                if (dd < bd) { bd = dd; d = v; }
+            }
+            if (!d) throw new System.Exception("no vehicle");
+            var c = d;
+            d.Hit(n);
+            Debug.Log($"[Nainital] knocked {c.name} x{n}: hits {d.hits}, burning {d.Burning}, wrecked {d.Wrecked}");
+        }
+
+        /// <summary>The nearest AI car turns round where it is (three-point turn).</summary>
+        public static void UTurn()
+        {
+            Need();
+            var c = NearestTraffic();
+            c.ForceTurnRound();
+            Debug.Log($"[Nainital] u-turn: {c.name} {c.State} yaw {c.transform.eulerAngles.y:F0}");
+        }
+
+        public static void Mausam() { Need(); TouchControls.Instance.ToggleMausam(); }
+        public static void BugBox() { Need(); BugReporter.Open(); }
+
+        /// <summary>Put the player 9 m beside the nearest AI car, looking at it.</summary>
+        public static void WatchTraffic()
+        {
+            Need();
+            var c = NearestTraffic();
+            var p = PlayerController.Instance;
+            Vector3 at = c.transform.position - c.transform.right * 9f + c.transform.forward * 4f;
+            var t = Terrain.activeTerrain;
+            if (t) at.y = t.SampleHeight(at) + t.transform.position.y + 0.3f;
+            p.GetComponent<CharacterMotor>().Teleport(at);
+            Vector3 look = c.transform.position - at;
+            look.y = 0;
+            p.transform.rotation = Quaternion.LookRotation(look.normalized);
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SnapBehind();
+            Physics.SyncTransforms();
+            Debug.Log($"[Nainital] watching {c.name} {c.State} from {at:F0}");
+        }
+
         /// <summary>The car being driven: where, how fast, physics state, what its wheels stand on, the camera.</summary>
         public static void CarReport()
         {

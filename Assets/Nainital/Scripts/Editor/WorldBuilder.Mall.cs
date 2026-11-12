@@ -410,6 +410,8 @@ namespace Nainital.EditorTools
         // ------------------------------------------------------------------ entry
         static void BuildMallRoad(WorldCtx ctx)
         {
+            bankTrees.Clear();
+            bankTreeY.Clear();
             var U = MallPath(ctx, MallUpper, MallLower, 2f);
             var L = MallPath(ctx, MallLower, MallUpper, 1f);
             if (U == null || L == null)
@@ -452,6 +454,7 @@ namespace Nainital.EditorTools
                 ctx.mallLowerDrive.Add(new Vector3(c.x, L.y[i] + 0.1f, c.y));
             }
             MallLakeEdge(ctx, parent, L, chain);
+            LowerMallBank(ctx, U, L, low, stairs);   // the ground and trees between the parapet and the water
             MallLampsAndWires(ctx, parent, U, L, stairs);
             MallSplit(ctx, parent, U, L, low);
             MallHillEdge(ctx, parent, U, cobble);

@@ -222,6 +222,7 @@ namespace Nainital
                     lights[i] = l;
                 }
                 root.AddComponent<CarController>().Setup(type, wheels, seat, lights);
+                root.AddComponent<VehicleDamage>();   // knocks: smoke, fire, blast
             }
             return root;
         }
@@ -396,6 +397,7 @@ namespace Nainital
                     lights[i] = l;
                 }
                 root.AddComponent<CarController>().Setup(type, wheels, seat, lights);
+                root.AddComponent<VehicleDamage>();   // knocks: smoke, fire, blast
             }
             return root;
         }

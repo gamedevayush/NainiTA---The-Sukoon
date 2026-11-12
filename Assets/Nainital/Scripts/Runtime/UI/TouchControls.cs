@@ -168,6 +168,56 @@ namespace Nainital
             hud.Btn("Map", root, new Vector2(1, 1), new Vector2(-110, -326), new Vector2(180, 54), () => GameInput.TouchMap = true);
             var cb = hud.Btn("Cheat", root, new Vector2(1, 1), new Vector2(-110, -388), new Vector2(180, 54), ToggleCheats);
             cb.GetComponent<Image>().color = new Color(0.45f, 0.18f, 0.5f, 0.75f);
+            var wb = hud.Btn("Mausam", root, new Vector2(1, 1), new Vector2(-110, -450), new Vector2(180, 54), ToggleMausam);
+            wb.GetComponent<Image>().color = new Color(0.15f, 0.38f, 0.55f, 0.75f);
+            var bb = hud.Btn("Bug", root, new Vector2(1, 1), new Vector2(-110, -512), new Vector2(180, 54), BugReporter.Open);
+            bb.GetComponent<Image>().color = new Color(0.55f, 0.2f, 0.15f, 0.75f);
+        }
+
+        GameObject mausamPanel;
+
+        /// <summary>Weather and the hour, for the phone (user, 2026-11-12: "phone ke liye mausam change aur time set"):
+        /// four weathers (the choice stays until changed or set back to changing by itself), the hour by presets or an
+        /// hour at a time, and the clock stopped or running.</summary>
+        public void ToggleMausam()
+        {
+            if (mausamPanel && mausamPanel.activeSelf) { Close(mausamPanel); return; }
+            if (mausamPanel) Destroy(mausamPanel);
+            var box = Panel("MausamPanel", new Vector2(700, 980), "Mausam aur Samay");
+            mausamPanel = box.parent.gameObject;
+            var ws = WeatherSystem.Instance;
+            var dn = DayNightCycle.Instance;
+            void B(string label, float x, float y, float w, System.Action act, bool on = false)
+            {
+                var b = hud.Btn(label, box, new Vector2(0.5f, 1), new Vector2(x, y), new Vector2(w, 70), () => { if (AudioManager.Instance) AudioManager.Instance.Click(); act(); ToggleMausam(); ToggleMausam(); }, 28);
+                b.GetComponent<Image>().color = on ? new Color(0.2f, 0.45f, 0.3f, 0.98f) : new Color(0.12f, 0.16f, 0.22f, 0.95f);
+            }
+            void Head(string s, float y)
+            {
+                var t = hud.Txt("Head", box, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, y), new Vector2(620, 44), 28, TextAnchor.MiddleLeft, new Color(0.75f, 0.85f, 1f));
+                t.text = s;
+            }
+            Head("Mausam" + (ws && !ws.autoCycle ? "  (aapka chuna hua)" : "  (apne aap badalta hai)"), -84);
+            string[] wn = { "Saaf", "Baadal", "Kohra", "Baarish" };
+            for (int i = 0; i < 4; i++)
+            {
+                int k = i;
+                B(wn[i], i % 2 == 0 ? -150 : 150, -176 - (i / 2) * 82, 280, () => { if (ws) { ws.autoCycle = false; ws.Set((WeatherSystem.Kind)k); } }, ws && !ws.autoCycle && (int)ws.current == i);
+            }
+            B("Apne aap badle", 0, -340, 580, () => { if (ws) ws.autoCycle = true; }, ws && ws.autoCycle);
+            string now = dn ? $"{Mathf.FloorToInt(dn.timeOfDay):00}:{Mathf.FloorToInt(dn.timeOfDay % 1f * 60f):00}" : "--";
+            Head("Samay: " + now + (dn && dn.paused ? "  (ruka hua)" : ""), -394);
+            (string n, float h)[] presets = { ("Subah 6", 6f), ("Dopahar 12", 12f), ("Shaam 5:30", 17.5f), ("Raat 9", 21f), ("Aadhi raat", 0.05f), ("Bhor 4:30", 4.5f) };
+            for (int i = 0; i < presets.Length; i++)
+            {
+                float h = presets[i].h;
+                B(presets[i].n, i % 2 == 0 ? -150 : 150, -480 - (i / 2) * 82, 280, () => { if (dn) dn.timeOfDay = h; });
+            }
+            B("- 1 ghanta", -150, -734, 280, () => { if (dn) dn.timeOfDay = (dn.timeOfDay + 23f) % 24f; });
+            B("+ 1 ghanta", 150, -734, 280, () => { if (dn) dn.timeOfDay = (dn.timeOfDay + 1f) % 24f; });
+            B(dn && dn.paused ? "Samay chalao" : "Samay roko", 0, -816, 580, () => { if (dn) dn.paused = !dn.paused; });
+            hud.Btn("Band karo", box, new Vector2(0.5f, 0), new Vector2(0, 50), new Vector2(300, 62), () => Close(mausamPanel), 28);
+            Open(mausamPanel);
         }
 
         GameObject Hold(HUD hud, Transform root, string label, Vector2 pos, float size, System.Action down, System.Action up)

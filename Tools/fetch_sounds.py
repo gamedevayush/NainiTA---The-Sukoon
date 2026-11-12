@@ -43,6 +43,7 @@ LOOPS = {
     "loop_swim": (1181, 0, 10, -22, False),
     "loop_jet": (1715, 1, 11, -20, False),
     "loop_engine": (1553, 2, 30, -22, False),
+    "loop_fire": (1335, 0, 20, -21, False),   # Big fire burning (a wrecked car on fire)
 }
 ONESHOTS = {
     "dog_1": 1, "dog_2": 54, "dog_3": 51, "dog_pack": 60, "rooster": 2462, "cow": 1744,
@@ -53,6 +54,8 @@ ONESHOTS = {
     "splash": 1311, "jump_water": 1180,
     "horn_1": 718, "horn_2": 719, "horn_3": 717, "horn_truck": 720, "horn_4": 1565,
     "car_pass": 1538, "bike_pass": 1606, "jet_start": 1725, "click": 1117,
+    "car_start": 1559, "car_door": 3129,
+    "crash_1": 2980, "explode_1": 1562, "fire_ignite": 1349,   # Factory metal hard hit, Car explosion debris, Fast ignition fire (2026-11-12)
 }
 STEPS = {"road": [1274], "stone": [1270], "grass": [1921], "forest": [1214], "gravel": [535]}
 STEP_SINGLES = {"grass": [1920, 1922]}

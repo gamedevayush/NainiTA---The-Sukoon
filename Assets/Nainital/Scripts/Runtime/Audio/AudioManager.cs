@@ -43,6 +43,14 @@ namespace Nainital
 
         static AudioClip Load(string n) => Resources.Load<AudioClip>("Audio/" + n);
 
+        readonly Dictionary<string, AudioClip> named = new Dictionary<string, AudioClip>();
+        /// <summary>A clip from Resources/Audio by file name (crash, fire, explosion...), loaded once.</summary>
+        public AudioClip Clip(string n)
+        {
+            if (!named.TryGetValue(n, out var c)) { c = Load(n); named[n] = c; }
+            return c;
+        }
+
         AudioClip[] Set(string key, params string[] names)
         {
             var list = new List<AudioClip>();
