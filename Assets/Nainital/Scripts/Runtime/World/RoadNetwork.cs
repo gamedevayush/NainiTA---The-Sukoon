@@ -13,6 +13,7 @@ namespace Nainital
             public string name;
             public float width;
             public Vector3[] pts;
+            public int oneWay;   // 0 both ways, +1 only along pts, -1 only against
         }
 
         public Path[] roads;   // drivable

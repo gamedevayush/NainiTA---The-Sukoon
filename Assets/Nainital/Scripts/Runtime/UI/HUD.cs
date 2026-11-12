@@ -274,8 +274,6 @@ namespace Nainital
             }
             foreach (var v in FindObjectsByType<Volume>(FindObjectsSortMode.None))
                 if (v.sharedProfile && v.sharedProfile.TryGet<DepthOfField>(out var dof)) dof.active = q == 2;
-            var lm = FindAnyObjectByType<LampManager>();
-            if (lm) lm.intensity = 14f;
         }
 
         void RefreshLanguage()

@@ -51,9 +51,37 @@ namespace Nainital.EditorTools
 
         static Material lampGlowMat;
 
-        /// <summary>A halo round every lamp head and a pool of light on the ground under it (Shaders/LampGlow), in meshes
-        /// of 250 m cells.</summary>
-        static void BuildLampGlow(WorldCtx ctx, Transform parent)
+        /// <summary>Sodium or white LED for each lamp (about a third LED, as in the town now), the same every build.</summary>
+        static Color[] LampColors(List<Vector3> heads)
+        {
+            var c = new Color[heads.Count];
+            for (int i = 0; i < heads.Count; i++)
+            {
+                uint h = (uint)(Mathf.RoundToInt(heads[i].x * 7f) * 73856093 ^ Mathf.RoundToInt(heads[i].z * 7f) * 19349663);
+                c[i] = (h % 100) < 35 ? new Color(0.92f, 0.96f, 1f) : new Color(1f, 0.70f, 0.38f);
+            }
+            return c;
+        }
+
+        /// <summary>A light just outside every shop front at its sign board: warm or cool white, on all night.</summary>
+        static void ShopLights(WorldCtx ctx, out Vector3[] pos, out Color[] col)
+        {
+            var p = new List<Vector3>();
+            var c = new List<Color>();
+            foreach (var (front, n, width) in ctx.shopFronts)
+            {
+                Vector3 nf = new Vector3(n.x, 0f, n.z).normalized;
+                p.Add(front + nf * 0.7f - Vector3.up * 0.35f);
+                uint h = (uint)(Mathf.RoundToInt(front.x * 5f) * 83492791 ^ Mathf.RoundToInt(front.z * 5f) * 2654435761u);
+                c.Add((h % 100) < 45 ? new Color(0.9f, 0.95f, 1f) : new Color(1f, 0.86f, 0.62f));
+            }
+            pos = p.ToArray();
+            col = c.ToArray();
+        }
+
+        /// <summary>A halo round every lamp bulb and every shop light (Shaders/LampGlow), in meshes of 250 m cells; the light
+        /// on the ground comes from the real pooled lights (LampManager), which follow every rise and fall of a road.</summary>
+        static void BuildLampGlow(WorldCtx ctx, Transform parent, Color[] lampCol, Vector3[] shopPos, Color[] shopCol)
         {
             var sh = Shader.Find("Nainital/LampGlow");
             if (!sh) { Debug.LogWarning("[Nainital] LampGlow shader missing"); return; }
@@ -63,39 +91,24 @@ namespace Nainital.EditorTools
             lampGlowMat.shader = sh;
 
             var cells = new Dictionary<Vector2Int, (List<Vector3> v, List<Color> c, List<Vector2> uv, List<Vector2> uv2, List<int> t)>();
-            Physics.SyncTransforms();
-            int mask = ~((1 << 8) | (1 << 9) | (1 << 2) | (1 << 10) | (1 << 4));
-            Color warm = new Color(1f, 0.74f, 0.45f);
-            int pools = 0;
-            foreach (var head in ctx.lampHeads)
+            void Halo(Vector3 at, Color col, float size)
             {
-                var key = new Vector2Int(Mathf.FloorToInt(head.x / 250f), Mathf.FloorToInt(head.z / 250f));
+                var key = new Vector2Int(Mathf.FloorToInt(at.x / 250f), Mathf.FloorToInt(at.z / 250f));
                 if (!cells.TryGetValue(key, out var m)) { m = (new List<Vector3>(), new List<Color>(), new List<Vector2>(), new List<Vector2>(), new List<int>()); cells[key] = m; }
-                // halo: four corners at the bulb, spread on screen by the shader
                 int b = m.v.Count;
-                for (int k = 0; k < 4; k++)
-                {
-                    m.v.Add(head);
-                    m.c.Add(new Color(warm.r * 2.2f, warm.g * 2.0f, warm.b * 1.8f, 1f));
-                    m.uv2.Add(new Vector2(0.75f, 0f));
-                }
+                for (int k = 0; k < 4; k++) { m.v.Add(at); m.c.Add(col); m.uv2.Add(new Vector2(size, 0f)); }
                 m.uv.Add(new Vector2(0, 0)); m.uv.Add(new Vector2(1, 0)); m.uv.Add(new Vector2(1, 1)); m.uv.Add(new Vector2(0, 1));
                 m.t.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3 });
-                // pool: a square lying on whatever is under the bulb (road deck, paving, terrain)
-                if (!Physics.Raycast(head + Vector3.down * 0.4f, Vector3.down, out var hit, 12f, mask, QueryTriggerInteraction.Ignore)) continue;
-                Vector3 n = hit.normal;
-                if (n.y < 0.6f) continue;
-                Vector3 t1 = Vector3.Cross(n, Vector3.forward).normalized;
-                if (t1.sqrMagnitude < 0.01f) t1 = Vector3.right;
-                Vector3 t2 = Vector3.Cross(t1, n);
-                float r = Mathf.Clamp((head.y - hit.point.y) * 1.15f, 3f, 7f);
-                Vector3 c0 = hit.point + n * 0.07f;
-                b = m.v.Count;
-                m.v.Add(c0 - t1 * r - t2 * r); m.v.Add(c0 + t1 * r - t2 * r); m.v.Add(c0 + t1 * r + t2 * r); m.v.Add(c0 - t1 * r + t2 * r);
-                for (int k = 0; k < 4; k++) { m.c.Add(new Color(warm.r, warm.g, warm.b, 0.55f)); m.uv2.Add(Vector2.zero); }
-                m.uv.Add(new Vector2(0, 0)); m.uv.Add(new Vector2(1, 0)); m.uv.Add(new Vector2(1, 1)); m.uv.Add(new Vector2(0, 1));
-                m.t.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3 });
-                pools++;
+            }
+            for (int i = 0; i < ctx.lampHeads.Count; i++)
+            {
+                Color c = i < lampCol.Length ? lampCol[i] : new Color(1f, 0.7f, 0.38f);
+                Halo(ctx.lampHeads[i], new Color(c.r * 3f, c.g * 2.8f, c.b * 2.6f, 1f), 0.9f);
+            }
+            for (int i = 0; i < shopPos.Length; i++)
+            {
+                Color c = shopCol[i];
+                Halo(shopPos[i] + Vector3.up * 0.25f, new Color(c.r * 1.8f, c.g * 1.8f, c.b * 1.8f, 1f), 0.45f);
             }
             var root = new GameObject("Lamp glow (night)").transform;
             root.SetParent(parent, false);
@@ -124,7 +137,7 @@ namespace Nainital.EditorTools
                 mr.receiveShadows = false;
                 idx++;
             }
-            Debug.Log($"[Nainital] lamp glow: {ctx.lampHeads.Count} halos, {pools} pools of light, {idx} meshes");
+            Debug.Log($"[Nainital] lamp glow: {ctx.lampHeads.Count} lamp halos, {shopPos.Length} shop lights, {idx} meshes");
         }
     }
 }

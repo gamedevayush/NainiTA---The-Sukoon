@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Nainital
@@ -27,7 +28,7 @@ namespace Nainital
             net = n;
             road = roadIndex;
             idx = startIdx;
-            dir = direction;
+            dir = n.roads[roadIndex].oneWay != 0 ? n.roads[roadIndex].oneWay : direction;
             spec = VehicleFactory.GetSpec(type);
             var info = GetComponent<VehicleInfo>();
             if (info) { spec.wheelRadius = info.wheelRadius; spec.length = info.length; spec.width = info.width; spec.wheelBase = info.length * 0.6f; }
@@ -53,7 +54,7 @@ namespace Nainital
             d.y = 0;
             if (d.sqrMagnitude < 1e-4f) return pts[i];
             Vector3 left = Vector3.Cross(d.normalized, Vector3.up);   // Unity: forward x up = left
-            float off = Mathf.Max(1.1f, net.roads[road].width * 0.25f);
+            float off = net.roads[road].oneWay != 0 ? 0f : Mathf.Max(1.1f, net.roads[road].width * 0.25f);   // one-way: down the middle
             return pts[i] + left * off;
         }
 
@@ -78,19 +79,32 @@ namespace Nainital
             var pts = Pts;
             if (idx > 0 && idx < pts.Length - 1) return;
             var links = net.Links(road, idx <= 0 ? 0 : 1);
-            if (links != null && links.Count > 0)
+            var ok = new List<(int r, int i, int d)>();   // onward roads, never the wrong way down a one-way road
+            if (links != null)
+                foreach (var (r, i) in links)
+                {
+                    var q = net.roads[r].pts;
+                    int ow = net.roads[r].oneWay;
+                    if (ow != 0)
+                    {
+                        if ((ow > 0 && i >= q.Length - 2) || (ow < 0 && i <= 1)) continue;   // would enter at its exit end
+                        ok.Add((r, i, ow));
+                    }
+                    else ok.Add((r, i, i <= 0 ? 1 : i >= q.Length - 1 ? -1 : (Random.value < 0.5f ? 1 : -1)));
+                }
+            if (ok.Count > 0)
             {
-                var (r, i) = links[Random.Range(0, links.Count)];
-                var q = net.roads[r].pts;
-                road = r;
-                idx = i;
-                dir = i <= 0 ? 1 : i >= q.Length - 1 ? -1 : (Random.value < 0.5f ? 1 : -1);
+                var c = ok[Random.Range(0, ok.Count)];
+                road = c.r;
+                idx = c.i;
+                dir = c.d;
             }
-            else
+            else if (net.roads[road].oneWay == 0)
             {
                 dir = -dir;
                 idx = Mathf.Clamp(idx, 0, pts.Length - 1);
             }
+            else { Destroy(gameObject); return; }   // the end of a one-way road with nowhere to go: this car leaves
         }
 
         void Update()
@@ -150,7 +164,7 @@ namespace Nainital
                 transform.SetPositionAndRotation(np, Quaternion.LookRotation(f3, Vector3.up));
             }
             if (speed < 0.2f) stuck += dt; else stuck = 0f;
-            if (stuck > 12f) { dir = -dir; stuck = 0f; }   // give up waiting, turn around
+            if (stuck > 12f) { if (net.roads[road].oneWay == 0) dir = -dir; stuck = 0f; }   // give up waiting, turn around (not on a one-way road)
 
             spin += speed / spec.wheelRadius * Mathf.Rad2Deg * dt;
             if (wheels != null)

@@ -443,6 +443,14 @@ namespace Nainital.EditorTools
             MallLowerDeck(ctx, parent, L);
             MallMarkings(ctx, parent, U, L);
             MallDivider(ctx, parent, U, L, low, stairs, filigree);
+            ctx.mallUpperDrive = new List<Vector3>();
+            for (int i = 0; i < U.Count; i++) ctx.mallUpperDrive.Add(new Vector3(U.p[i].x, U.y[i] + 0.1f, U.p[i].y));
+            ctx.mallLowerDrive = new List<Vector3>();
+            for (int i = 0; i < L.Count; i++)   // the middle of Lower Mall's paving: it is wider on the hill side
+            {
+                Vector2 c = L.p[i] - L.side[i] * ((L.hillW[i] - L.lakeW[i]) * 0.5f);
+                ctx.mallLowerDrive.Add(new Vector3(c.x, L.y[i] + 0.1f, c.y));
+            }
             MallLakeEdge(ctx, parent, L, chain);
             MallLampsAndWires(ctx, parent, U, L, stairs);
             MallSplit(ctx, parent, U, L, low);
@@ -605,6 +613,7 @@ namespace Nainital.EditorTools
                 b[0].Box(post + Vector3.up * 1.33f, new Vector3(0.27f, 0.07f, 0.27f), rot, green);
                 b[0].Box(post + Vector3.up * 1.42f, new Vector3(0.12f, 0.12f, 0.12f), rot, green);
                 Panel(p[0], V(r0, t0 + 0.06f), V(r1, t1 + 0.06f), 1.24f, Flat(s0));
+                b[1].Quad(V(e0, t0), V(o0, t0), V(o1, t1), V(e1, t1), Vector2.zero, Vector3.up);   // the strip's top is walked on
                 BlockBothWays(b[1], V(o0, f0), V(o1, f1), V(o1, t1 + 1.3f), V(o0, t0 + 1.3f), away);
                 BlockBothWays(b[1], V(r0, t0), V(r1, t1), V(r1, t1 + 1.3f), V(r0, t0 + 1.3f), Flat(s0));
             }
@@ -709,8 +718,12 @@ namespace Nainital.EditorTools
         }
 
         // ------------------------------------------------------------------ the lake side
+        /// <summary>Where the parapet stands along Lower Mall, every ~30 m: the lake-side lamp posts go there.</summary>
+        static readonly List<(Vector2 p, float y, Vector2 tan)> lowerLampSpots = new List<(Vector2, float, Vector2)>();
+
         static void MallLakeEdge(WorldCtx ctx, Transform parent, MallLine L, Material chain)
         {
+            lowerLampSpots.Clear();
             var solid = new MallChunks(ctx, parent, "Mall parapet", ctx.mats.atlas, true, 0.05f);
             var chainP = new MallChunks(ctx, parent, "Mall lane railing", chain, true, 0.16f);
             Rect plaster = Atlas.Facade(1, Atlas.StylePlain), stone = Atlas.Material(Atlas.MatDarkStone);
@@ -724,6 +737,7 @@ namespace Nainital.EditorTools
             {
                 Vector2 a = L.p[i] + L.side[i] * off, c = L.p[i + 1] + L.side[i + 1] * off;
                 if (!Here(a)) continue;
+                if (i % 30 == 14) lowerLampSpots.Add((a, L.y[i] + 0.55f, L.tan[i]));   // a lamp on the parapet every 30 m
                 var b = solid.At(a);
                 float y0 = L.y[i], y1 = L.y[i + 1];
                 Vector2 s0 = L.side[i], s1 = L.side[i + 1];
@@ -731,7 +745,8 @@ namespace Nainital.EditorTools
                 bool bend = Vector2.Dot(L.tan[Mathf.Max(i - 12, 0)], L.tan[Mathf.Min(i + 12, L.Count - 1)]) < 0.965f;
                 Rect face = bend ? new Rect(i % 2 == 0 ? yellow : dark, Vector2.zero) : plaster;
                 b[0].Quad(V(in0, y0), V(in1, y1), V(in1, y1 + pH), V(in0, y0 + pH), face, Flat(-s0));
-                b[0].Quad(V(ou0, y0 - 1.5f), V(ou1, y1 - 1.5f), V(ou1, y1 + pH), V(ou0, y0 + pH), plaster, Flat(s0));
+                float d0 = Mathf.Min(y0 - 1.5f, ctx.lakeY - 1.2f), d1 = Mathf.Min(y1 - 1.5f, ctx.lakeY - 1.2f);   // down into the lake now at its foot
+                b[0].Quad(V(ou0, d0), V(ou1, d1), V(ou1, y1 + pH), V(ou0, y0 + pH), plaster, Flat(s0));
                 b[0].Quad(V(in0, y0 + pH), V(ou0, y0 + pH), V(ou1, y1 + pH), V(in1, y1 + pH), cap, Vector3.up);
                 if (!bend)
                 {
@@ -831,9 +846,9 @@ namespace Nainital.EditorTools
                 foreach (int s in stairs) if (Mathf.Abs(at - s) <= 2) at = s + 3;
                 Lamp(U.p[at] - U.side[at] * (MallHalf + 0.72f), U.y[at] + 0.14f, U.tan[at], Pal.IronGreen);
             }
-            for (int i = 14; i < L.Count - 14; i += 30)
-                if (L.t[i] >= 0.45f && ctx.LakeDistance(L.p[i]) < 34f && !NearJetty(ctx, L.p[i], 6f))
-                    Lamp(L.p[i] + L.side[i] * (LowerHalf + 0.42f), L.y[i] + 0.55f, L.tan[i]);
+            foreach (var (lp, ly, lt) in lowerLampSpots)   // wherever the parapet stands: the whole of Lower Mall is lit (user, 2026-11-12: "bahut andhera")
+                Lamp(lp, ly, lt);
+            Debug.Log($"[Nainital] Lower Mall lamps: {lowerLampSpots.Count}");
             lamps.Flush();
 
             var poles = new MeshBuilder();

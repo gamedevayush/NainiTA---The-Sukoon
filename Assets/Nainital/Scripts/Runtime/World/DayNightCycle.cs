@@ -58,6 +58,9 @@ namespace Nainital
 
         void OnValidate() { if (sun) Apply(); }
 
+        Vector3 lastLightFrom = Vector3.zero;
+        bool lastUseMoon;
+
         public void Apply()
         {
             // Sun path: rises in the east (~6:00), sets in the west (~18:30); south-leaning at this latitude.
@@ -79,7 +82,14 @@ namespace Nainital
                 bool useMoon = elev < -2f;
                 Vector3 lightFrom = useMoon ? moonDir : sunDir;
                 if (lightFrom.y < 0.08f) lightFrom.y = 0.08f;
-                sun.transform.rotation = Quaternion.LookRotation(-lightFrom.normalized, Vector3.up);
+                // the light turns in steps of 0.2 degrees, not a little every frame: a shadow map redrawn from a slightly
+                // new angle each frame makes every shadow edge crawl and flicker (user, 2026-11-12)
+                if (useMoon != lastUseMoon || Vector3.Angle(lastLightFrom, lightFrom) > 0.2f)
+                {
+                    lastLightFrom = lightFrom;
+                    lastUseMoon = useMoon;
+                    sun.transform.rotation = Quaternion.LookRotation(-lightFrom.normalized, Vector3.up);
+                }
                 Color sunCol = Color.Lerp(new Color(1f, 0.55f, 0.3f), new Color(1f, 0.96f, 0.88f), Mathf.Clamp01(elev / 25f));
                 Color moonCol = new Color(0.5f, 0.58f, 0.85f);
                 float fade = Mathf.Clamp01(Mathf.Abs(elev + 2f) / 4f);  // dip to 0 while swapping sun <-> moon

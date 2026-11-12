@@ -63,7 +63,8 @@ namespace Nainital.EditorTools
             var col = new MeshBuilder();
             var notes = new List<string>();
             var flatsC = ctx.Poi("Nainital Stadium");
-            if (flatsC.HasValue) PaveZone(ctx, parent, flatsC.Value, 185f, "Mallital ground");
+            // no blanket of paving round the Flats any more (user, 2026-11-12: "aisi hai hi nahi real mein"): the roads,
+            // the plazas and the entry garden are paved, the rest is the town ground
             var bazaarC = ctx.Poi("Bada Bazar");
             if (bazaarC.HasValue) PaveZone(ctx, parent, bazaarC.Value, 115f, "Bada Bazar ground");
 
@@ -92,6 +93,7 @@ namespace Nainital.EditorTools
             if (band.HasValue) { Bandstand(ctx, mb, col, band.Value); notes.Add("bandstand"); }
             var boats = ctx.Poi("Mallital Boat Point");
             if (boats.HasValue) { BoatGhat(ctx, parent, mb, col, boats.Value); notes.Add("ghat"); }
+            MallitalEntry(ctx, parent, mb, col, font);
             ctx.MeshObject("Mallital (built)", parent, mb, ctx.mats.atlas, col);
 
             void Marker(string name, Vector2 at, Vector2 look, float lookUp)

@@ -226,6 +226,52 @@ namespace Nainital
             return root;
         }
 
+        static Material exhaustMat;
+
+        /// <summary>A small smoke emitter at the exhaust: grey puffs that drift up and fade (rate set by VehicleFX).</summary>
+        static ParticleSystem Exhaust(Transform at, Vector3 local)
+        {
+            if (!exhaustMat) exhaustMat = Resources.Load<Material>("VehicleFX/M_Exhaust");
+            if (!exhaustMat || !Application.isPlaying) return null;
+            var go = new GameObject("Smoke");
+            go.transform.SetParent(at, false);
+            go.transform.localPosition = local;
+            go.transform.localRotation = Quaternion.Euler(-10f, 180f, 0f);   // out of the back
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.duration = 1f;
+            main.loop = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.9f, 1.6f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.6f, 1.4f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.18f, 0.35f);
+            main.startColor = new Color(0.5f, 0.5f, 0.5f, 0.45f);
+            main.gravityModifier = -0.05f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 60;
+            var em = ps.emission;
+            em.rateOverTime = 0f;
+            var sh = ps.shape;
+            sh.shapeType = ParticleSystemShapeType.Cone;
+            sh.angle = 12f;
+            sh.radius = 0.04f;
+            var size = ps.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.6f, 1f, 2.6f));
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                         new[] { new GradientAlphaKey(0.5f, 0f), new GradientAlphaKey(0f, 1f) });
+            col.color = grad;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = exhaustMat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            ps.Play();
+            return ps;
+        }
+
         /// <summary>The paint as a colour multiplied onto a white-bodied model (null = leave it as modelled).</summary>
         static Color? Tint(int paint)
         {
@@ -300,6 +346,22 @@ namespace Nainital
                 lr.enabled = false;
                 root.AddComponent<VehicleLamps>().lamps = lr;
             }
+            var fx = root.AddComponent<VehicleFX>();
+            var tailTf = body.transform.Find("Tail");
+            if (tailTf) { fx.tail = tailTf.GetComponent<Renderer>(); fx.tail.enabled = false; }
+            var exTf = body.transform.Find("Exhaust");
+            fx.exhaust = Exhaust(exTf ? exTf : root.transform, exTf ? Vector3.zero : new Vector3(W * 0.25f, 0.35f, -L * 0.5f));
+            var eng = new GameObject("Engine");
+            eng.transform.SetParent(root.transform, false);
+            fx.engine = eng.AddComponent<AudioSource>();
+            fx.engine.loop = true;
+            fx.engine.playOnAwake = false;
+            fx.engine.spatialBlend = 1f;
+            fx.engine.minDistance = 4f;
+            fx.engine.maxDistance = 55f;
+            fx.engine.rolloffMode = AudioRolloffMode.Linear;
+            fx.engine.dopplerLevel = 0.3f;
+            fx.engine.volume = 0f;
             var seat = new GameObject("Seat").transform;
             seat.SetParent(root.transform, false);
             seat.localPosition = new Vector3(W * 0.2f, Mathf.Min(0.45f, H * 0.18f), L > 6.5f ? L * 0.38f : -0.1f);

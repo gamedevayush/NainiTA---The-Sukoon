@@ -119,6 +119,7 @@ namespace Nainital.EditorTools
                 });
             }
             Directory.CreateDirectory("Assets/Resources");
+            ExhaustMaterial();
             var lib = AssetDatabase.LoadAssetAtPath<VehicleLibrary>(LibraryPath);
             if (!lib) { lib = ScriptableObject.CreateInstance<VehicleLibrary>(); AssetDatabase.CreateAsset(lib, LibraryPath); }
             lib.entries = entries.ToArray();
@@ -151,23 +152,67 @@ namespace Nainital.EditorTools
                 Quad(new Vector3(sx * l.front[0], l.front[1], l.front[2] + 0.03f), 1f, tf);
                 Quad(new Vector3(sx * l.rear[0], l.rear[1], -(l.rear[2] + 0.03f)), -1f, tr);
             }
-            var mesh = new Mesh { name = root.name + "_Lamps" };
-            mesh.SetVertices(verts);
-            mesh.subMeshCount = 2;
-            mesh.SetTriangles(tf, 0);
-            mesh.SetTriangles(tr, 1);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            string mp = $"{Dir}/Prefabs/{root.name}_Lamps.asset";
-            if (File.Exists(mp)) AssetDatabase.DeleteAsset(mp);
-            AssetDatabase.CreateAsset(mesh, mp);
-            var go = new GameObject("Lamps");
-            go.transform.SetParent(root, false);
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterials = new[] { LampMaterial("M_LampHead", new Color(4f, 3.7f, 3.1f)), LampMaterial("M_LampTail", new Color(3f, 0.18f, 0.1f)) };
-            mr.shadowCastingMode = ShadowCastingMode.Off;
-            mr.enabled = false;
+            void Part(string name, List<int> tris, Material m)   // head lamps and tail lamps light up separately (VehicleLamps, VehicleFX)
+            {
+                var mesh = new Mesh { name = root.name + "_" + name };
+                mesh.SetVertices(verts);
+                mesh.SetTriangles(tris, 0);
+                mesh.RecalculateNormals();
+                mesh.RecalculateBounds();
+                string mp = $"{Dir}/Prefabs/{root.name}_{name}.asset";
+                if (File.Exists(mp)) AssetDatabase.DeleteAsset(mp);
+                AssetDatabase.CreateAsset(mesh, mp);
+                var go = new GameObject(name);
+                go.transform.SetParent(root, false);
+                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = m;
+                mr.shadowCastingMode = ShadowCastingMode.Off;
+                mr.enabled = false;
+            }
+            Part("Lamps", tf, LampMaterial("M_LampHead", new Color(4f, 3.7f, 3.1f)));
+            Part("Tail", tr, LampMaterial("M_LampTail", new Color(3f, 0.18f, 0.1f)));
+            // the exhaust's rear corner, for VehicleFactory's smoke
+            var ex = new GameObject("Exhaust");
+            ex.transform.SetParent(root, false);
+            ex.transform.localPosition = new Vector3(l.rear[0] * 0.55f, Mathf.Max(0.25f, l.rear[1] * 0.42f), -(l.rear[2] + 0.05f));
+        }
+
+        /// <summary>Soft grey puffs for the exhaust (URP particles, alpha blended), in Resources so VehicleFactory finds it.</summary>
+        static void ExhaustMaterial()
+        {
+            Directory.CreateDirectory("Assets/Resources/VehicleFX");
+            const string texPath = "Assets/Resources/VehicleFX/T_Puff.png";
+            if (!File.Exists(texPath))
+            {
+                int n = 64;
+                var t = new Texture2D(n, n, TextureFormat.RGBA32, false);
+                var px = new Color32[n * n];
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(n * 0.5f, n * 0.5f)) / (n * 0.5f);
+                        float a = Mathf.Clamp01(1f - d);
+                        px[y * n + x] = new Color32(255, 255, 255, (byte)(a * a * 255f));
+                    }
+                t.SetPixels32(px);
+                File.WriteAllBytes(texPath, t.EncodeToPNG());
+                AssetDatabase.ImportAsset(texPath);
+            }
+            const string mp = "Assets/Resources/VehicleFX/M_Exhaust.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(mp);
+            if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")) { name = "M_Exhaust" }; AssetDatabase.CreateAsset(mat, mp); }
+            mat.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(texPath));
+            mat.SetColor("_BaseColor", new Color(0.55f, 0.55f, 0.55f, 0.35f));
+            mat.SetFloat("_Surface", 1f);
+            mat.SetFloat("_Blend", 0f);
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            mat.SetOverrideTag("RenderType", "Transparent");
+            EditorUtility.SetDirty(mat);
         }
 
         static Material LampMaterial(string id, Color hdr)

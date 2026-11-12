@@ -327,6 +327,36 @@ namespace Nainital.EditorTools
                       $"locals {locals} (hidden {hiddenLocals}), traffic {cars} of target {(tm ? Mathf.RoundToInt(tm.maxCars * TownClock.Traffic(h)) : -1)}, glow {Shader.GetGlobalFloat("_NtLampGlow"):F2}");
         }
 
+        /// <summary>Street lamps within 60 m of the point in Bridge/arg.txt ("x,y,z"), from the scene's LampManager.</summary>
+        public static void LampsNear()
+        {
+            var parts = Arg().Split(',');
+            var c = new Vector3(float.Parse(parts[0]), float.Parse(parts[1]), float.Parse(parts[2]));
+            var lm = Object.FindAnyObjectByType<LampManager>();
+            if (!lm) { Debug.Log("[Nainital] no LampManager"); return; }
+            int n = 0;
+            foreach (var h in lm.lampHeads) if (Vector2.Distance(new Vector2(h.x, h.z), new Vector2(c.x, c.z)) < 60f) { n++; if (n <= 12) Debug.Log($"[Nainital]   lamp at {h:F1}"); }
+            Debug.Log($"[Nainital] lamps within 60 m of {c}: {n} (of {lm.lampHeads.Length})");
+        }
+
+        /// <summary>Enabled point lights within 40 m of the player: where, how bright, what colour.</summary>
+        public static void LightReport()
+        {
+            Need();
+            var p = PlayerController.Instance.transform.position;
+            int n = 0, all = 0;
+            foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+            {
+                if (l.type != LightType.Point || !l.enabled) continue;
+                all++;
+                float d = Vector3.Distance(l.transform.position, p);
+                if (d > 40f) continue;
+                n++;
+                if (n <= 10) Debug.Log($"[Nainital]   light {l.name} at {l.transform.position:F1} d {d:F0} int {l.intensity:F1} range {l.range:F0} col {l.color}");
+            }
+            Debug.Log($"[Nainital] point lights on: {all}, within 40 m: {n}, glow {Shader.GetGlobalFloat("_NtLampGlow"):F2}, night {(DayNightCycle.Instance ? DayNightCycle.Instance.NightFactor : -1):F2}");
+        }
+
         public static void CheatGaadi() { Need(); CheatCodes.Run("GAADI"); }
         public static void CheatJeep() { Need(); CheatCodes.Run("JEEP"); }
 

@@ -169,7 +169,16 @@ namespace Nainital.EditorTools
                 if (VehicleKinds.Contains(r.kind))
                 {
                     var res = Resample(pts2, 4f, false);
-                    if (res.Count >= 4)
+                    // Mall Road is one-way (user, 2026-11-12): Upper Mall towards Mallital, Lower Mall towards Tallital,
+                    // each driven down the middle of its real deck so cars keep clear of the divider and its posts
+                    var deck = r.name == MallUpper ? ctx.mallUpperDrive : r.name == MallLower ? ctx.mallLowerDrive : null;
+                    if (deck != null && deck.Count >= 4)
+                    {
+                        var dpts = new List<Vector3>();
+                        for (int i = 0; i < deck.Count; i += 2) dpts.Add(deck[i]);
+                        roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = dpts.ToArray(), oneWay = r.name == MallUpper ? 1 : -1 });
+                    }
+                    else if (res.Count >= 4)
                     {
                         var p3 = new Vector3[res.Count];
                         for (int i = 0; i < res.Count; i++) p3[i] = new Vector3(res[i].x, ctx.H(res[i]) + 0.1f, res[i].y);
@@ -267,6 +276,7 @@ namespace Nainital.EditorTools
             foreach (var r in ctx.world.roads)
             {
                 if (r.kind != "residential" && r.kind != "tertiary" && r.kind != "secondary" && r.kind != "unclassified" && r.kind != "primary") continue;
+                if (!string.IsNullOrEmpty(r.name) && r.name.Contains("Mall")) continue;   // no parking along the Mall: poles, railings, crowds
                 var pts = Resample(Geo.ToPoints(r.pts), 30f, false);
                 for (int i = 1; i < pts.Count - 1 && pos.Count < 46; i++)
                 {
@@ -275,6 +285,9 @@ namespace Nainital.EditorTools
                     Vector2 left = new Vector2(-tan.y, tan.x);
                     Vector2 p = pts[i] + left * (r.width * 0.5f + 1.3f);
                     if (ctx.InLake(p) || ctx.LakeDistance(p) < 9f || Mathf.Abs(ctx.H(p) - ctx.H(pts[i])) > 0.7f) continue;
+                    bool byPole = false;   // lamp posts have no collider on every road: keep cars 2.2 m clear of each lamp
+                    foreach (var lh in ctx.lampHeads) if ((new Vector2(lh.x, lh.z) - p).sqrMagnitude < 2.2f * 2.2f + 1.8f * 1.8f) { byPole = true; break; }
+                    if (byPole) continue;
                     var q = OnGround(p, tan);
                     var gp = new Vector3(p.x, ctx.H(p) + 0.05f, p.y);
                     if (!Free(gp, q, new Vector3(1f, 0.7f, 2.3f))) continue;

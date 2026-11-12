@@ -109,6 +109,8 @@ namespace Nainital
             Set("bell", "temple_bell");
             Set("jetStart", "jet_start");
             Set("click", "click");
+            Set("carStart", "car_start");
+            Set("carDoor", "car_door");
             // synthesised stand-ins for anything missing
             if (sets["step_road"].Length == 0) sets["step_road"] = new[] { AudioSynth.Step() };
             if (sets["punch"].Length == 0) sets["punch"] = new[] { AudioSynth.Punch() };
@@ -158,6 +160,19 @@ namespace Nainital
 
         /// <summary>A traffic vehicle goes past the listener.</summary>
         public void PassBy(Vector3 p, float speed) => PlayAt(One("pass"), p, Mathf.Clamp01(speed / 12f) * 0.7f, Random.Range(0.9f, 1.1f), 60f);
+
+        /// <summary>Getting into a car: the door shuts, then the engine turns over.</summary>
+        public void CarEnter(Vector3 p)
+        {
+            PlayAt(One("carDoor"), p, 0.7f, 1f, 40f);
+            var s = One("carStart");
+            if (s) StartCoroutine(Later(0.7f, () => PlayAt(s, p, 0.75f, 1f, 50f)));
+        }
+
+        /// <summary>Getting out: the door.</summary>
+        public void CarExit(Vector3 p) => PlayAt(One("carDoor"), p, 0.7f, 1.05f, 40f);
+
+        static System.Collections.IEnumerator Later(float t, System.Action a) { yield return new WaitForSeconds(t); a(); }
 
         /// <summary>A tap on a phone button.</summary>
         public void Click() { var c = One("click"); if (c) s2D.PlayOneShot(c, 0.35f * masterVolume); }

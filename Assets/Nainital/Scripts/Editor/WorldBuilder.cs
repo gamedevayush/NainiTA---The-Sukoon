@@ -16,6 +16,7 @@ namespace Nainital.EditorTools
         public WorldJson world;
         public TextureKit.Materials mats;
         public Terrain terrain;
+        public List<Vector3> mallUpperDrive, mallLowerDrive;   // the middle of each Mall deck, south (Tallital) to north (Mallital)
         public float lakeY;
         public Vector2[] lake;            // CCW
         public Vector2 lakeCenter;
@@ -54,7 +55,7 @@ namespace Nainital.EditorTools
 
         public float H(float x, float z) => terrain.SampleHeight(new Vector3(x, 0, z)) + terrain.transform.position.y;
         public float H(Vector2 p) => H(p.x, p.y);
-        public bool InLake(Vector2 p) => Geo.PointInPolygon(lake, p);
+        public bool InLake(Vector2 p) => Geo.PointInPolygon(lake, p) || WorldBuilder.InExtraWater(p);   // + the strip by Lower Mall
         public float LakeDistance(Vector2 p) => Geo.DistanceToPolyline(lake, p, true);
 
         /// <summary>Move a point straight away from the lake until it is at least minDist from the shore.</summary>
@@ -206,7 +207,8 @@ namespace Nainital.EditorTools
             Step("Lake", () => BuildLake(ctx));
             Step("Small lakes (Sariyatal, Khurpatal)", () => BuildPonds(ctx));
             Step("Level the landmark sites", () => FlattenSites(ctx));
-            Step("Roads", () => BuildRoads(ctx));
+            Step("Level the ground along the roads", () => LevelRoads(ctx));
+            Step("Roads", () => { roadStrips.Clear(); BuildRoads(ctx); });
             Step("G.O.A.N. plan (civic sites)", () => PlanGoan(ctx));
             Step("Tallital plan", () => PlanTallital(ctx));
             Step("Mallital plan", () => PlanMallital(ctx));
@@ -231,11 +233,13 @@ namespace Nainital.EditorTools
             Step("Lighting", () => BuildLighting(ctx));
             Step("Far ridges (beyond the map)", () => BuildFarRidges(ctx));
             Step("Surface look (weathering)", () => BuildSurfaceLook(ctx));
+            Step("Ground under the roads", () => CarveUnderRoads(ctx));   // last: everything above reads the ground (ctx.H)
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
             BuildingKit.Ground = null;
 
             EditorUtility.SetDirty(bank);
+            AtlasCheck.Relink();   // the building atlas material keeps its textures on disk (they were lost on reload: white buildings)
             AssetDatabase.SaveAssets();
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -388,6 +392,7 @@ namespace Nainital.EditorTools
             var parent = new GameObject("Naini Lake").transform;
             parent.SetParent(ctx.worldRoot, false);
             float y = ctx.lakeY;
+            var mallWater = LowerMallWater(ctx);   // the lake up to Lower Mall's parapet
 
             // water surface (slightly larger than the shore line, the banks hide the edge)
             var water = Offset(ctx.lake, 5f);
@@ -397,6 +402,13 @@ namespace Nainital.EditorTools
             {
                 Vector2 p0 = water[tris[i]], p1 = water[tris[i + 1]], p2 = water[tris[i + 2]];
                 wmb.Tri(new Vector3(p0.x, y, p0.y), new Vector3(p1.x, y, p1.y), new Vector3(p2.x, y, p2.y), Vector2.zero, Vector3.up);
+            }
+            foreach (var q in mallWater)
+            {
+                var qq = (Vector2[])q.Clone();
+                if (Geo.SignedArea(qq) < 0) System.Array.Reverse(qq);   // same turn as the lake's own triangles
+                wmb.Tri(new Vector3(qq[0].x, y, qq[0].y), new Vector3(qq[1].x, y, qq[1].y), new Vector3(qq[2].x, y, qq[2].y), Vector2.zero, Vector3.up);
+                wmb.Tri(new Vector3(qq[0].x, y, qq[0].y), new Vector3(qq[2].x, y, qq[2].y), new Vector3(qq[3].x, y, qq[3].y), Vector2.zero, Vector3.up);
             }
             var wgo = ctx.MeshObject("Water", parent, wmb, ctx.mats.water, null, false);
             wgo.layer = 4;
@@ -409,6 +421,7 @@ namespace Nainital.EditorTools
             for (int i = 0; i < shoreArr.Length; i++)
             {
                 Vector2 a = shoreArr[i], b = shoreArr[(i + 1) % shoreArr.Length];
+                if (InExtraWater((a + b) * 0.5f)) continue;   // under water now, by Lower Mall
                 Vector2 oa = Outward(shoreArr, i), ob = Outward(shoreArr, (i + 1) % shoreArr.Length);
                 float ta = Mathf.Max(ctx.H(a + oa * 2f), y + 0.6f) + 0.05f, tb = Mathf.Max(ctx.H(b + ob * 2f), y + 0.6f) + 0.05f;
                 Vector3 inward = new Vector3(-(oa.x + ob.x), 0, -(oa.y + ob.y));
@@ -558,8 +571,9 @@ namespace Nainital.EditorTools
                     Vector2 nrm = new Vector2(-tan.y, tan.x);
                     Vector2 l = p + nrm * half, rr = p - nrm * half;
                     float hc = ctx.H(p);
-                    Vector3 L = new Vector3(l.x, (mallDeck ? hc : Mathf.Max(ctx.H(l), hc - 0.3f)) + lift, l.y);
-                    Vector3 R = new Vector3(rr.x, (mallDeck ? hc : Mathf.Max(ctx.H(rr), hc - 0.3f)) + lift, rr.y);
+                    float camber = Mathf.Max(0.05f, r.width * 0.015f);   // at most a road's own camber across, never a ramp
+                    Vector3 L = new Vector3(l.x, (mallDeck ? hc : Mathf.Clamp(ctx.H(l), hc - camber, hc + camber)) + lift, l.y);
+                    Vector3 R = new Vector3(rr.x, (mallDeck ? hc : Mathf.Clamp(ctx.H(rr), hc - camber, hc + camber)) + lift, rr.y);
                     if (i > 0)
                     {
                         float v1 = v + Vector2.Distance(path[i - 1], p) / Mathf.Max(1f, r.width);
@@ -588,6 +602,7 @@ namespace Nainital.EditorTools
                 string nm = string.IsNullOrEmpty(r.name) ? r.kind : r.name;
                 if (r.name != MallLower) ctx.MeshObject($"{nm} ({r.kind})", parent, mb, mat, null, false, true);   // Lower Mall is built with the Mall Road; walked on, so a collider
                 if (mat == ctx.mats.asphalt && !mallDeck && !lakeRoad) AddRoadFringe(ctx, path, kerbL, kerbR, vs);   // tarmac frays into the ground
+                if (!dirtTrack && !mallDeck && r.name != MallLower) roadStrips.Add((kerbL.ToArray(), kerbR.ToArray()));   // CarveUnderRoads
                 if (!string.IsNullOrEmpty(r.name) && (r.name.Contains("Mall Road") || r.name.Contains("Thandi Sadak")))
                     for (int i = 0; i < path.Count; i += 20)
                         ctx.Zone(r.name, new Vector3(path[i].x, 0, path[i].y), 22f);
@@ -1072,7 +1087,11 @@ namespace Nainital.EditorTools
             var lm = new GameObject("Street Lamp Lights").AddComponent<LampManager>();
             lm.transform.SetParent(root, false);
             lm.lampHeads = ctx.lampHeads.ToArray();
-            BuildLampGlow(ctx, lm.transform);
+            lm.lampColors = LampColors(ctx.lampHeads);
+            ShopLights(ctx, out var shopPos, out var shopCol);
+            lm.shopLights = shopPos;
+            lm.shopColors = shopCol;
+            BuildLampGlow(ctx, lm.transform, lm.lampColors, shopPos, shopCol);
         }
 
         // ------------------------------------------------------------------ gameplay

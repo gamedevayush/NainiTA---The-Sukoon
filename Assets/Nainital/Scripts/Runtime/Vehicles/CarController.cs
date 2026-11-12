@@ -17,6 +17,8 @@ namespace Nainital
         public Light[] headlights;
 
         public float Speed => rb ? rb.linearVelocity.magnitude : 0f;
+        /// <summary>The driver is braking: pedal against the motion, or the handbrake (VehicleFX lights the tail lamps).</summary>
+        public bool Braking { get; private set; }
         public float SpeedKmh => Speed * 3.6f;
 
         VehicleFactory.Spec spec;
@@ -79,6 +81,7 @@ namespace Nainital
                 rb.isKinematic = false;
                 rb.WakeUp();
                 p.EnterVehicle(this);
+                if (AudioManager.Instance) AudioManager.Instance.CarEnter(transform.position);
                 if (GetComponent<VehicleInfo>() && p.Rig) p.Rig.gameObject.SetActive(false);   // library models: the driver is inside, unseen
                 GameEvents.ShowToast("W/S: race-brake, A/D: steering, Space: handbrake, E: utro", 3.5f);
                 return;
@@ -103,6 +106,7 @@ namespace Nainital
             driver = null;
             Driving = null;
             if (p.Rig && !p.Rig.gameObject.activeSelf) p.Rig.gameObject.SetActive(true);
+            if (AudioManager.Instance) AudioManager.Instance.CarExit(transform.position);
             p.ExitVehicle(at);
             sleepTimer = 0f;
         }
@@ -142,6 +146,7 @@ namespace Nainital
             Vector3 up = transform.up;
             float fwdSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
             float speed01 = Mathf.Clamp01(Mathf.Abs(fwdSpeed) / spec.maxSpeed);
+            Braking = driving && ((Mathf.Abs(mv.y) > 0.05f && Mathf.Sign(mv.y) != Mathf.Sign(fwdSpeed) && Mathf.Abs(fwdSpeed) > 0.5f) || GameInput.JumpHeld);
             float steerTarget = mv.x * Mathf.Lerp(spec.steer, spec.steer * 0.35f, speed01);
             steer = Mathf.MoveTowards(steer, steerTarget, 110f * dt);
 
