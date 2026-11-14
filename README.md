@@ -104,6 +104,51 @@ A bug report grabs the screen, asks what is wrong (in the editor it can also att
    - On the iPhone, allow the app in **Settings → General → VPN & Device Management**.
    - With a free Apple ID the app works for 7 days. Re-install it from Sideloadly to refresh.
 
+## Work in progress (last updated 14 Nov 2026)
+
+Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). Commit `5aa5795` and the README commit after it were pushed without a final world build. The last two fixes in the list below have never been seen in a build.
+
+### Still to test after the next build
+
+In-game positions are metres: x = east, z = north. A Scene view camera looking at the point is enough to check each one.
+
+| What | Where (x, z) | What to check | Build log line |
+|---|---|---|---|
+| Lake light streaks at night | Mallital and Tallital shores | Long vertical streaks of lamp light on the water at night. Each streak now starts at the shore, not under the lamp. Before this fix they did not show at all. | `[Nainital] lamp glow: … lake streaks` |
+| Flats spectators' steps, at the bend | (-140, 40) | No rock spike sticking up out of the ground where the step line bends | — |
+
+### Checked in renders on 14 Nov
+
+| What | Where (x, z) | Code |
+|---|---|---|
+| Boat House Club wing moved off the road; deck between the wings; jetty starts from the deck | (125, 60) | `Editor/LandmarkBuilder.BoatClub.cs` |
+| Flats steps: one continuous run, pink lattice railing, orange rail at the foot. The ground is cut before the Flats grit is laid. | (-143, 45) | `Editor/WorldBuilder.FlatsEdge.cs`, `WorldBuilder.Flats.cs` |
+| Capitol: walk level and front level are both flat, with a stone wall between them and stairs running down along it. The ramp footway is gone. | (0, -15) | `Editor/WorldBuilder.CapitolGround.cs`, `WorldBuilder.DataFixes.cs` |
+| Lake bank below the Capitol: level with the path, a straight stone embankment, railing on top | (25, -40) | `Editor/WorldBuilder.CapitolGround.cs` |
+| Tallital traffic post on the junction node; barricades face each road | (832, -1132) | `Editor/WorldBuilder.Tallital.cs` |
+| High streets with 3–4 storey painted shop buildings and new shops along the frontage: the Sukhatal / High Court chauraha and Tallital | (-527, 522) and (825, -1145) | `Editor/WorldBuilder.HighStreet.cs` |
+
+These were built but not checked closely. Glance at them once:
+- **Mall Road first row:** colonial fronts with verandahs and tin gables (`BuildingKit.ColonialFront`).
+- **Ropeway:** red lattice towers (`LandmarkBuilder.LatticeTower`).
+- **Lower Mall:** lamps are now green.
+- **Moored boats:** square to the ghat.
+- **Town:** extra trees (`TownTreeFill`).
+
+### Still open
+
+- **Sukhatal chauraha colours** are paler than Street View (purple Hotel Beena Lodge, blue block, Hotel Kohinoor). The atlas has no strong purple or blue wall colour. Fixing it needs new colours in `Atlas.WallPalette` and `TextureKit`.
+- **Grass gaps** remain between some high-street buildings. The street-wall infill only places a shop building where nothing overlaps (`HighStreetInfill`).
+- **Rotary Club "Selfie Point" red frame** on Mall Road: location not known yet.
+- **Models to make in Tripo:** see `TRIPO_LIST.md`. Notes from the YouTube comparison are in `REFERENCE_REPORT.md`.
+- **Shaktipeeth gate:** placed by hand. Its position is kept in `Assets/Nainital/Data/placed_by_hand.json`, which saves when the scene is saved and is restored at build. Never place it from code.
+
+### Rules the owner has set
+
+- Do not make Android or iOS builds unless asked; build scenes only.
+- Real places must match the owner's photos and Street View: positions, rotation, scale and roads.
+- Low-poly geometry with good textures. Keep the house count.
+
 ## If something looks wrong
 
 | Problem | Fix |
