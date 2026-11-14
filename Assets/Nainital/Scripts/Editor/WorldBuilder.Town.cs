@@ -108,7 +108,7 @@ namespace Nainital.EditorTools
             return found;
         }
 
-        static void Label(Transform parent, Font font, string text, Vector3 pos, Vector3 facing, float height, Color col)
+        internal static void Label(Transform parent, Font font, string text, Vector3 pos, Vector3 facing, float height, Color col)
         {
             if (!font) return;
             var t = new GameObject("Text");

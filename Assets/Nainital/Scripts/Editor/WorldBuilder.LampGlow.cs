@@ -100,15 +100,44 @@ namespace Nainital.EditorTools
                 m.uv.Add(new Vector2(0, 0)); m.uv.Add(new Vector2(1, 0)); m.uv.Add(new Vector2(1, 1)); m.uv.Add(new Vector2(0, 1));
                 m.t.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3 });
             }
+            // Lake streaks (user, 2026-11-14, night photos of the lake: "lake pe light reflection aisi chahiye"): every light
+            // within 45 m of the water throws a long thin band across it towards the viewer. Built from the light's foot at
+            // water level; the band runs under the bank (hidden by the ground) and comes out where the water starts.
+            int streaks = 0;
+            void Streak(Vector3 light, Color col, float width)
+            {
+                Vector2 q = new Vector2(light.x, light.z);
+                if (ctx.InLake(q)) return;
+                float dl = ctx.LakeDistance(q);
+                if (dl > 45f) return;
+                float h = Mathf.Max(1f, light.y - ctx.lakeY);
+                float len = Mathf.Clamp(14f + h * 2.2f, 16f, 48f);
+                // it starts where the water starts (the shore point nearest the light, half a metre out), not under the
+                // light: a lamp on Upper Mall stands 20 m back and its streak was lost under the bank
+                Vector2 shore = NearestOnLakeEdge(ctx, q);
+                Vector2 into = (shore - q).sqrMagnitude > 0.01f ? (shore - q).normalized : (ctx.lakeCenter - shore).normalized;
+                Vector2 s0 = shore + into * 0.5f;
+                if (!ctx.InLake(s0)) s0 = shore + (ctx.lakeCenter - shore).normalized * 0.8f;
+                var at = new Vector3(s0.x, ctx.lakeY + 0.03f, s0.y);
+                var key = new Vector2Int(Mathf.FloorToInt(at.x / 250f), Mathf.FloorToInt(at.z / 250f));
+                if (!cells.TryGetValue(key, out var m)) { m = (new List<Vector3>(), new List<Color>(), new List<Vector2>(), new List<Vector2>(), new List<int>()); cells[key] = m; }
+                int b = m.v.Count;
+                for (int k = 0; k < 4; k++) { m.v.Add(at); m.c.Add(col); m.uv2.Add(new Vector2(-len, width)); }
+                m.uv.Add(new Vector2(0, 0)); m.uv.Add(new Vector2(1, 0)); m.uv.Add(new Vector2(1, 1)); m.uv.Add(new Vector2(0, 1));
+                m.t.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3 });
+                streaks++;
+            }
             for (int i = 0; i < ctx.lampHeads.Count; i++)
             {
                 Color c = i < lampCol.Length ? lampCol[i] : new Color(1f, 0.7f, 0.38f);
                 Halo(ctx.lampHeads[i], new Color(c.r * 3f, c.g * 2.8f, c.b * 2.6f, 1f), 0.9f);
+                Streak(ctx.lampHeads[i], new Color(c.r * 1.6f, c.g * 1.45f, c.b * 1.3f, 1f), 0.55f);
             }
             for (int i = 0; i < shopPos.Length; i++)
             {
                 Color c = shopCol[i];
                 Halo(shopPos[i] + Vector3.up * 0.25f, new Color(c.r * 1.8f, c.g * 1.8f, c.b * 1.8f, 1f), 0.45f);
+                if ((i & 1) == 0) Streak(shopPos[i], new Color(c.r, c.g, c.b, 0.8f), 0.4f);   // every other one: the shops sit in rows
             }
             var root = new GameObject("Lamp glow (night)").transform;
             root.SetParent(parent, false);
@@ -123,7 +152,7 @@ namespace Nainital.EditorTools
                 mesh.SetTriangles(kv.Value.t, 0);
                 mesh.RecalculateBounds();
                 var bnd = mesh.bounds;
-                bnd.Expand(4f);   // the billboards reach past the points they are built on
+                bnd.Expand(streaks > 0 ? 200f : 4f);   // the billboards (and the lake streaks, 90+ m) reach past their points
                 mesh.bounds = bnd;
                 string path = Gen + "/" + mesh.name + ".asset";
                 if (System.IO.File.Exists(path)) UnityEditor.AssetDatabase.DeleteAsset(path);
@@ -137,7 +166,7 @@ namespace Nainital.EditorTools
                 mr.receiveShadows = false;
                 idx++;
             }
-            Debug.Log($"[Nainital] lamp glow: {ctx.lampHeads.Count} lamp halos, {shopPos.Length} shop lights, {idx} meshes");
+            Debug.Log($"[Nainital] lamp glow: {ctx.lampHeads.Count} lamp halos, {shopPos.Length} shop lights, {streaks} lake streaks, {idx} meshes");
         }
     }
 }

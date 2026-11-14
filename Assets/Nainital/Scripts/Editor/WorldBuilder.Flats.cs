@@ -47,8 +47,12 @@ namespace Nainital.EditorTools
             // the stands go along the long side away from the lake
             float standSide = Vector2.Distance(F(0f, hv), ctx.lakeCenter) > Vector2.Distance(F(0f, -hv), ctx.lakeCenter) ? 1f : -1f;
 
+            // the spectators' steps first: they cut the ground down to the Flats' level, and the grit below must follow that cut
+            // (it was laid before, over the old ground, and hid the steps in a trench)
+            BuildStands(ctx, parent, FlatsGroundY(ctx));
+
             // ---- the ground: pale grey grit, a 2 m grid over the polygon
-            var grit = PhotoMaterial("concrete_floor_worn_001", "M_FlatsGrit", new Color(1.45f, 1.3f, 1.05f), 0.05f) ?? ctx.mats.paver;
+            var grit =PhotoMaterial("concrete_floor_worn_001", "M_FlatsGrit", new Color(1.45f, 1.3f, 1.05f), 0.05f) ?? ctx.mats.paver;
             var gm = new MeshBuilder();
             const float cell = 2f;
             for (float u = -hu; u < hu; u += cell)
@@ -56,7 +60,7 @@ namespace Nainital.EditorTools
                 {
                     Vector2 a = F(u, v), b = F(u + cell, v), c = F(u + cell, v + cell), d = F(u, v + cell);
                     if (!Geo.PointInPolygon(poly, F(u + cell * 0.5f, v + cell * 0.5f))) continue;
-                    gm.Quad(V(a, ctx.H(a) + 0.04f), V(b, ctx.H(b) + 0.04f), V(c, ctx.H(c) + 0.04f), V(d, ctx.H(d) + 0.04f), new Rect(a.x / 5f, a.y / 5f, cell / 5f, cell / 5f), Vector3.up);
+                    gm.Quad(V(a, ctx.H(a) + 0.08f), V(b, ctx.H(b) + 0.08f), V(c, ctx.H(c) + 0.08f), V(d, ctx.H(d) + 0.08f), new Rect(a.x / 5f, a.y / 5f, cell / 5f, cell / 5f), Vector3.up);   // 8 cm: clear of the terrain where the ground eases up to a road
                 }
             ctx.MeshObject("Flats ground", parent, gm, grit, null, false);
 
@@ -101,47 +105,11 @@ namespace Nainital.EditorTools
             }
             ctx.MeshObject("Flats lines", parent, paint, ctx.mats.atlas, null, false);
 
-            // ---- the stands: six tiers in red, teal and white bands, a white back wall, tarps over the middle
+            // ---- the spectators' steps along the road to the Jama Masjid (user's photo, 2026-11-14): WorldBuilder.FlatsEdge.cs
             var mb = new MeshBuilder();
             var col = new MeshBuilder();
-            Vector2 red = Atlas.SolidUV(Pal.TempleRed), teal = Atlas.SolidUV(Pal.BoatGreen), whiteWall = Atlas.WallSolid(0);
-            Vector2[] bands = { red, teal, white, red, teal, white };
-            float sLen = hu * 1.1f, front = standSide * (hv - 9.5f);
-            var srot = Quaternion.LookRotation(Flat(-Vv * standSide), Vector3.up);
-            float gyS = ctx.H(F(0f, front));
-            for (int k = 0; k < 6; k++)
-            {
-                float vMid = front + standSide * (k + 0.5f) * 0.85f, h = (k + 1) * 0.36f;
-                Vector3 cc = V(F(0f, vMid), gyS) + Vector3.up * (h * 0.5f);
-                var size = new Vector3(sLen, h, 0.86f);
-                mb.Box(cc, size, srot, bands[k]);
-                col.Box(cc, size, srot, Vector2.zero);
-            }
-            float back = front + standSide * 5.4f;
-            Vector3 wc = V(F(0f, back), gyS) + Vector3.up * 1.6f;
-            mb.Box(wc, new Vector3(sLen + 0.4f, 3.2f, 0.3f), srot, whiteWall);
-            col.Box(wc, new Vector3(sLen + 0.4f, 3.2f, 0.3f), srot, Vector2.zero);
-            int[] tarps = { Pal.BoatBlue, Pal.BoatYellow, Pal.BoatBlue, Pal.BoatYellow };
-            for (int t = 0; t < 4; t++)
-            {
-                float u = (t - 1.5f) * (sLen * 0.22f);
-                Vector2 a0 = F(u - sLen * 0.1f, front + standSide * 0.3f), a1 = F(u + sLen * 0.1f, front + standSide * 0.3f);
-                Vector2 b0 = F(u - sLen * 0.1f, back), b1 = F(u + sLen * 0.1f, back);
-                float ty = gyS + 4.6f;
-                foreach (var q in new[] { a0, a1 }) mb.Cylinder(V(q, gyS), 0.06f, 0.06f, 3.9f, 6, Atlas.SolidUV(Pal.IronBlack), true);
-                Vector2 tp = Atlas.SolidUV(tarps[t]);
-                mb.QuadDouble(V(a0, ty - 0.7f), V(a1, ty - 0.7f), V(b1, ty), V(b0, ty), new Rect(tp.x, tp.y, 0f, 0f), Vector3.up);
-            }
-
-            // the stands' front rail: orange-red tube
-            for (int k = 0; k < 2; k++)
-            {
-                Vector2 r0 = F(-sLen * 0.5f, front - standSide * 0.2f), r1 = F(sLen * 0.5f, front - standSide * 0.2f);
-                float ry = gyS + 0.55f + k * 0.45f;
-                mb.Limb(V(r0, ry), V(r1, ry), 0.05f, 0.05f, 8, Atlas.SolidUV(Pal.SareeOrange));
-            }
-            for (float u = -sLen * 0.5f; u <= sLen * 0.5f + 0.1f; u += 2.5f)
-                mb.Cylinder(V(F(u, front - standSide * 0.2f), gyS), 0.04f, 0.04f, 1f, 6, Atlas.SolidUV(Pal.SareeOrange), true);
+            Vector2 red = Atlas.SolidUV(Pal.TempleRed), whiteWall = Atlas.WallSolid(0);
+            float sLen = hu * 1.1f;
 
             // ---- the rock-climbing tower on the lake side (white, a red-orange chevron at the top), and pull-up bars
             Vector2 tw = F(-hu * 0.3f, -standSide * (hv - 9f));
@@ -183,7 +151,7 @@ namespace Nainital.EditorTools
                 Vector2 m2 = (poly[i] + poly[(i + 1) % poly.Length]) * 0.5f;
                 if (Vector2.Distance(m2, gateAt) < gateD && Vector2.Distance(poly[i], poly[(i + 1) % poly.Length]) > 8f) { gateD = Vector2.Distance(m2, gateAt); gateEdge = i; }
             }
-            Vector2 brick = Atlas.SolidUV(Pal.BoatRed), iron = Atlas.SolidUV(Pal.TempleRed), blue = Atlas.SolidUV(Pal.BoatBlue), cap = Atlas.MaterialUV(Atlas.MatConcrete);
+            Vector2 brickRed = Atlas.SolidUV(Pal.BoatRed), ironRed = Atlas.SolidUV(Pal.TempleRed), blue = Atlas.SolidUV(Pal.BoatBlue), cap = Atlas.MaterialUV(Atlas.MatConcrete);
             int pillars = 0;
             for (int i = 0; i < poly.Length; i++)
             {
@@ -192,13 +160,16 @@ namespace Nainital.EditorTools
                 int n = Mathf.Max(1, Mathf.RoundToInt(len / 3f));
                 Vector2 dir = (b - a) / len;
                 var rrot = Quaternion.LookRotation(Flat(dir), Vector3.up);
+                // the side towards the lake: black iron on grey stone pillars (user's video, 9:12)
+                bool lakeSide = ctx.LakeDistance((a + b) * 0.5f) < 60f;
+                Vector2 brick = lakeSide ? Atlas.MaterialUV(Atlas.MatStone) : brickRed, iron = lakeSide ? Atlas.SolidUV(Pal.IronBlack) : ironRed;
                 for (int k = 0; k <= n; k++)
                 {
                     Vector2 q = Vector2.Lerp(a, b, k / (float)n);
                     bool gate = i == gateEdge && Mathf.Abs(k / (float)n - 0.5f) * len < 2.4f;
-                    if (Mathf.Abs(Vector2.Dot(q - mid, Vv) - (hv - 4f) * standSide) < 3f && standSide * Vector2.Dot(q - mid, Vv) > 0f && Mathf.Abs(Vector2.Dot(q - mid, U)) < sLen * 0.5f) continue;   // behind the stands
+                    if (ByStands(q)) continue;   // the spectators' steps have their own rails
                     float y = ctx.H(q);
-                    if (!gate)
+                    if (!gate && !FlatsByRoad(q))   // beside a road: the parapet, not the railing
                     {
                         mb.Box(V(q, y) + Vector3.up * 0.65f, new Vector3(0.42f, 1.3f, 0.42f), rrot, brick);
                         mb.Box(V(q, y) + Vector3.up * 1.34f, new Vector3(0.5f, 0.08f, 0.5f), rrot, cap);
@@ -215,6 +186,8 @@ namespace Nainital.EditorTools
                         mb.Box(m3 + Vector3.up * 0.9f + Flat(Vector2.Perpendicular(dir)) * 0.6f, new Vector3(0.05f, 1.6f, seg * 0.6f), rrot * Quaternion.Euler(0f, 60f, 0f), blue);
                         continue;
                     }
+                    if (ByStands((q + q2) * 0.5f)) continue;
+                    if (FlatsByRoad((q + q2) * 0.5f)) { FlatsParapet(ctx, mb, col, q, q2); continue; }   // the low wall people sit on
                     mb.Box(m3 + Vector3.up * 0.3f, new Vector3(0.05f, 0.05f, seg), rrot, iron);
                     mb.Box(m3 + Vector3.up * 1.1f, new Vector3(0.05f, 0.05f, seg), rrot, iron);
                     for (float s = -seg * 0.5f + 0.25f; s < seg * 0.5f - 0.2f; s += 0.18f)

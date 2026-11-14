@@ -12,6 +12,51 @@ namespace Nainital.EditorTools
             public int wall, roof;
             public bool flatRoof, shop;
             public float litChance;
+            /// <summary>Mall Road's first row (REFERENCE_REPORT 2.4): British-era front, full-width verandahs, trim bands.</summary>
+            public bool colonial;
+        }
+
+        /// <summary>
+        /// The Mall Road front of the old hotels and shops (videos v01 1:26, v02 11:38 Hotel India, 17:38 Hotel Gurdeep):
+        /// on every upper floor a full-width wooden verandah on posts with a white or green railing, a white (now and then
+        /// red) band at each floor line, and white bargeboards under the tin gable. A few boxes per floor.
+        /// </summary>
+        static void ColonialFront(MeshBuilder mb, Vector2 fl, Vector2 fr, Vector3 F3, float w, int levels, float streetY, float yTop, bool gable, System.Random rng)
+        {
+            Vector2 fm = (fl + fr) * 0.5f;
+            var rot = Quaternion.LookRotation(F3);
+            Vector3 along = new Vector3(fr.x - fl.x, 0f, fr.y - fl.y).normalized;
+            Vector2 wood = Atlas.MaterialUV(Atlas.MatWood), white = Atlas.SolidUV(Pal.ShirtWhite);
+            Vector2 rail = rng.NextDouble() < 0.6 ? white : Atlas.SolidUV(Pal.IronGreen);
+            Vector2 band = rng.NextDouble() < 0.25 ? Atlas.SolidUV(Pal.TempleRed) : white;
+            const float depth = 1.3f;
+            int posts = Mathf.Max(2, Mathf.RoundToInt(w / 2.6f)) + 1;
+            for (int k = 1; k < levels; k++)
+            {
+                float y = streetY + k * FloorH;
+                Vector3 baseC = new Vector3(fm.x, y, fm.y);
+                mb.Box(baseC + F3 * 0.04f + Vector3.up * 0.05f, new Vector3(w + 0.1f, 0.22f, 0.12f), rot, band);           // floor band
+                Vector3 slab = baseC + F3 * (depth * 0.5f + 0.05f);
+                mb.Box(slab, new Vector3(w - 0.2f, 0.16f, depth), rot, wood);                                             // verandah floor
+                Vector3 edge = slab + F3 * (depth * 0.5f - 0.05f);
+                mb.Box(edge + Vector3.up * 0.95f, new Vector3(w - 0.2f, 0.07f, 0.08f), rot, rail);                         // hand rail
+                mb.Box(edge + Vector3.up * 0.2f, new Vector3(w - 0.2f, 0.06f, 0.06f), rot, rail);
+                int bal = Mathf.Max(4, Mathf.RoundToInt(w / 0.32f));
+                for (int p = 0; p < bal; p++)                                                                              // balusters
+                    mb.Box(edge + along * ((p / (float)(bal - 1) - 0.5f) * (w - 0.3f)) + Vector3.up * 0.57f, new Vector3(0.04f, 0.72f, 0.04f), rot, rail);
+                float postTop = Mathf.Min(y + FloorH, yTop);
+                for (int p = 0; p < posts; p++)                                                                            // posts to the floor above
+                {
+                    Vector3 pc = edge + along * ((p / (float)(posts - 1) - 0.5f) * (w - 0.3f));
+                    mb.Box(new Vector3(pc.x, (y + postTop) * 0.5f, pc.z), new Vector3(0.14f, postTop - y, 0.14f), rot, white);
+                }
+                if (k == levels - 1)   // the topmost verandah gets its own lean-to roof when the house has a gable
+                    mb.Box(new Vector3(slab.x, postTop + 0.05f, slab.z), new Vector3(w - 0.1f, 0.1f, depth + 0.25f), rot, gable ? white : wood);
+            }
+            // fascia band under the eaves and white bargeboards
+            mb.Box(new Vector3(fm.x, yTop - 0.15f, fm.y) + F3 * 0.05f, new Vector3(w + 0.15f, 0.3f, 0.1f), rot, white);
+            if (levels >= 1)   // ground floor: a white frame round the shop / door line
+                mb.Box(new Vector3(fm.x, streetY + 2.85f, fm.y) + F3 * 0.06f, new Vector3(w + 0.05f, 0.18f, 0.1f), rot, band);
         }
 
         static int PickStyle(System.Random rng, bool front, bool isGround, bool belowStreet, bool shop, bool isDoorBay, float litChance)
@@ -153,7 +198,8 @@ namespace Nainital.EditorTools
                 Vector2 fm = (fl + fr) * 0.5f;
                 ShopFront(new Vector3(fm.x, streetY + 2.75f, fm.y) + F3 * 0.62f, F3, w);
             }
-            if (st.shop && levels >= 2) FrontDetail(mb, fl, fr, F3, Quaternion.LookRotation(F3), w, levels, streetY, rng);
+            if (st.colonial && levels >= 2) ColonialFront(mb, fl, fr, F3, w, levels, streetY, yTop, !st.flatRoof, rng);
+            else if (st.shop && levels >= 2) FrontDetail(mb, fl, fr, F3, Quaternion.LookRotation(F3), w, levels, streetY, rng);
             FacadeWall(mb, fr, br, yBase, yTop, streetY, R3, st, rng, false);
             FacadeWall(mb, br, bl, yBase, yTop, streetY, -F3, st, rng, false);
             FacadeWall(mb, bl, fl, yBase, yTop, streetY, -R3, st, rng, false);
@@ -170,7 +216,8 @@ namespace Nainital.EditorTools
                 bool alongX = w >= d;
                 mb.M = saved * Matrix4x4.TRS(topCenter, q * (alongX ? Quaternion.identity : Quaternion.Euler(0, 90, 0)), Vector3.one);
                 float L = alongX ? w : d, D = alongX ? d : w;
-                mb.GableRoof(Vector3.zero, L, D, D * 0.27f, Atlas.Roof(st.roof), Atlas.WallSolid(st.wall), 0.45f);
+                mb.GableRoof(Vector3.zero, L, D, D * (st.colonial ? 0.33f : 0.27f), Atlas.Roof(st.roof),
+                             st.colonial ? Atlas.SolidUV(Pal.ShirtWhite) : Atlas.WallSolid(st.wall), st.colonial ? 0.7f : 0.45f);
             }
             else
             {

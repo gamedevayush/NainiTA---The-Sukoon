@@ -143,7 +143,8 @@ Shader "Nainital/Water"
                 float3 trans = exp(-_Absorption.xyz * thickR / _Clarity);
                 Light mainLight = GetMainLight(TransformWorldToShadowCoord(i.positionWS));
                 half3 ambient = SampleSH(half3(0, 1, 0));
-                half3 scatterLight = (mainLight.color * saturate(mainLight.direction.y) * 0.35 + ambient) * (1.0 - 0.9 * _NightFactor);
+                // at night the moon's bluish ambient must not light the water body (the lake read blue at night)
+                half3 scatterLight = (mainLight.color * saturate(mainLight.direction.y) * 0.35 + ambient * (1.0 - 0.8 * _NightFactor)) * (1.0 - 0.95 * _NightFactor);
                 half3 body = below * trans * _ShallowColor.rgb + _DeepColor.rgb * scatterLight * (1.0 - trans);
 
                 // ---- reflections + speculars (sky, probe, sun, street lamps) from URP PBR with black albedo
@@ -177,7 +178,10 @@ Shader "Nainital/Water"
                 half3 env = AnalyticSky(R);
                 if (_LakeProbeReady > 0.5)
                     env = lerp(env, GlossyEnvironmentReflection(R, i.positionWS, 0.04, 1.0, screenUV), 0.85);
-                half3 col = body * (1.0 - F) + env * F * lerp(0.9, 0.6, _NightFactor) + surface;
+                // night: the sky reflection is near black (lamps still glint through `surface`), and what the probe holds is
+                // taken through a neutral grey so a stale daytime sky cannot tint the lake blue
+                half3 envN = lerp(env, dot(env, half3(0.3, 0.5, 0.2)).xxx, 0.7 * _NightFactor);
+                half3 col = body * (1.0 - F) + envN * F * lerp(0.9, 0.3, _NightFactor) + surface;
 
                 // ---- shore foam
                 float foamMask = saturate(1.0 - thick / max(0.01, _FoamWidth));

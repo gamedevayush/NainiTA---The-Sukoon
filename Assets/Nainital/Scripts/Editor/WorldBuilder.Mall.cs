@@ -422,7 +422,8 @@ namespace Nainital.EditorTools
             var parent = new GameObject("Mall Road").transform;
             parent.SetParent(ctx.worldRoot, false);
 
-            var teal = new Color(0.09f, 0.27f, 0.24f);
+            // the cast iron is painted a clear bottle green (user's Mall Road video, 2026-11-14; the old dark teal read as black)
+            var teal = new Color(0.12f, 0.43f, 0.30f);
             var filigree = IronMaterial("MallFiligree", FiligreePanel(), teal);
             var chain = IronMaterial("MallChain", ChainPanel(), teal);
 
@@ -520,6 +521,16 @@ namespace Nainital.EditorTools
                 v += seg;
             }
             road.Flush();
+            // the ground under the paving goes below it too (user, 2026-11-14, iPhone bug report at the Mallital end: "bake
+            // this road into terrain so that these mud will not show"; the hillside came up through the last 45 m)
+            var hillE = new Vector3[L.Count];
+            var lakeE = new Vector3[L.Count];
+            for (int i = 0; i < L.Count; i++)
+            {
+                hillE[i] = V(L.p[i] - L.side[i] * L.hillW[i], L.y[i] + 0.12f);
+                lakeE[i] = V(L.p[i] + L.side[i] * L.lakeW[i], L.y[i] + 0.12f);
+            }
+            roadStrips.Add((hillE, lakeE));   // CarveUnderRoads (the last step)
         }
 
         // ------------------------------------------------------------------ road paint
@@ -850,7 +861,7 @@ namespace Nainital.EditorTools
                 Lamp(U.p[at] - U.side[at] * (MallHalf + 0.72f), U.y[at] + 0.14f, U.tan[at], Pal.IronGreen);
             }
             foreach (var (lp, ly, lt) in lowerLampSpots)   // wherever the parapet stands: the whole of Lower Mall is lit (user, 2026-11-12: "bahut andhera")
-                Lamp(lp, ly, lt);
+                Lamp(lp, ly, lt, Pal.IronGreen);   // green cast iron, twin globes (REFERENCE_REPORT: v05 2:42)
             Debug.Log($"[Nainital] Lower Mall lamps: {lowerLampSpots.Count}");
             lamps.Flush();
 
@@ -1287,6 +1298,7 @@ namespace Nainital.EditorTools
                 var c = new Vector2(h3[i], h3[i + 1]);
                 int levels = (int)h3[i + 5];
                 if (levels < 3 || Geo.DistanceToPolyline(U.arr, c, false) > 16f) continue;
+                if (ctx.InKeepClear(c, Mathf.Max(h3[i + 2], h3[i + 3]) * 0.5f)) continue;   // no house was built here (the church stood under floating balconies)
                 float w = h3[i + 2], d = h3[i + 3];
                 var q = Quaternion.Euler(0, h3[i + 4], 0);
                 Vector3 f = q * Vector3.forward, r = q * Vector3.right;

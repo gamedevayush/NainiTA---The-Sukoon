@@ -38,7 +38,7 @@ namespace Nainital.EditorTools
                 foreach (var dd in dirs) if (Vector2.Dot(dd, toPark) > Vector2.Dot(front, toPark)) front = dd;
                 bool frontIsU = Mathf.Abs(Vector2.Dot(front, ux)) > 0.5f;
                 float width = frontIsU ? bd : bw, depth = frontIsU ? bw : bd;
-                return (c, front, Mathf.Min(width, 30f), Mathf.Min(depth, 22f));
+                return (c, front, Mathf.Min(width, 40f), Mathf.Min(depth, 40f));   // the real footprint: 20 m front, 35 m deep
             }
             return null;
         }
@@ -47,7 +47,16 @@ namespace Nainital.EditorTools
         {
             var cap = CapitolBox(ctx);
             if (cap.HasValue) ctx.keepClear.Add((cap.Value.c, Mathf.Max(cap.Value.w, cap.Value.d) * 0.5f + 1f));
-            foreach (var (name, r) in new[] { ("Tibetan Market", 18f), ("Naina Devi Gate", 4f), ("Mallital Police Booth", 3f), ("Bandstand", 6f), ("Children's Park (Capitol)", 10f) })
+            foreach (var (name, r) in new[] { ("Tibetan Market", 18f), ("Naina Devi Gate", 9f), ("Mallital Police Booth", 3f), ("Bandstand", 6f), ("Children's Park (Capitol)", 10f) })
+            {
+                var p = ctx.Poi(name);
+                if (p.HasValue) ctx.keepClear.Add((p.Value, r));
+            }
+            foreach (var spot in PlacedSpots(ctx)) ctx.keepClear.Add((spot, 11f));   // the Shaktipeeth gate and anything else placed by hand
+            if (MasjidSite(ctx, out var masjid, out _)) ctx.keepClear.Add((masjid, 20f));
+            foreach (var spot in LandmarkBuilder.SnowViewSpots()) ctx.keepClear.Add(spot);   // the Snow View hilltop
+            foreach (var spot in LandmarkBuilder.BoatClubSpots()) ctx.keepClear.Add(spot);   // the Boat House Club
+            foreach (var (name, r) in new[] { ("Naina Devi", 20f), ("Gurudwara", 15f), ("Church", 16f) })
             {
                 var p = ctx.Poi(name);
                 if (p.HasValue) ctx.keepClear.Add((p.Value, r));
@@ -72,7 +81,7 @@ namespace Nainital.EditorTools
             if (cap.HasValue)
             {
                 CapitolCinema(ctx, parent, mb, col, font, cap.Value.c, cap.Value.front, cap.Value.w, cap.Value.d);
-                CapitolLakeShops(ctx, parent, mb, font, cap.Value.c, cap.Value.front, cap.Value.w, cap.Value.d);
+                VideoGamesHall(ctx, parent, mb, col, font, cap.Value.c, cap.Value.front, cap.Value.w, cap.Value.d);
                 notes.Add("Capitol");
             }
             var park = ctx.Poi("Children's Park (Capitol)");
@@ -87,8 +96,7 @@ namespace Nainital.EditorTools
                 notes.Add("Naina Devi gate");
             }
             if (plaza.HasValue) { TibetanPlaza(ctx, parent, plaza.Value, temple ?? plaza.Value + Vector2.right * 30f); notes.Add("Tibetan market"); }
-            var booth = ctx.Poi("Mallital Police Booth");
-            if (booth.HasValue) { PoliceBooth(ctx, parent, mb, col, font, booth.Value); notes.Add("police booth"); }
+            // the police chowki and the Shaktipeeth gate on Mall Road are one prefab placed by hand (WorldBuilder.PlacedByHand.cs)
             var band = ctx.Poi("Bandstand");
             if (band.HasValue) { Bandstand(ctx, mb, col, band.Value); notes.Add("bandstand"); }
             var boats = ctx.Poi("Mallital Boat Point");
@@ -118,58 +126,7 @@ namespace Nainital.EditorTools
         }
 
         // ------------------------------------------------------------------ Capitol Cinema
-        static void CapitolCinema(WorldCtx ctx, Transform parent, MeshBuilder mb, MeshBuilder col, Font font, Vector2 c2, Vector2 f2, float W, float D)
-        {
-            Vector2 r2 = new Vector2(f2.y, -f2.x);
-            float y = ctx.H(c2 + f2 * (D * 0.5f)) - 0.2f, yBase = Mathf.Min(y, ctx.H(c2 - f2 * (D * 0.5f))) - 0.5f;
-            var rot = Quaternion.LookRotation(Flat(f2));
-            Vector3 c = V(c2, y), front = Flat(f2), right = Flat(r2);
-            Vector2 white = Atlas.WallSolid(0), red = Atlas.SolidUV(Pal.TempleRed), glass = Atlas.SolidUV(Pal.IronBlack), conc = Atlas.MaterialUV(Atlas.MatConcrete);
-            const float H = 8.4f;
-            // body: white walls on a stone base
-            mb.Box(c + Vector3.up * ((H + y - yBase) * 0.5f - (y - yBase)), new Vector3(W, H + (y - yBase), D), rot, white);
-            col.Box(c + Vector3.up * (H * 0.5f), new Vector3(W, H, D), rot, Vector2.zero);
-            mb.Box(c + Vector3.up * (H + 0.15f), new Vector3(W + 0.4f, 0.3f, D + 0.4f), rot, red);       // red cornice
-            mb.Box(c + Vector3.up * 3.6f + front * (D * 0.5f + 0.05f), new Vector3(W, 0.25f, 0.2f), rot, red);   // band over the shops
-            // the central bay: raised parapet with the CAPITOL sign band
-            Vector3 bay = c + front * (D * 0.5f + 0.4f);
-            mb.Box(bay + Vector3.up * (H * 0.5f + 0.6f), new Vector3(W * 0.42f, H + 1.2f, 0.8f), rot, white);
-            mb.Box(bay + Vector3.up * (H + 0.75f) + front * 0.42f, new Vector3(W * 0.4f, 1.2f, 0.08f), rot, red);
-            mb.Box(bay + Vector3.up * (H - 0.35f) + front * 0.42f, new Vector3(W * 0.16f, 0.45f, 0.06f), rot, Atlas.SolidUV(Pal.ShirtWhite));
-            var holder = new GameObject("Capitol Cinema sign").transform;
-            holder.SetParent(parent, false);
-            Label(holder, font, "CAPITOL", bay + Vector3.up * (H + 0.75f) + front * 0.47f, front, 0.85f, Color.white);
-            Label(holder, font, "CINEMA", bay + Vector3.up * (H - 0.35f) + front * 0.5f, front, 0.3f, new Color(0.7f, 0.08f, 0.08f));
-            // first floor: tall red-framed windows between red pilasters
-            int bays = Mathf.Max(5, Mathf.RoundToInt(W / 3f));
-            for (int i = 0; i < bays; i++)
-            {
-                float s = (i + 0.5f) / bays - 0.5f;
-                Vector3 wpos = c + right * (s * W) + front * (D * 0.5f + (Mathf.Abs(s) < 0.21f ? 0.82f : 0.04f)) + Vector3.up * 5.6f;
-                mb.Box(wpos, new Vector3(1.4f, 2.2f, 0.1f), rot, red);
-                mb.Box(wpos + front * 0.04f, new Vector3(1.0f, 1.8f, 0.08f), rot, glass);
-                mb.Box(c + right * ((s + 0.5f / bays) * W) + front * (D * 0.5f + 0.1f) + Vector3.up * (H * 0.5f), new Vector3(0.35f, H, 0.2f), rot, red);
-            }
-            // ground floor: shop openings with boards
-            var shopRnd = new System.Random(77);
-            string[] boards = { "THE PAHARI STORE", "GALAXY", "CAPITOL CAFE", "WOOLLENS", "TICKETS" };
-            for (int i = 0; i < 5; i++)
-            {
-                float s = (i + 0.5f) / 5f - 0.5f;
-                Vector3 shop = c + right * (s * W) + front * (D * 0.5f + 0.06f) + Vector3.up * 1.4f;
-                mb.Box(shop, new Vector3(W / 5f - 1.0f, 2.6f, 0.08f), rot, glass);
-                mb.Box(shop + Vector3.up * 1.7f + front * 0.04f, new Vector3(W / 5f - 0.8f, 0.55f, 0.06f), rot, i % 2 == 0 ? red : Atlas.SolidUV(Pal.BoatBlue));
-                Label(holder, font, boards[i], shop + Vector3.up * 1.7f + front * 0.09f, front, 0.22f, Color.white);
-            }
-            // the film billboard on the roof
-            Vector3 bb = c + right * (-W * 0.18f) + front * (D * 0.5f - 2f) + Vector3.up * (H + 2.6f);
-            mb.Box(bb, new Vector3(6.5f, 3.2f, 0.12f), rot, Atlas.SolidUV(Pal.JacketBlue));
-            mb.Box(bb + front * 0.07f + right * 1.4f, new Vector3(2.4f, 2.6f, 0.04f), rot, Atlas.SolidUV(Pal.SareeOrange));
-            mb.Box(bb + front * 0.07f - right * 1.6f + Vector3.up * 0.5f, new Vector3(2.2f, 1.2f, 0.04f), rot, Atlas.SolidUV(Pal.ShirtWhite));
-            foreach (float s in new[] { -1f, 1f }) mb.Box(bb + right * (s * 2.8f) + Vector3.down * 1.8f, new Vector3(0.12f, 2.2f, 0.12f), rot, glass);
-            ctx.InfoSign("Capitol Cinema", "1930s ka purana cinema hall, Mallital mein Flats ke paas. Angrezon ke zamane se yahan filmein chalti aa rahi hain.",
-                         V(c2 + f2 * (D * 0.5f + 6f) + r2 * (W * 0.5f + 1f), ctx.H(c2 + f2 * (D * 0.5f + 6f) + r2 * (W * 0.5f + 1f))), rot, parent);
-        }
+        // CapitolCinema and VideoGamesHall: WorldBuilder.Capitol.cs
 
         static void TyrePark(WorldCtx ctx, MeshBuilder mb, MeshBuilder col, Vector2 p)
         {
@@ -202,42 +159,7 @@ namespace Nainital.EditorTools
         }
 
         // ------------------------------------------------------------------ Naina Devi gate and the Tibetan market plaza
-        static void TempleGate(WorldCtx ctx, Transform parent, MeshBuilder mb, MeshBuilder col, Font font, Vector2 at, Vector2 face2)
-        {
-            Vector3 face = Flat(face2), right = Vector3.Cross(Vector3.up, face);
-            var rot = Quaternion.LookRotation(face);
-            float y = ctx.H(at);
-            Vector2 lavender = Atlas.SolidUV(Pal.SareePink), gold = Atlas.SolidUV(Pal.Saffron), red = Atlas.SolidUV(Pal.TempleRed), white = Atlas.SolidUV(Pal.ShirtWhite);
-            const float span = 4.4f, H = 4.2f;
-            foreach (float s in new[] { -1f, 1f })
-            {
-                Vector3 p = V(at, y) + right * (s * (span * 0.5f + 0.35f));
-                mb.Box(p + Vector3.up * 0.25f, new Vector3(1.0f, 0.5f, 1.0f), rot, white);
-                mb.Box(p + Vector3.up * (H * 0.5f + 0.25f), new Vector3(0.62f, H - 0.5f, 0.62f), rot, lavender);
-                mb.Box(p + Vector3.up * (H + 0.05f), new Vector3(0.85f, 0.25f, 0.85f), rot, white);
-                col.Box(p + Vector3.up * (H * 0.5f), new Vector3(0.7f, H, 0.7f), rot, Vector2.zero);
-            }
-            // the golden arched top, curling up at both ends
-            Vector3 last = default;
-            for (int k = 0; k <= 16; k++)
-            {
-                float a = k / 16f;
-                float lift = Mathf.Sin(a * Mathf.PI) * 0.9f + (Mathf.Pow(Mathf.Abs(a - 0.5f) * 2f, 6f)) * 0.7f;
-                Vector3 q = V(at, y) + right * ((a - 0.5f) * (span + 1.6f)) + Vector3.up * (H + 0.3f + lift);
-                if (k > 0)
-                {
-                    mb.Limb(last, q, 0.3f, 0.3f, 8, gold);                      // the golden arch: a thick curved bar
-                    mb.Limb(last + Vector3.up * 0.32f, q + Vector3.up * 0.32f, 0.12f, 0.12f, 6, gold, false);   // a thin rail over it
-                }
-                last = q;
-            }
-            // bells hanging under the arch, and a red board
-            for (int k = -2; k <= 2; k++) mb.Sphere(V(at, y) + right * (k * 0.7f) + Vector3.up * (H - 0.2f), new Vector3(0.12f, 0.16f, 0.12f), 6, 4, gold);
-            mb.Box(V(at, y) + Vector3.up * (H + 1.55f) + face * 0.3f, new Vector3(2.6f, 0.5f, 0.06f), rot, red);
-            var holder = new GameObject("Naina Devi gate").transform;
-            holder.SetParent(parent, false);
-            Label(holder, font, "SHRI MAA NAINA DEVI MANDIR", V(at, y) + Vector3.up * (H + 1.55f) + face * 0.35f, face, 0.17f, new Color(1f, 0.9f, 0.5f));
-        }
+        // TempleGate (the red twin-arched gate) and MargGate (the sandstone gate by the police booth): WorldBuilder.Gates.cs
 
         static void TibetanPlaza(WorldCtx ctx, Transform parent, Vector2 c, Vector2 temple)
         {
@@ -309,11 +231,11 @@ namespace Nainital.EditorTools
         }
 
         // ------------------------------------------------------------------ lakeside: police booth, bandstand, boat ghat
-        static void PoliceBooth(WorldCtx ctx, Transform parent, MeshBuilder mb, MeshBuilder col, Font font, Vector2 p)
+        static void PoliceBooth(WorldCtx ctx, Transform parent, MeshBuilder mb, MeshBuilder col, Font font, Vector2 p, Vector2? facing = null)
         {
             float y = ctx.H(p);
             var near = NearestRoadPoint(ctx, p, 30f, r => !IsMinor(r.kind), out var rp, out _) ? rp : p + Vector2.up;
-            Vector2 f2 = (near - p).sqrMagnitude > 0.01f ? (near - p).normalized : Vector2.up;
+            Vector2 f2 = facing ?? ((near - p).sqrMagnitude > 0.01f ? (near - p).normalized : Vector2.up);
             var rot = Quaternion.LookRotation(Flat(f2));
             Vector3 c = V(p, y), front = Flat(f2);
             mb.Box(c + Vector3.up * 0.5f, new Vector3(2.6f, 1f, 2.2f), rot, Atlas.SolidUV(Pal.TempleRed));
@@ -371,6 +293,33 @@ namespace Nainital.EditorTools
                 TexBox(mb, V(q, (h + water - 0.6f) * 0.5f), new Vector3(12f, h - (water - 0.6f), 0.45f), rot, stone);
             }
             col.Box(V(shore + o * 1f, (top + water) * 0.5f), new Vector3(12f, top - water, 2.6f), rot, Vector2.zero);
+            // the white balustrade along the top of the bank either side of the steps (user's video, 0:12 and 8:52):
+            // turned balusters between square posts, a moulded rail on top, on a low plinth
+            Vector2 white = Atlas.SolidUV(Pal.TempleWhite), cream = Atlas.SolidUV(Pal.ShirtWhite);
+            foreach (float side in new[] { -1f, 1f })
+            {
+                for (float s = 6.4f; s <= 20f; s += 3f)
+                {
+                    float s1 = Mathf.Min(s + 3f, 20.4f);
+                    Vector2 a = shore + o * 2.6f + along * (side * s), b = shore + o * 2.6f + along * (side * s1);
+                    if (ctx.InLake(a + o * 0.6f) || ctx.InLake(b + o * 0.6f)) break;   // the shore turns away: stop at the water
+                    float ya = ctx.H(a), yb = ctx.H(b), yl = Mathf.Max(ya, yb);
+                    Vector2 m2 = (a + b) * 0.5f;
+                    var rr = Quaternion.LookRotation(Flat((b - a).normalized));
+                    float len = Vector2.Distance(a, b);
+                    mb.Box(V(m2, yl + 0.12f), new Vector3(0.42f, 0.24f, len), rr, cream);              // plinth
+                    mb.Box(V(m2, yl + 0.9f), new Vector3(0.34f, 0.1f, len + 0.04f), rr, white);         // rail
+                    mb.Box(V(m2, yl + 0.96f), new Vector3(0.26f, 0.05f, len + 0.04f), rr, cream);
+                    for (float t = 0.25f; t < len - 0.15f; t += 0.26f)
+                    {
+                        Vector3 q = V(Vector2.Lerp(a, b, t / len), yl + 0.24f);
+                        mb.Cylinder(q, 0.07f, 0.045f, 0.3f, 6, white, false);
+                        mb.Cylinder(q + Vector3.up * 0.3f, 0.045f, 0.075f, 0.31f, 6, white, false);
+                    }
+                    mb.Box(V(a, yl + 0.5f), new Vector3(0.36f, 1.0f, 0.36f), rr, white);                // post
+                    col.Box(V(m2, yl + 0.5f), new Vector3(0.34f, 1.0f, len), rr, Vector2.zero);
+                }
+            }
             int[] hulls = { Pal.BoatYellow, Pal.BoatGreen, Pal.BoatBlue, Pal.TempleRed, Pal.BoatYellow, Pal.BoatGreen, Pal.BoatBlue };
             var boats = new MeshBuilder();
             for (int b = 0; b < 7; b++)

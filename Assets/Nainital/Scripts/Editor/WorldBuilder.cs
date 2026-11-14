@@ -188,6 +188,7 @@ namespace Nainital.EditorTools
         {
             var t0 = DateTime.Now;
             var world = JsonUtility.FromJson<WorldJson>(File.ReadAllText(Root + "/Data/world.json"));
+            FixWorldData(world);   // WorldBuilder.DataFixes.cs: roads the map data is missing (Colvin Road ...)
             Directory.CreateDirectory(Gen);
             Directory.CreateDirectory(Root + "/Scenes");
             // New scene FIRST: opening a scene unloads unused assets, which would kill objects created before it.
@@ -208,7 +209,9 @@ namespace Nainital.EditorTools
             Step("Lake", () => BuildLake(ctx));
             Step("Small lakes (Sariyatal, Khurpatal)", () => BuildPonds(ctx));
             Step("Level the landmark sites", () => FlattenSites(ctx));
+            Step("Capitol terraces and the Mallital bank", () => ShapeCapitolGround(ctx));   // before the roads follow the ground
             Step("Level the ground along the roads", () => LevelRoads(ctx));
+            Step("The Flats' edge (level with its roads)", () => LevelFlatsEdge(ctx));
             Step("Roads", () => { roadStrips.Clear(); BuildRoads(ctx); });
             Step("G.O.A.N. plan (civic sites)", () => PlanGoan(ctx));
             Step("Tallital plan", () => PlanTallital(ctx));
@@ -238,6 +241,7 @@ namespace Nainital.EditorTools
             Step("Ground under the roads", () => CarveUnderRoads(ctx));   // last: everything above reads the ground (ctx.H)
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
+            Step("Placed by hand (Shaktipeeth gate ...)", () => RestorePlacedByHand(ctx));
             BuildingKit.Ground = null;
 
             EditorUtility.SetDirty(bank);
@@ -639,7 +643,8 @@ namespace Nainital.EditorTools
             var tallitalBus = ctx.Poi("New Bus Station");
             var mallitalC = ctx.Poi("Nainital Stadium");
             var h = ctx.world.houses;
-            int count = 0;
+            int count = 0, highCount = 0, colonialCount = 0;
+            PrepareHighStreet(ctx);
             for (int i = 0; i + 8 < h.Length; i += 9)
             {
                 Vector2 c = new Vector2(h[i], h[i + 1]);
@@ -658,14 +663,32 @@ namespace Nainital.EditorTools
                     }
                 if (gMax < ctx.lakeY + 0.5f || ctx.InLake(c)) continue;
                 if (ctx.InKeepClear(c, Mathf.Max(w, d) * 0.5f)) continue;   // a G.O.A.N. civic building stands here
+                bool lowOnly = false;
+                if (!WalkHouse(ctx, c, ref levels, out lowOnly)) continue;   // the walk from Mall Road to Naina Devi (user, 2026-11-14)
                 bool shop = NearMallRoad(ctx, c, 32f) || (bazaar.HasValue && (c - bazaar.Value).sqrMagnitude < BazaarShopRadius * BazaarShopRadius)
                          || (tallitalBus.HasValue && (c - tallitalBus.Value).sqrMagnitude < TallitalShopRadius * TallitalShopRadius * 0.8f)
                          || (mallitalC.HasValue && (c - mallitalC.Value).sqrMagnitude < MallitalShopRadius * MallitalShopRadius);
-                if (TryGoanHouse(ctx, i / 9, c, w, d, yaw, gMin, gMax, shop, Chunk(c)[0])) { count++; continue; }
+                int wallIdx = (int)h[i + 6] % Atlas.WallColors;
+                bool high = !lowOnly && HighStreetHouse(ctx, c, w, d, i / 9, ref levels, ref wallIdx);   // Tallital junction (WorldBuilder.HighStreet.cs)
+                if (high) { shop = true; highCount++; }
+                // Mall Road's first row: British-era fronts (REFERENCE_REPORT 2.4): pale walls, red/green/maroon tin gables,
+                // full-width verandahs. Not swapped for a G.O.A.N. box.
+                bool colonial = !high && levels >= 2 && NearMallRoad(ctx, c, Mathf.Max(w, d) * 0.5f + 12f);
+                int roofIdx = (int)h[i + 7] % Atlas.RoofColors;
+                if (colonial)
+                {
+                    uint hc = (uint)(i / 9) * 2654435761u;
+                    wallIdx = ColonialWalls[(int)((hc >> 9) % (uint)ColonialWalls.Length)];
+                    roofIdx = ColonialRoofs[(int)((hc >> 15) % (uint)ColonialRoofs.Length)];
+                    colonialCount++;
+                }
+                HighStreetOccupy(c, Mathf.Sqrt(w * w + d * d) * 0.5f * 0.8f);
+                if (!lowOnly && !high && !colonial && TryGoanHouse(ctx, i / 9, c, w, d, yaw, gMin, gMax, shop, Chunk(c)[0])) { count++; continue; }
                 var st = new BuildingKit.Style
                 {
-                    wall = (int)h[i + 6] % Atlas.WallColors, roof = (int)h[i + 7] % Atlas.RoofColors,
-                    flatRoof = h[i + 8] > 0.5f, shop = shop, litChance = 0.45f,
+                    wall = wallIdx % Atlas.WallColors, roof = roofIdx,
+                    flatRoof = !colonial && (high || TinRoofLook(ctx, c, i / 9, h[i + 8] > 0.5f)), shop = shop, litChance = high ? 0.6f : 0.45f,
+                    colonial = colonial,
                 };
                 var ch = Chunk(c);
                 BuildingKit.House(ch[0], ch[1], c, w, d, yaw, levels, gMin, gMax, st, ctx.rng);
@@ -687,23 +710,53 @@ namespace Nainital.EditorTools
                 c /= poly.Length;
                 if (ctx.InLake(c)) continue;
                 if (string.IsNullOrEmpty(b.name) && ctx.InKeepClear(c, 3f)) continue;
-                if (!string.IsNullOrEmpty(b.name) && b.name.IndexOf("Capitol", StringComparison.OrdinalIgnoreCase) >= 0) continue;   // built in WorldBuilder.Mallital.cs   // unnamed buildings give way to built places (Tallital, civic sites)
+                if (!string.IsNullOrEmpty(b.name) && b.name.IndexOf("Capitol", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                if (!string.IsNullOrEmpty(b.name) && b.name.IndexOf("Boat House", StringComparison.OrdinalIgnoreCase) >= 0) continue;   // LandmarkBuilder.BoatClub.cs   // built in WorldBuilder.Mallital.cs   // unnamed buildings give way to built places (Tallital, civic sites)
+                int osmLevels = b.levels > 0 ? Mathf.Clamp(b.levels, 1, 8) : 3;
+                if (string.IsNullOrEmpty(b.name) && !WalkHouse(ctx, c, ref osmLevels, out _)) continue;
                 bool hostel = b.kind == "hostel" || b.kind == "university" || b.kind == "school" || b.kind == "college";
+                float bRad = 0f;
+                foreach (var p in poly) bRad = Mathf.Max(bRad, (p - c).magnitude);
+                HighStreetOccupy(c, bRad * 0.85f);
+                int osmWall = hostel ? 1 : ctx.rng.Next(Atlas.WallColors);
+                bool osmShop = false;
+                if (!hostel && string.IsNullOrEmpty(b.name))   // on a high street: painted, 3-4 storeys, shops below
+                {
+                    int lv = osmLevels, wl = osmWall;
+                    if (HighStreetHouse(ctx, c, bRad * 2f, bRad * 2f, Mathf.Abs(Mathf.RoundToInt(c.x * 7 + c.y * 13)), ref lv, ref wl))
+                    { osmLevels = Mathf.Min(lv, 5); osmWall = wl; osmShop = true; highCount++; }
+                }
                 var st = new BuildingKit.Style
                 {
-                    wall = hostel ? 1 : ctx.rng.Next(Atlas.WallColors), roof = ctx.rng.Next(Atlas.RoofColors),
-                    flatRoof = true, shop = false, litChance = 0.5f,
+                    wall = osmWall, roof = ctx.rng.Next(Atlas.RoofColors),
+                    flatRoof = true, shop = osmShop, litChance = 0.5f,
                 };
                 var ch = Chunk(c);
-                BuildingKit.Footprint(ch[0], ch[1], poly, b.levels > 0 ? Mathf.Clamp(b.levels, 1, 8) : 3, gMin, gMax, st, ctx.rng);
+                BuildingKit.Footprint(ch[0], ch[1], poly, osmLevels, gMin, gMax, st, ctx.rng);
                 count++;
             }
+            int infill = HighStreetInfill(ctx, Chunk);
+            count += infill;
             foreach (var kv in chunks)
             {
                 var go = ctx.MeshObject($"Houses {kv.Key.x},{kv.Key.y}", parent, kv.Value[0], ctx.mats.atlas, kv.Value[1]);
                 GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
             }
-            Debug.Log($"[Nainital] buildings: {count} in {chunks.Count} chunks");
+            Debug.Log($"[Nainital] buildings: {count} in {chunks.Count} chunks ({highCount} high-street shop buildings + {infill} new street-wall shops, {colonialCount} Mall Road colonial fronts)");
+        }
+
+        /// <summary>
+        /// Whether a house keeps a flat roof (user, 2026-11-14, after 10 videos: "jitne ghar hain waise hi rakho, kam poly par
+        /// texture matching"). The drone shots show the town as painted tin: the first row on Mall Road is all colonial
+        /// sloping tin, and across the rest of the town a little over half the roofs are tin. Same houses, same count; only
+        /// the roof changes, and a gable is two quads.
+        /// </summary>
+        static bool TinRoofLook(WorldCtx ctx, Vector2 c, int index, bool dataFlat)
+        {
+            if (!dataFlat) return false;
+            if (NearMallRoad(ctx, c, 30f)) return false;
+            float r = (index * 2654435761u % 1000u) / 1000f;   // fixed per house
+            return r < 0.45f;
         }
 
         // ------------------------------------------------------------------ promenade (Mall Road / Thandi Sadak lake edge)
@@ -874,8 +927,7 @@ namespace Nainital.EditorTools
                     if (ctx.InLake(p) || ctx.LakeDistance(p) < 18f) continue;
                     Vector2 tan = (pts[i + 1] - pts[i - 1]).normalized;
                     float side = i % 2 == 0 ? 1f : -1f;
-                    Vector2 nrm = new Vector2(-tan.y, tan.x) * side;
-                    Vector2 lp = p + nrm * (r.width * 0.5f + 0.7f);
+                    if (!PoleSpot(ctx, p, new Vector2(-tan.y, tan.x) * side, r.width * 0.5f + 0.7f, out var lp, out var nrm)) continue;   // never on another road
                     Vector3 basePos = new Vector3(lp.x, ctx.H(lp), lp.y);
                     Quaternion rot = Quaternion.LookRotation(new Vector3(-nrm.x, 0, -nrm.y));
                     using (PropKit.At(mb, basePos, rot))
@@ -912,6 +964,8 @@ namespace Nainital.EditorTools
                 data.Add(p.x); data.Add(h - 0.15f); data.Add(p.y);
                 data.Add(type); data.Add(t[i + 3]); data.Add((float)rnd.NextDouble() * 360f);
             }
+            int townTrees = TownTreeFill(ctx, data, rnd);
+            Debug.Log($"[Nainital] town trees added: {townTrees}");
             for (int k = 0; k < bankTrees.Count; k++)   // the Mall's own trees (LowerMallBank)
             {
                 var b = bankTrees[k];

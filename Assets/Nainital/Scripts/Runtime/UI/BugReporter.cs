@@ -200,9 +200,23 @@ namespace Nainital
                 try { File.Copy(extras[i], Path.Combine(dir, $"photo_{i + 1}{Path.GetExtension(extras[i])}"), true); } catch { }
             File.WriteAllText(Path.Combine(dir, "note.txt"), "BUG: " + input.text.Trim() + "\n\n" + where, Encoding.UTF8);
             Debug.Log("[Nainital] bug report saved -> " + dir);
+#if UNITY_IOS && !UNITY_EDITOR
+            // iPhone: the report stays in the app, so open the share sheet (WhatsApp / Mail / Save to Files).
+            // It is also in Files > On My iPhone > Nainital Open World > BugReports (IOSPlist).
+            GameEvents.ShowToast("Bug save ho gaya. Bhejo, ya Files app > Nainital Open World > BugReports", 4f);
+            string files = (shot ? Path.Combine(dir, "screen.png") + "\n" : "") + Path.Combine(dir, "note.txt");
+            Close();
+            _NainitalShareFiles(files, "NainiTA bug: " + input.text.Trim());
+#else
             GameEvents.ShowToast("Bug save ho gaya. Claude ko bolo: \"bug dekho\"", 3f);
             Close();
+#endif
         }
+
+#if UNITY_IOS && !UNITY_EDITOR
+        [System.Runtime.InteropServices.DllImport("__Internal")]
+        static extern void _NainitalShareFiles(string paths, string text);
+#endif
 
         void Close()
         {

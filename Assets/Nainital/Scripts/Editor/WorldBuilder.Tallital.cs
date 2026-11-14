@@ -28,9 +28,11 @@ namespace Nainital.EditorTools
             var t = tallital = new TallitalPlan();
             // The roadways station is ~50 m SW of the lake-corner junction, beside the road along the south shore,
             // with the spired stone school just behind it (user's Street View check). Both are POIs from process_data.py.
+            // the bus station stands where OpenStreetMap draws it, across the junction from the old hand pin (user, 2026-11-14,
+            // screenshot: "bus stand red nahi, green jagah pe hai"; the pin was the Bank of Baroda building beside it)
             var bus = ctx.Poi("Tallital Roadways Bus Station") ?? ctx.Poi("New Bus Station");
             if (!bus.HasValue) return t;
-            Vector2 B = bus.Value;
+            Vector2 B = new Vector2(881f, -1197f);   // centre of the OSM amenity=bus_station area
             t.corner = ctx.tallitalShore;
             // it faces the junction plaza where the buses stand; a 10.5 m yard in front of a 9 m deep canopy
             t.N = (t.corner - B).normalized;
@@ -411,8 +413,8 @@ namespace Nainital.EditorTools
                     Vector2 p = line[i];
                     if ((p - t.corner).sqrMagnitude > TownRadius * TownRadius || ctx.InLake(p)) { prev = null; continue; }
                     Vector2 tan = (line[i + 1] - line[i - 1]).normalized, side = new Vector2(tan.y, -tan.x);
-                    Vector2 q = p + side * (r.width * 0.5f + 0.9f);
-                    if (ctx.LakeDistance(q) < 3f) q = p - side * (r.width * 0.5f + 0.9f);
+                    if (ctx.LakeDistance(p + side * (r.width * 0.5f + 0.9f)) < 3f) side = -side;
+                    if (!PoleSpot(ctx, p, side, r.width * 0.5f + 0.9f, out var q, out side) || ctx.LakeDistance(q) < 3f) { prev = null; continue; }   // never on another road
                     var basePos = V(q, ctx.H(q));
                     var rot = Quaternion.LookRotation(Flat(tan)) * Quaternion.Euler(0, 90, 0);
                     Vector3[] heads;
@@ -439,7 +441,36 @@ namespace Nainital.EditorTools
         {
             var post = ctx.Poi("Tallital Traffic Post");
             if (!post.HasValue) return;
+            // (user, 2026-11-14: "position not perfect") the OSM point lies off the junction; the booth stands where the
+            // main roads' centre lines meet (the node they share nearest the point), and its barricades face the arms
             Vector2 p = post.Value;
+            var arms = new List<Vector2>();
+            {
+                var nodes = new Dictionary<Vector2Int, List<Vector2>>();   // shared vertices -> the directions leaving them
+                foreach (var r in ctx.world.roads)
+                {
+                    if (r.pts == null || r.pts.Length < 4) continue;
+                    if (r.kind != "trunk" && r.kind != "primary" && r.kind != "secondary" && r.kind != "trunk_link" && r.kind != "tertiary") continue;
+                    var line = Geo.ToPoints(r.pts);
+                    for (int i = 0; i < line.Length; i++)
+                    {
+                        if ((line[i] - p).sqrMagnitude > 60f * 60f) continue;
+                        var key = new Vector2Int(Mathf.RoundToInt(line[i].x * 2f), Mathf.RoundToInt(line[i].y * 2f));
+                        if (!nodes.TryGetValue(key, out var dirs)) { dirs = new List<Vector2>(); nodes[key] = dirs; }
+                        if (i > 0) dirs.Add((line[i - 1] - line[i]).normalized);
+                        if (i + 1 < line.Length) dirs.Add((line[i + 1] - line[i]).normalized);
+                    }
+                }
+                float best = float.MaxValue;
+                foreach (var kv in nodes)
+                {
+                    if (kv.Value.Count < 3) continue;   // a real junction: three arms or more
+                    Vector2 q = new Vector2(kv.Key.x * 0.5f, kv.Key.y * 0.5f);
+                    float d = (q - p).sqrMagnitude;
+                    if (d < best) { best = d; arms = kv.Value; p = q; }
+                }
+                if (best < float.MaxValue) Debug.Log($"[Nainital] Tallital traffic post: on the junction at ({p.x:F1}, {p.y:F1}), {arms.Count} arms, {Mathf.Sqrt(best):F1} m from the map point");
+            }
             float y = ctx.H(p);
             var mb = new MeshBuilder();
             var col = new MeshBuilder();
@@ -448,6 +479,8 @@ namespace Nainital.EditorTools
             mb.Cylinder(c, 2.6f, 2.6f, 0.22f, 16, white, true);                     // island kerb
             mb.Cylinder(c + Vector3.up * 0.22f, 2.45f, 2.45f, 0.02f, 16, Atlas.MaterialUV(Atlas.MatConcrete), true);
             col.Cylinder(c, 2.6f, 2.6f, 0.4f, 12, Vector2.zero, true);
+            // the booth up on blue posts under a red tiered roof (Tallital early-morning walk video, 2:02: this was right before;
+            // the "white drum" of 14 Nov was a misread of another video)
             for (int k = 0; k < 4; k++)
             {
                 Vector3 q = c + Quaternion.Euler(0, 45 + 90 * k, 0) * Vector3.forward * 1.0f;
@@ -458,9 +491,19 @@ namespace Nainital.EditorTools
             mb.Pyramid(c + Vector3.up * 4.2f, 2.6f, 2.6f, 0.7f, red);
             mb.Box(c + Vector3.up * 5.0f, new Vector3(0.9f, 0.5f, 0.9f), Quaternion.identity, red);
             mb.Pyramid(c + Vector3.up * 5.25f, 1.3f, 1.3f, 0.5f, red);
-            for (int k = 0; k < 2; k++)   // yellow barricades with red boards around the island
+            // yellow barricades with red boards round the island, one facing each arm of the junction, square to it
+            var faces = new List<Quaternion>();
+            foreach (var a in arms)
             {
-                var rot = Quaternion.Euler(0, 30 + 120 * k, 0);
+                var q = Quaternion.LookRotation(new Vector3(a.x, 0f, a.y));
+                bool dup = false;
+                foreach (var f in faces) if (Quaternion.Angle(f, q) < 30f) { dup = true; break; }
+                if (!dup) faces.Add(q);
+            }
+            if (faces.Count == 0) { faces.Add(Quaternion.Euler(0, 30, 0)); faces.Add(Quaternion.Euler(0, 150, 0)); }
+            for (int k = 0; k < faces.Count; k++)
+            {
+                var rot = faces[k];
                 Vector3 b = c + rot * Vector3.forward * 3.4f;
                 mb.Box(b + Vector3.up * 0.55f, new Vector3(2.2f, 0.08f, 0.08f), rot, yellow);
                 mb.Box(b + Vector3.up * 0.95f, new Vector3(2.2f, 0.08f, 0.08f), rot, yellow);

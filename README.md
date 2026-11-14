@@ -77,7 +77,7 @@ The phone controls only show on a phone. To try them on PC, set PlayerPrefs `nt_
 
 Traffic runs on real car physics, each vehicle with its own mass. Crashes add up: after 4 or 5 knocks black smoke comes out of the bonnet, after 7 or 8 the car catches fire and then blows up.
 
-A bug report grabs the screen, asks what is wrong (in the editor it can also attach more photos), and saves a folder in `BugReports/` with `screen.png` and `note.txt`. The note has the player and camera position, the hour and the weather. On a phone the folder goes to the app's data folder. `BugReports/` is not in git.
+A bug report grabs the screen, asks what is wrong (in the editor it can also attach more photos), and saves a folder in `BugReports/` with `screen.png` and `note.txt`. The note has the player and camera position, the hour and the weather. On a phone the folder goes to the app's data folder. On an iPhone, saving opens the Share sheet (WhatsApp, Mail, Save to Files), and the reports are also in the Files app under On My iPhone → Nainital Open World → BugReports. `BugReports/` is not in git.
 
 ### 6. Build the Android APK (optional)
 

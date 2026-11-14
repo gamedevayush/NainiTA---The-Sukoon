@@ -538,10 +538,12 @@ namespace Nainital.EditorTools
             m.rain = Transparent("M_Rain", particleShader, new Color(0.8f, 0.86f, 1f, 0.5f), false);
 
             m.water = SaveAsset(new Material(Shader.Find("Nainital/Water")) { name = "M_Water" }, mat + "/M_Water.mat");
-            m.water.SetColor("_ShallowColor", new Color(0.34f, 0.46f, 0.56f));   // deep, dark blue lake, not turquoise
-            m.water.SetVector("_Absorption", new Vector4(0.62f, 0.26f, 0.16f, 0f));
-            m.water.SetFloat("_Clarity", 0.75f);
-            m.water.SetColor("_DeepColor", new Color(0.006f, 0.024f, 0.055f));
+            // teal-green, as in every daylight drone shot (user, 2026-11-14: "jheel ka rang theek karo, raat mein bhi blue dikh
+            // rahi thi"): the body takes the deep colour, so that colour is a dark green-teal, not navy
+            m.water.SetColor("_ShallowColor", new Color(0.42f, 0.62f, 0.56f));
+            m.water.SetVector("_Absorption", new Vector4(0.60f, 0.15f, 0.19f, 0f));
+            m.water.SetFloat("_Clarity", 0.8f);
+            m.water.SetColor("_DeepColor", new Color(0.06f, 0.30f, 0.25f));   // in-scattered light: the teal of the drone shots
             m.sky = SaveAsset(new Material(Shader.Find("Nainital/Sky")) { name = "M_Sky" }, mat + "/M_Sky.mat");
             m.terrain = SaveAsset(new Material(Shader.Find("Universal Render Pipeline/Terrain/Lit")) { name = "M_Terrain" }, mat + "/M_Terrain.mat");
 
@@ -560,8 +562,10 @@ namespace Nainital.EditorTools
                 // re-textured (user, 2026-11-11: "nainital pe texturing"): the old lawn-green grass and green-tinted forest floor
                 // read as a golf course. Real ground in the 2025-26 videos: dry mixed grass in the open, dark leaf litter under
                 // the oaks and deodars, grey stony soil on cut banks, packed brown earth in town. Tints only mute the scans.
-                Layer("TL_Grass", grass, 7f, P("forrest_ground_01") ? "forrest_ground_01" : "leafy_grass", P("forrest_ground_01") ? new Color(0.60f, 0.83f, 0.64f) : new Color(0.38f, 0.56f, 0.32f)),
-                Layer("TL_ForestFloor", forest, 8f, P("forest_leaves_02") ? "forest_leaves_02" : "forest_ground_04", P("forest_leaves_02") ? new Color(0.56f, 0.66f, 0.84f) : new Color(0.33f, 0.47f, 0.26f)),
+                Layer("TL_Grass", grass, 7f, P("forrest_ground_01") ? "forrest_ground_01" : "leafy_grass", P("forrest_ground_01") ? new Color(0.42f, 0.62f, 0.40f) : new Color(0.32f, 0.50f, 0.28f)),
+                // under the forest (68% of the map): dark green, not beige - from across the lake the ground between the
+                // trees is what you see, and in every drone video the slopes read as one dark green canopy (user, 2026-11-14)
+                Layer("TL_ForestFloor", forest, 8f, P("forest_leaves_02") ? "forest_leaves_02" : "forest_ground_04", P("forest_leaves_02") ? new Color(0.30f, 0.44f, 0.30f) : new Color(0.20f, 0.33f, 0.18f)),
                 Layer("TL_Rock", rock, 9f, P("rocky_trail") ? "rocky_trail" : "rock_ground_02", new Color(0.82f, 0.86f, 0.92f)),
                 Layer("TL_Dirt", dirt, 6f, "forest_ground_04", new Color(0.80f, 0.80f, 0.80f)),   // Kumaon earth is dark grey-brown, not tan
             };

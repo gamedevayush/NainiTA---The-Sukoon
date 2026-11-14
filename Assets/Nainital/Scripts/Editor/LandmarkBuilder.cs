@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Nainital.EditorTools
 {
     /// <summary>Hand-shaped (code-built) Nainital landmarks placed at their real OpenStreetMap positions.</summary>
-    public static class LandmarkBuilder
+    public static partial class LandmarkBuilder
     {
         static Vector2 S(int pal) => Atlas.SolidUV(pal);
         static Vector2 M(int mat) => Atlas.MaterialUV(mat);
@@ -14,7 +14,8 @@ namespace Nainital.EditorTools
             ["Naini Jheel"] = "Kumaon ki sabse mashhoor jheel, lagbhag 1,938 m ki unchai par. Aankh (nain) jaise aakar ki - manyata hai ki Mata Sati ki aankh yahan giri thi. Lambai lagbhag 1.4 km. Uttari sira Mallital, dakshini sira Tallital.",
             ["Naina Devi Mandir"] = "51 Shaktipeethon mein se ek. Manyata hai ki yahan Mata Sati ki aankhein giri thin. Purana mandir 1880 ke bade bhooskhalan (landslide) mein nasht ho gaya tha, baad mein dobara banaya gaya. Jheel ke uttari kinare, Mallital mein.",
             ["Gurudwara Sri Guru Singh Sabha"] = "Mallital mein Naina Devi mandir ke bilkul paas. Shaant mahaul, langar aur jheel ka sundar nazara.",
-            ["St. Francis Church"] = "Mallital ka purana Catholic church - British daur ki pathar ki imaarat.",
+            ["St. Francis Church"] = "Mall Road ka purana Catholic church (1868) - pathar ki deewarein aur laal nukeeli meenar.",
+            ["Jama Masjid"] = "Mallital ki safed sangmarmar ki masjid, Flats ke kinare. 1882 mein British fauj ke Muslim sipahiyon ke liye bani; ek oonchi meenar aur gumbad iski pehchaan hain.",
             ["Raj Bhavan"] = "Uttarakhand ke Rajyapal ka nivas. 1897-1900 ke beech Buckingham Palace ki tarz par Gothic shaili mein bana. Saath mein golf course bhi hai.",
             ["Bada Bazar"] = "Mallital ka purana bazaar - woolen kapde, Nainital ki mashhoor rang-birangi candles aur khaane-peene ki dukaanein.",
             ["The Flats"] = "1880 ke bade landslide ke malbe se bana khula maidan. Aaj yahan khel, mele aur shaam ki raunak hoti hai.",
@@ -89,118 +90,6 @@ namespace Nainital.EditorTools
         }
 
         // ------------------------------------------------------------------ landmarks
-        static void NainaDevi(MeshBuilder mb, float depth)
-        {
-            Plinth(mb, new Vector3(22, 0, 18), depth, M(Atlas.MatMarble));
-            Vector2 white = S(Pal.TempleWhite), red = S(Pal.TempleRed), orange = M(Atlas.MatTempleOrange), gold = M(Atlas.MatGold);
-            // sanctum with Kumaoni pagoda roofs: three red tiers with white trim, a gold finial and red flags (photo sphere, 2022)
-            mb.Box(new Vector3(0, 2.3f, -3), new Vector3(6, 4.6f, 6), white);
-            float y = 4.6f;
-            float[] tier = { 8.2f, 6.0f, 3.9f };
-            for (int i = 0; i < tier.Length; i++)
-            {
-                mb.Box(new Vector3(0, y + 0.08f, -3), new Vector3(tier[i] + 0.2f, 0.16f, tier[i] + 0.2f), white);
-                mb.Pyramid(new Vector3(0, y + 0.16f, -3), tier[i], tier[i], 1.5f - i * 0.15f, red);
-                y += 1.5f - i * 0.15f;
-                if (i < tier.Length - 1)
-                {
-                    float drum = tier[i + 1] * 0.55f;
-                    mb.Box(new Vector3(0, y + 0.45f, -3), new Vector3(drum, 0.9f, drum), white);
-                    y += 0.9f;
-                }
-            }
-            mb.Cylinder(new Vector3(0, y - 0.1f, -3), 0.35f, 0.25f, 0.5f, 10, gold, true);
-            mb.Sphere(new Vector3(0, y + 0.6f, -3), Vector3.one * 0.32f, 8, 5, gold);
-            mb.Cylinder(new Vector3(0, y + 0.9f, -3), 0.1f, 0f, 0.8f, 6, gold, false);
-            Flag(mb, new Vector3(0.3f, y + 1.4f, -3), 3.2f, Pal.TempleRed);
-            // mandapa (porch) under a red pitched roof
-            foreach (float x in new[] { -2.4f, 2.4f })
-                foreach (float z in new[] { 1.0f, 4.0f })
-                    mb.Cylinder(new Vector3(x, 0, z), 0.24f, 0.2f, 3.3f, 8, white, true);
-            mb.Box(new Vector3(0, 3.42f, 2.3f), new Vector3(6.2f, 0.2f, 4.8f), white);
-            mb.Pyramid(new Vector3(0, 3.52f, 2.3f), 6.6f, 5.2f, 1.7f, red);
-            for (int i = -2; i <= 2; i++) mb.Sphere(new Vector3(i * 0.9f, 2.9f, 4.4f), Vector3.one * 0.13f, 6, 3, gold);   // bells
-            // side shrines, each with two red tiers
-            foreach (float x in new[] { -6.5f, 6.5f })
-            {
-                mb.Box(new Vector3(x, 1.5f, -2.5f), new Vector3(3.0f, 3.0f, 3.0f), white);
-                mb.Box(new Vector3(x, 3.04f, -2.5f), new Vector3(4.3f, 0.12f, 4.3f), white);
-                mb.Pyramid(new Vector3(x, 3.1f, -2.5f), 4.2f, 4.2f, 1.1f, red);
-                mb.Box(new Vector3(x, 4.5f, -2.5f), new Vector3(1.4f, 0.6f, 1.4f), white);
-                mb.Pyramid(new Vector3(x, 4.8f, -2.5f), 2.2f, 2.2f, 0.9f, red);
-                mb.Sphere(new Vector3(x, 5.85f, -2.5f), Vector3.one * 0.18f, 6, 3, gold);
-            }
-            // tall poles with red flags at the corners of the courtyard
-            foreach (var fp in new[] { new Vector3(-9.5f, 0, 6.5f), new Vector3(9.5f, 0, 6.5f), new Vector3(-9.5f, 0, -7.5f) })
-            {
-                mb.Cylinder(fp, 0.07f, 0.05f, 9f, 6, S(Pal.WoodDark), true);
-                Flag(mb, fp + new Vector3(0.1f, 8.6f, 0), 2.6f, Pal.TempleRed);
-            }
-            // courtyard wall + gate
-            mb.Box(new Vector3(0, 0.5f, -8.7f), new Vector3(22, 1f, 0.4f), white);
-            mb.Box(new Vector3(-10.8f, 0.5f, 0), new Vector3(0.4f, 1f, 17.4f), white);
-            mb.Box(new Vector3(10.8f, 0.5f, 0), new Vector3(0.4f, 1f, 17.4f), white);
-            foreach (float x in new[] { -2.2f, 2.2f })
-            {
-                mb.Box(new Vector3(x, 2.2f, 8.6f), new Vector3(0.7f, 4.4f, 0.7f), S(Pal.SareePink));
-                mb.Box(new Vector3(x, 4.6f, 8.6f), new Vector3(0.9f, 0.4f, 0.9f), red);
-            }
-            mb.Box(new Vector3(0, 4.3f, 8.6f), new Vector3(5.2f, 0.7f, 0.6f), red);
-            mb.Box(new Vector3(0, 4.85f, 8.6f), new Vector3(3f, 0.5f, 0.5f), gold);
-            // sacred peepal tree
-            mb.Cylinder(new Vector3(-7.5f, 0, 5), 0.9f, 0.55f, 5.5f, 8, S(Pal.Trunk), false);
-            mb.Sphere(new Vector3(-7.5f, 8.5f, 5), new Vector3(5f, 3.6f, 4.8f), 9, 5, S(Pal.Oak));
-            mb.Sphere(new Vector3(-5.2f, 7.4f, 6.5f), new Vector3(3.2f, 2.4f, 3f), 8, 4, S(Pal.OakLight));
-            mb.Sphere(new Vector3(-9.6f, 7.8f, 3.6f), new Vector3(3.1f, 2.5f, 3.2f), 8, 4, S(Pal.OakLight));
-            mb.Cylinder(new Vector3(-7.5f, 0, 5), 1.8f, 1.8f, 0.6f, 10, white, true);   // chabutra
-        }
-
-        static void Gurudwara(MeshBuilder mb, float depth)
-        {
-            Plinth(mb, new Vector3(18, 0, 14), depth, M(Atlas.MatMarble));
-            Vector2 white = S(Pal.TempleWhite), gold = M(Atlas.MatGold), glass = M(Atlas.MatGlass);
-            mb.Box(new Vector3(0, 3.2f, -1), new Vector3(14, 6.4f, 10), white);
-            mb.Box(new Vector3(0, 6.55f, -1), new Vector3(14.6f, 0.3f, 10.6f), gold);
-            for (int i = -2; i <= 2; i++)   // arched openings
-                mb.Quad(new Vector3(i * 2.6f - 0.8f, 0.4f, 4.02f), new Vector3(i * 2.6f + 0.8f, 0.4f, 4.02f), new Vector3(i * 2.6f + 0.8f, 3.4f, 4.02f), new Vector3(i * 2.6f - 0.8f, 3.4f, 4.02f), glass, Vector3.forward);
-            mb.Cylinder(new Vector3(0, 6.7f, -1), 2.5f, 2.5f, 1.3f, 12, white, true);
-            mb.Sphere(new Vector3(0, 8.0f, -1), new Vector3(2.7f, 2.9f, 2.7f), 12, 5, gold, 0f, 90f);
-            mb.Cylinder(new Vector3(0, 10.8f, -1), 0.25f, 0f, 1.6f, 6, gold, false);
-            foreach (float x in new[] { -6f, 6f })
-                foreach (float z in new[] { -5f, 3f })
-                {
-                    foreach (float dx in new[] { -0.5f, 0.5f })
-                        foreach (float dz in new[] { -0.5f, 0.5f })
-                            mb.Cylinder(new Vector3(x + dx, 6.7f, z + dz), 0.07f, 0.07f, 1.1f, 4, white, false);
-                    mb.Sphere(new Vector3(x, 7.8f, z), new Vector3(0.75f, 0.8f, 0.75f), 8, 3, gold, 0f, 90f);
-                }
-            Flag(mb, new Vector3(7.5f, 0, 5.5f), 15f, Pal.Saffron);
-        }
-
-        static void Church(MeshBuilder mb, float depth)
-        {
-            Plinth(mb, new Vector3(14, 0, 28), depth, M(Atlas.MatDarkStone));
-            Vector2 stone = M(Atlas.MatDarkStone), glass = M(Atlas.MatGlass), wood = S(Pal.WoodDark);
-            mb.Box(new Vector3(0, 3.6f, -2), new Vector3(9, 7.2f, 18), stone);
-            var saved = mb.M;
-            mb.M = saved * Matrix4x4.TRS(new Vector3(0, 7.2f, -2), Quaternion.Euler(0, 90, 0), Vector3.one);
-            mb.GableRoof(Vector3.zero, 18f, 9f, 4.2f, Atlas.Roof(6), stone, 0.5f);
-            mb.M = saved;
-            for (int i = 0; i < 5; i++)
-                foreach (float x in new[] { -4.52f, 4.52f })
-                {
-                    float z = -9f + i * 3.6f;
-                    Vector3 n = x > 0 ? Vector3.right : Vector3.left;
-                    mb.Quad(new Vector3(x, 2f, z - 0.5f), new Vector3(x, 2f, z + 0.5f), new Vector3(x, 5f, z + 0.5f), new Vector3(x, 5f, z - 0.5f), glass, n);
-                    mb.Tri(new Vector3(x, 5f, z - 0.5f), new Vector3(x, 5f, z + 0.5f), new Vector3(x, 5.8f, z), glass, n);
-                }
-            mb.Box(new Vector3(0, 6.5f, 9.2f), new Vector3(4.6f, 13f, 4.6f), stone);
-            mb.Pyramid(new Vector3(0, 13f, 9.2f), 4.8f, 4.8f, 7f, S(Pal.StoneGrey));
-            mb.Box(new Vector3(0, 20.6f, 9.2f), new Vector3(0.12f, 1.4f, 0.12f), S(Pal.Gold));
-            mb.Box(new Vector3(0, 20.9f, 9.2f), new Vector3(0.7f, 0.12f, 0.12f), S(Pal.Gold));
-            mb.Quad(new Vector3(-0.9f, 0, 11.52f), new Vector3(0.9f, 0, 11.52f), new Vector3(0.9f, 3f, 11.52f), new Vector3(-0.9f, 3f, 11.52f), wood, Vector3.forward);
-        }
-
         static void RajBhavan(MeshBuilder mb, float depth, System.Random rng)
         {
             Plinth(mb, new Vector3(56, 0, 26), depth, M(Atlas.MatStone));
@@ -760,7 +649,12 @@ namespace Nainital.EditorTools
                 if (!poi.HasValue) { Debug.LogWarning("[Nainital] POI not found: " + poiName); return; }
                 // a lookout faces what it looks at (compass bearing), everything else faces the lake
                 Vector2 face = bearing.HasValue ? poi.Value + new Vector2(Mathf.Sin(bearing.Value * Mathf.Deg2Rad), Mathf.Cos(bearing.Value * Mathf.Deg2Rad)) * 100f : faceOverride ?? lc;
-                var site = MakeSite(ctx, poi.Value, face, radius);
+                MakeAt(poi.Value, face, title, radius, build, zoneR, signLocal);
+            }
+
+            void MakeAt(Vector2 at, Vector2 face, string title, float radius, System.Action<MeshBuilder, Site> build, float zoneR, Vector3? signLocal = null)
+            {
+                var site = MakeSite(ctx, at, face, radius);
                 var mb = new MeshBuilder { M = Matrix4x4.TRS(site.origin, site.rot, Vector3.one) };
                 build(mb, site);
                 Emit(ctx, title, site, mb, parent);
@@ -772,29 +666,61 @@ namespace Nainital.EditorTools
                 cam.transform.SetPositionAndRotation(site.origin + Vector3.up * 1.7f, site.rot);
             }
 
-            Make("Naina Devi", "Naina Devi Mandir", 12f, (mb, s) => NainaDevi(mb, s.depth), 45f, null, new Vector3(5f, 0, 10f));
-            // G.O.A.N. models when imported (on a stone plinth), else the code-built versions
+            // the four places of worship are built from photos (LandmarkBuilder.Worship.cs), not from the G.O.A.N. models
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var words = new GameObject("Worship name boards").transform;
+            words.SetParent(parent, false);
+            void Words(Site s, string text, Vector3 local, float height, Color col) =>
+                WorldBuilder.Label(words, font, text, s.origin + s.rot * local, s.rot * Vector3.forward, height, col);
+            void Shot(string name, Site s, Vector3 from, Vector3 look)
+            {
+                var m = new GameObject(name);
+                m.transform.SetParent(parent, false);
+                Vector3 p = s.origin + s.rot * from;
+                m.transform.SetPositionAndRotation(p, Quaternion.LookRotation(s.origin + s.rot * look - p));
+            }
+
+            Make("Naina Devi", "Naina Devi Mandir", 12f, (mb, s) =>
+            {
+                NainaDeviTemple(mb, s.depth);
+                Shot("WorshipShot Naina Devi", s, new Vector3(9f, 3.2f, 19f), new Vector3(-1f, 4.5f, -2f));
+            }, 45f, null, new Vector3(5f, 0, 10f));
+            // the Gurudwara's front is away from the lake, to its road (user, 2026-11-14: "gurudwara opposite rotation karo")
+            var gurPoi = ctx.Poi("Gurudwara");
+            Vector2? gurFace = gurPoi.HasValue ? gurPoi.Value * 2f - lc : (Vector2?)null;
             Make("Gurudwara", "Gurudwara Sri Guru Singh Sabha", 10f, (mb, s) =>
             {
-                if (WorldBuilder.PlaceGoanLandmark(ctx, "Proto_Gurudwara", s.origin, s.rot, parent, out var sz))
-                    Plinth(mb, new Vector3(sz.x + 3f, 0, sz.z + 3f), s.depth, M(Atlas.MatMarble));
-                else Gurudwara(mb, s.depth);
-            }, 30f);
+                SinghSabhaGurudwara(mb, s.depth);
+                Words(s, "GURUDWARA SRI GURU SINGH SABHA, NAINITAL", new Vector3(0f, 4.25f, 1.11f), 0.34f, Color.white);
+                Shot("WorshipShot Gurudwara", s, new Vector3(2.5f, 2.2f, 24f), new Vector3(0f, 6.5f, 0f));
+            }, 30f, gurFace);
             Make("Church", "St. Francis Church", 15f, (mb, s) =>
             {
-                if (WorldBuilder.PlaceGoanLandmark(ctx, "Proto_Church", s.origin, s.rot, parent, out var sz))
-                    Plinth(mb, new Vector3(sz.x + 3f, 0, sz.z + 3f), s.depth, M(Atlas.MatStone));
-                else Church(mb, s.depth);
+                StFrancisChurch(mb, s.depth);
+                Words(s, "ST. FRANCIS", new Vector3(0f, 8.25f, 6.09f), 0.2f, new Color(0.1f, 0.1f, 0.12f));
+                Words(s, "CATHOLIC CHURCH", new Vector3(0f, 6.35f, 6.09f), 0.2f, new Color(0.1f, 0.1f, 0.12f));
+                Shot("WorshipShot Church", s, new Vector3(-7f, 2f, 27f), new Vector3(2f, 8f, 2f));
             }, 30f, null, new Vector3(5f, 0, 14f));
+            if (WorldBuilder.MasjidSite(ctx, out var masjidAt, out var masjidFace))
+            {
+                // at the level of the road in front (user, 2026-11-14: "masjid hawa mein kyun hai, neeche rakho"): the floor
+                // is the road's height, the ground under and round it is cut down to that, its back goes into the slope
+                Vector2 f2 = (masjidFace - masjidAt).normalized;
+                Vector2 front = masjidAt + f2 * 11f;
+                float floorY = ctx.H(front) + 0.2f;
+                CutGround(ctx, masjidAt, f2, 17f, 8f, floorY - 0.15f);
+                var s = new Site { origin = new Vector3(masjidAt.x, floorY, masjidAt.y), rot = Quaternion.LookRotation(new Vector3(f2.x, 0f, f2.y)), depth = 1.2f };
+                var mmb = new MeshBuilder { M = Matrix4x4.TRS(s.origin, s.rot, Vector3.one) };
+                JamaMasjid(mmb, s.depth);
+                Emit(ctx, "Jama Masjid", s, mmb, parent);
+                Sign(ctx, "Jama Masjid", s, new Vector3(8f, 0, 9f), parent);
+                ctx.Zone("Jama Masjid", s.origin, 40f);
+                ctx.landmarkSites["Jama Masjid"] = s.origin;
+                Shot("WorshipShot Jama Masjid", s, new Vector3(-12f, 3f, 42f), new Vector3(2f, 8f, 0f));
+            }
             Make("Raj Bhavan", "Raj Bhavan", 30f, (mb, s) => RajBhavan(mb, s.depth, rng), 120f, null, new Vector3(10f, 0, 15f));
             Make("Bada Bazar", "Bada Bazar", 14f, (mb, s) => Bazaar(mb, s.depth, rng), 70f, null, new Vector3(0, 0, 14f));
-            Make("Snow View", "Snow View", 17f, (mb, s) => SnowViewTop(mb, s, rng), 90f, null, new Vector3(-6f, 0, 9f), 25f);
-            if (ctx.landmarkSites.TryGetValue("Snow View", out var svTop))   // the ropeway arrives at its station, beside the plaza
-            {
-                var svm = GameObject.Find("ViewShot Snow View");
-                var svRot = svm ? Quaternion.Euler(0f, svm.transform.eulerAngles.y, 0f) : Quaternion.identity;
-                ctx.landmarkSites["Snow View ropeway"] = svTop + svRot * new Vector3(13f, 0f, -4f);
-            }
+            BuildSnowView(ctx, parent, rng);   // LandmarkBuilder.SnowView.cs: the whole hilltop as Google Maps and the videos show it
             Make("Naina Peak summit", "Naini Peak (China Peak)", 8f, (mb, s) => NainaPeakTop(mb, s, rng), 80f, null, new Vector3(-4f, 0, 3f));
             Make("Tiffin Top", "Tiffin Top (Dorothy's Seat)", 7f, (mb, s) => TiffinTop(mb, s, rng), 60f, null, new Vector3(3f, 0, 2f));
             Make("Land's End", "Land's End", 7f, (mb, s) => LandsEnd(mb, s, rng), 60f, null, new Vector3(-3f, 0, 2f), 244f);
@@ -804,13 +730,7 @@ namespace Nainital.EditorTools
             Make("Nainital Stadium", "The Flats", 16f, (mb, s) => { }, 110f, null, new Vector3(0, 0, 6f));   // the ground itself: WorldBuilder.Flats.cs
 
             // Boat House Club sits on the Mallital shore beside the boat stand.
-            Vector2 clubPos = ctx.mallitalShore + ctx.mallitalAlong * 55f;
-            var clubSite = MakeSite(ctx, ctx.PushFromLake(clubPos, 16f), lc, 10f, 16f);
-            var cmb = new MeshBuilder { M = Matrix4x4.TRS(clubSite.origin, clubSite.rot, Vector3.one) };
-            BoatClub(cmb, clubSite.depth, rng);
-            Emit(ctx, "Boat House Club", clubSite, cmb, parent);
-            Sign(ctx, "Boat House Club", clubSite, new Vector3(-9f, 0, 9f), parent);
-            ctx.Zone("Boat House Club", clubSite.origin, 30f);
+            BoatHouseClub(ctx, parent);   // on its OSM footprint, from photos: LandmarkBuilder.BoatClub.cs
 
             // the Khurpatal road
             Make("Lovers Point", "Lover's Point", 7f, (mb, s) => LoversPoint(mb, s, rng), 50f, null, new Vector3(-3f, 0, 2f), 225f);
@@ -934,6 +854,65 @@ namespace Nainital.EditorTools
             ctx.MeshObject("Prayer flags", parent, flagMb, ctx.mats.atlas, null, false);
         }
 
+        /// <summary>
+        /// A ropeway tower as in the ropeway videos: a red steel lattice, four legs tapering from a wide concrete base to a
+        /// narrow neck, X-braced on every face, with a crossarm on top carrying a sheave wheel under each cable. Few
+        /// triangles (thin boxes), so it stays cheap. `top` is where the cable rests; the legs stand on the slope.
+        /// </summary>
+        static void LatticeTower(WorldCtx ctx, MeshBuilder mb, MeshBuilder col, Vector3 top, float yaw)
+        {
+            var rot = Quaternion.Euler(0, yaw, 0);
+            Vector3 fw = rot * Vector3.forward, rt = rot * Vector3.right;
+            Vector2 red = S(Pal.JacketRed), steel = S(Pal.IronBlack), conc = M(Atlas.MatConcrete);
+            float neckY = top.y - 1.2f;
+            float baseHalf = 2.2f, neckHalf = 0.55f;
+            var legs = new Vector3[4];
+            var heads = new Vector3[4];
+            int li = 0;
+            float ground = float.MaxValue;
+            foreach (float sx in new[] { -1f, 1f })
+                foreach (float sz in new[] { -1f, 1f })
+                {
+                    Vector3 off = rt * sx + fw * sz;
+                    Vector2 g2 = new Vector2(top.x + off.x * baseHalf, top.z + off.z * baseHalf);
+                    float gy = ctx.H(g2) - 0.3f;
+                    ground = Mathf.Min(ground, gy);
+                    legs[li] = new Vector3(g2.x, gy, g2.y);
+                    heads[li] = new Vector3(top.x + off.x * neckHalf, neckY, top.z + off.z * neckHalf);
+                    // a concrete footing at each leg
+                    mb.Box(legs[li] + Vector3.up * 0.3f, new Vector3(0.9f, 1.2f, 0.9f), rot, conc);
+                    mb.Limb(legs[li], heads[li], 0.12f, 0.09f, 4, red, false);
+                    li++;
+                }
+            // faces: legs in order 0(-,-) 1(-,+) 2(+,-) 3(+,+); the four faces go round 0-1-3-2
+            int[] ring = { 0, 1, 3, 2 };
+            int bays = Mathf.Clamp(Mathf.RoundToInt((neckY - ground) / 2.6f), 3, 9);
+            for (int f = 0; f < 4; f++)
+            {
+                int A = ring[f], B = ring[(f + 1) % 4];
+                for (int k = 0; k < bays; k++)
+                {
+                    float t0 = (float)k / bays, t1 = (float)(k + 1) / bays;
+                    Vector3 a0 = Vector3.Lerp(legs[A], heads[A], t0), a1 = Vector3.Lerp(legs[A], heads[A], t1);
+                    Vector3 b0 = Vector3.Lerp(legs[B], heads[B], t0), b1 = Vector3.Lerp(legs[B], heads[B], t1);
+                    mb.Limb(a0, b1, 0.045f, 0.045f, 3, red, false);   // X brace
+                    mb.Limb(b0, a1, 0.045f, 0.045f, 3, red, false);
+                    mb.Limb(a1, b1, 0.05f, 0.05f, 3, red, false);    // horizontal
+                }
+            }
+            // crossarm across the line, a sheave wheel under each cable, a small walkway rail
+            mb.Box(new Vector3(top.x, top.y - 0.7f, top.z), new Vector3(3.6f, 0.35f, 0.5f), rot, red);   // x of the box runs across the line
+            mb.Box(new Vector3(top.x, top.y - 0.95f, top.z), new Vector3(1.4f, 0.4f, 1.4f), rot, red);
+            foreach (float s in new[] { -1.2f, 1.2f })
+            {
+                Vector3 w = top + rt * s + Vector3.down * 0.25f;
+                mb.Limb(w - fw * 0.9f, w + fw * 0.9f, 0.12f, 0.12f, 6, steel, true);    // sheave train
+                mb.Limb(w + Vector3.down * 0.1f, w + Vector3.down * 0.45f, 0.06f, 0.06f, 4, steel, false);
+            }
+            mb.Limb(top + rt * -1.9f + Vector3.down * 0.4f, top + rt * 1.9f + Vector3.down * 0.4f, 0.03f, 0.03f, 3, S(Pal.ShirtWhite), false);
+            col.Box(new Vector3(top.x, (ground + neckY) * 0.5f, top.z), new Vector3(baseHalf * 1.6f, neckY - ground, baseHalf * 1.6f), rot, Vector2.zero);
+        }
+
         /// <summary>Lower station near the Flats, cable with pylons up to Snow View, moving cabin.</summary>
         static void BuildRopeway(WorldCtx ctx, Transform parent)
         {
@@ -964,8 +943,7 @@ namespace Nainital.EditorTools
                 if (worstSeg < 0) break;
                 Vector3 top = new Vector3(worstP.x, ctx.H(new Vector2(worstP.x, worstP.z)) + 16f, worstP.z);
                 pts.Insert(worstSeg + 1, top);
-                mb.Limb(new Vector3(top.x, top.y - 16f, top.z), top, 0.5f, 0.3f, 6, S(Pal.StoneGrey));
-                mb.Box(top + Vector3.up * 0.2f, new Vector3(3f, 0.4f, 0.6f), Quaternion.Euler(0, yaw + 90f, 0), S(Pal.StoneGrey));
+                LatticeTower(ctx, mb, col, top, yaw);
             }
             pts.Add(b);
             Vector3 side = Quaternion.Euler(0, yaw + 90f, 0) * Vector3.forward * 1.2f;

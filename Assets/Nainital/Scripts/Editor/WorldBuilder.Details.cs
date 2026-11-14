@@ -83,8 +83,8 @@ namespace Nainital.EditorTools
                     Vector2 p = pts[i];
                     if (ctx.InLake(p) || ctx.LakeDistance(p) < 20f) { prev = null; continue; }
                     Vector2 tan = (pts[i + 1] - pts[i - 1]).normalized;
-                    Vector2 side = new Vector2(tan.y, -tan.x);   // right side (lamps alternate both sides)
-                    Vector2 q = p + side * (r.width * 0.5f + 1.1f);
+                    // right side (lamps alternate both sides); the left where the right is another road, none if both are
+                    if (!PoleSpot(ctx, p, new Vector2(tan.y, -tan.x), r.width * 0.5f + 1.1f, out var q, out _)) { prev = null; continue; }
                     var basePos = new Vector3(q.x, ctx.H(q), q.y);
                     var rot = Quaternion.LookRotation(new Vector3(tan.x, 0, tan.y)) * Quaternion.Euler(0, 90, 0);
                     Vector3[] heads;
@@ -116,13 +116,24 @@ namespace Nainital.EditorTools
             int[] colors = { Pal.BoatRed, Pal.BoatBlue, Pal.BoatYellow, Pal.BoatGreen };
             foreach (var shore in new[] { ctx.mallitalShore, ctx.tallitalShore })
             {
-                for (int i = 0; i < 9; i++)
+                // REFERENCE_REPORT (v02 3:14): the boats are tied straight out from the ghat, shoulder to shoulder, so each
+                // one points along the real shore's normal where it lies, not at the lake's centre, and barely swings
+                Vector2 o0 = (shore - ctx.lakeCenter).normalized;
+                Vector2 along0 = new Vector2(-o0.y, o0.x);
+                for (int i = 0; i < 12; i++)
                 {
-                    Vector2 o = (shore - ctx.lakeCenter).normalized;
-                    Vector2 along = new Vector2(-o.y, o.x);
-                    Vector2 p = shore - o * 7f + along * (i - 4f) * 3.2f;
-                    if (!ctx.InLake(p) || ctx.LakeDistance(p) < 3f) continue;
-                    using (PropKit.At(moored, new Vector3(p.x, ctx.lakeY + 0.03f, p.y), Quaternion.LookRotation(new Vector3(-o.x, 0, -o.y)) * Quaternion.Euler(0, rnd.Next(-12, 12), 0)))
+                    Vector2 edge = shore + along0 * (i - 5.5f) * 2.0f;
+                    Vector2 near = NearestOnLakeEdge(ctx, edge);
+                    Vector2 toLake = ctx.InLake(near + (ctx.lakeCenter - near).normalized * 2f) ? (ctx.lakeCenter - near).normalized : -o0;
+                    // the shore's own direction here, from its points a little either side; the normal is the side that is water
+                    Vector2 l = NearestOnLakeEdge(ctx, near + along0 * 1.5f), r = NearestOnLakeEdge(ctx, near - along0 * 1.5f);
+                    Vector2 tan = (l - r).normalized;
+                    Vector2 nrm = new Vector2(-tan.y, tan.x);
+                    if (!ctx.InLake(near + nrm * 2f)) nrm = -nrm;
+                    if (tan.sqrMagnitude < 0.5f) nrm = toLake;
+                    Vector2 p = near + nrm * 3.4f;
+                    if (!ctx.InLake(p) || ctx.LakeDistance(p) < 2.5f) continue;
+                    using (PropKit.At(moored, new Vector3(p.x, ctx.lakeY + 0.03f, p.y), Quaternion.LookRotation(new Vector3(nrm.x, 0, nrm.y)) * Quaternion.Euler(0, (float)(rnd.NextDouble() - 0.5) * 4f, 0)))
                         PropKit.RowBoat(moored, colors[rnd.Next(colors.Length)], rnd.NextDouble() < 0.6);
                 }
             }

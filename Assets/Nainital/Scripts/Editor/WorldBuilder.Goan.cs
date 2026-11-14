@@ -138,8 +138,7 @@ namespace Nainital.EditorTools
             var nainaDevi = ctx.Poi("Naina Devi");
             var flats = ctx.Poi("Nainital Stadium");
             var bazaar = ctx.Poi("Bada Bazar");
-            Civic(ctx, "Proto_Mosque", nainaDevi, 140f, "Jama Masjid (Mallital)",
-                  "Mallital ki masjid - Naina Devi mandir aur Gurudwara ke paas. Teen dharm, ek mohalla.");
+            // the Jama Masjid is built from photos by LandmarkBuilder.JamaMasjid (user, 2026-11-14: "dont use from our assets")
             Civic(ctx, "Proto_PoliceStation", flats, 160f, "Mallital Kotwali",
                   "Police station. Kuch gadbad ho - chori, jhagda, gunde - to yahan report karo.");
             Civic(ctx, "Proto_MarketRow", bazaar, 120f, null, null);
