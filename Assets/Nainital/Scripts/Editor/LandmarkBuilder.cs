@@ -41,9 +41,63 @@ namespace Nainital.EditorTools
         // ------------------------------------------------------------------ helpers
         struct Site { public Vector3 origin; public Quaternion rot; public float depth; }
 
-        static Site MakeSite(WorldCtx ctx, Vector2 p, Vector2 faceTowards, float radius, float minLakeDist = 14f)
+        /// <summary>
+        /// Moves a building's centre off the roads (user, 2026-11-15: "church road pe aa raha hai"): the map point of a
+        /// church or temple is often on, or at the edge of, the road in front of it, and a 15 m building built round it
+        /// stood across the carriageway. Each road (not footpaths) keeps its half width plus 0.7 x the building's radius
+        /// clear; the centre is pushed straight away from the nearest offender, a few times over. Returns how far it moved.
+        /// </summary>
+        internal static float ClearOfRoads(WorldCtx ctx, ref Vector2 p, float radius, string name)
+        {
+            Vector2 start = p;
+            string worst = "";
+            for (int iter = 0; iter < 8; iter++)
+            {
+                float deficit = 0f;
+                Vector2 away = Vector2.zero;
+                foreach (var r in ctx.world.roads)
+                {
+                    if (r.kind == "path" || r.kind == "footway" || r.kind == "steps" || r.kind == "track" || r.kind == "bridleway" || r.kind == "pedestrian") continue;
+                    var line = Geo.ToPoints(r.pts);
+                    float need = r.width * 0.5f + radius * 0.7f;
+                    for (int i = 0; i + 1 < line.Length; i++)
+                    {
+                        Vector2 a = line[i], ab = line[i + 1] - a;
+                        float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(ab.sqrMagnitude, 1e-4f));
+                        Vector2 q = a + ab * t;
+                        float d = Vector2.Distance(p, q);
+                        if (need - d > deficit)
+                        {
+                            deficit = need - d;
+                            away = d > 0.01f ? (p - q) / d : new Vector2(-ab.y, ab.x).normalized;
+                            worst = string.IsNullOrEmpty(r.name) ? r.kind : r.name;
+                        }
+                    }
+                }
+                if (deficit <= 0.05f) break;
+                p += away * (deficit + 0.1f);
+            }
+            float moved = Vector2.Distance(start, p);
+            if (moved > 0.05f) Debug.Log($"[Nainital] road clearance: {name} moved {moved:F1} m off {worst}");
+            return moved;
+        }
+
+        static Site MakeSite(WorldCtx ctx, Vector2 p, Vector2 faceTowards, float radius, float minLakeDist = 14f, string name = null, bool lookout = false)
         {
             p = ctx.PushFromLake(p, minLakeDist + radius * 0.5f);
+            if (lookout && WorldBuilder.NearestMotorRoad(ctx, p, 150f, out var road, out _))
+            {
+                // the lookouts on the Khurpatal and Kaladhungi roads are railed ledges on the valley side of the road: the
+                // map point is often out on the drop or on a knife ridge, where the ledge stood on a rock pillar (15 Nov)
+                Vector2 off = p - road;
+                off = off.sqrMagnitude > 0.01f ? off.normalized : (faceTowards - road).normalized;
+                p = road + off * (4.5f + radius * 0.5f);
+            }
+            if (name != null && !lookout)
+            {
+                ClearOfRoads(ctx, ref p, radius, name);
+                if (ctx.InLake(p) || ctx.LakeDistance(p) < minLakeDist + radius * 0.5f) p = ctx.PushFromLake(p, minLakeDist + radius * 0.5f);   // pushed into the lake: back out
+            }
             float gMin = float.MaxValue, gMax = float.MinValue;
             for (int i = 0; i <= 16; i++)
             {
@@ -57,8 +111,21 @@ namespace Nainital.EditorTools
             }
             Vector2 f = faceTowards - p;
             float yaw = f.sqrMagnitude > 0.01f ? Mathf.Atan2(f.x, f.y) * Mathf.Rad2Deg : 0f;
-            float top = Mathf.Max(gMax + 0.15f, ctx.lakeY + 1.6f);
-            return new Site { origin = new Vector3(p.x, top, p.y), rot = Quaternion.Euler(0, yaw, 0), depth = top - gMin + 1.2f };
+            // above Naini lake's water only where the lake is near: Khurpatal's points lie 260 m below it, and this floor
+            // stood the Khurpatal View Point on a 260 m tower (15 Nov)
+            float lakeFloor = ctx.LakeDistance(p) < 200f ? ctx.lakeY + 1.6f : float.MinValue;
+            float top = Mathf.Max(gMax + 0.15f, lakeFloor);
+            float depth = top - gMin + 1.2f;
+            if (lookout)
+            {
+                // a lookout is a ledge at the level of its road, walled a few metres down the drop (user, 2026-11-15:
+                // "position, rotation bhi dekha kar"): on a ridge the highest ground in the ring stood it on a 40 m pillar
+                float level = ctx.H(p);
+                if (WorldBuilder.NearestMotorRoad(ctx, p, 40f, out var rp, out _)) level = ctx.H(rp);
+                top = Mathf.Max(level + 0.15f, lakeFloor);
+                // walled down to the ground on the drop side (a 5 m cap left the Khurpatal ledge hanging in the air)
+                depth = Mathf.Clamp(top - gMin + 1.2f, 1.5f, 16f);            }
+            return new Site { origin = new Vector3(p.x, top, p.y), rot = Quaternion.Euler(0, yaw, 0), depth = depth };
         }
 
         static GameObject Emit(WorldCtx ctx, string name, Site s, MeshBuilder mb, Transform parent, bool collider = true)
@@ -649,12 +716,13 @@ namespace Nainital.EditorTools
                 if (!poi.HasValue) { Debug.LogWarning("[Nainital] POI not found: " + poiName); return; }
                 // a lookout faces what it looks at (compass bearing), everything else faces the lake
                 Vector2 face = bearing.HasValue ? poi.Value + new Vector2(Mathf.Sin(bearing.Value * Mathf.Deg2Rad), Mathf.Cos(bearing.Value * Mathf.Deg2Rad)) * 100f : faceOverride ?? lc;
-                MakeAt(poi.Value, face, title, radius, build, zoneR, signLocal);
+                // buildings are kept off the roads; lookouts (a bearing) stand at the road's edge on purpose
+                MakeAt(poi.Value, face, title, radius, build, zoneR, signLocal, !bearing.HasValue, bearing.HasValue);
             }
 
-            void MakeAt(Vector2 at, Vector2 face, string title, float radius, System.Action<MeshBuilder, Site> build, float zoneR, Vector3? signLocal = null)
+            void MakeAt(Vector2 at, Vector2 face, string title, float radius, System.Action<MeshBuilder, Site> build, float zoneR, Vector3? signLocal = null, bool clearRoads = false, bool lookout = false)
             {
-                var site = MakeSite(ctx, at, face, radius);
+                var site = MakeSite(ctx, at, face, radius, 14f, clearRoads || lookout ? title : null, lookout);
                 var mb = new MeshBuilder { M = Matrix4x4.TRS(site.origin, site.rot, Vector3.one) };
                 build(mb, site);
                 Emit(ctx, title, site, mb, parent);
@@ -937,6 +1005,10 @@ namespace Nainital.EditorTools
                     for (int k = 1; k < 40; k++)
                     {
                         Vector3 q = Vector3.Lerp(all[sgi], all[sgi + 1], k / 40f);
+                        // not beside a station: the cable comes down to the station's roof there, so the worst clearance
+                        // was always at the upper station and every pylon went up on top of it (15 Nov build log: three
+                        // towers at (557..586, 493..507), two in the same spot, none on the 600 m span from Mallital)
+                        if (new Vector2(q.x - a.x, q.z - a.z).sqrMagnitude < 35f * 35f || new Vector2(q.x - b.x, q.z - b.z).sqrMagnitude < 35f * 35f) continue;
                         float clearance = q.y - ctx.H(new Vector2(q.x, q.z));
                         if (12f - clearance > worst) { worst = 12f - clearance; worstP = q; worstSeg = sgi; }
                     }
@@ -946,6 +1018,9 @@ namespace Nainital.EditorTools
                 LatticeTower(ctx, mb, col, top, yaw);
             }
             pts.Add(b);
+            var towerLog = new System.Text.StringBuilder();
+            for (int i = 1; i < pts.Count - 1; i++) towerLog.Append($" ({pts[i].x:F0}, {pts[i].y:F0}, {pts[i].z:F0})");
+            Debug.Log($"[Nainital] ropeway: lower ({a.x:F0}, {a.y:F0}, {a.z:F0}), upper ({b.x:F0}, {b.y:F0}, {b.z:F0}), tower tops:{towerLog}");
             Vector3 side = Quaternion.Euler(0, yaw + 90f, 0) * Vector3.forward * 1.2f;
             for (int i = 0; i < pts.Count - 1; i++)
             {

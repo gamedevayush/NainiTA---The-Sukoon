@@ -27,8 +27,8 @@ namespace Nainital.EditorTools
             var rockNear = new Color(0.12f, 0.18f, 0.14f);
             var rockFar = new Color(0.2f, 0.25f, 0.33f);
             var rockRange = new Color(0.32f, 0.38f, 0.5f);     // the blue base of the snow range
-            var snowLit = new Color(1f, 1f, 1f);
-            var snowShade = new Color(0.62f, 0.7f, 0.86f);
+            var snowLit = new Color(0.84f, 0.88f, 0.95f);   // 100+ km off: never paper white, always a little blue
+            var snowShade = new Color(0.60f, 0.67f, 0.82f);
             int snowCols = 0;
 
             // farthest band first: one draw, painted back to front
@@ -38,7 +38,24 @@ namespace Nainital.EditorTools
                 if (B.d1 <= 4000f) continue;   // just past the map's edge: from off-centre viewpoints it stands up as walls
                 int n = B.lo.Length, start = verts.Count;
                 bool range = B.d0 >= 60000f;
-                float ex = range ? 2.2f : 1f;   // the snow range enlarged a little, so it reads as it does to the eye
+                if (range)
+                {
+                    // the snow range's skyline smoothed over its neighbours (1-2-3-2-1): column to column it jumped, and the
+                    // peaks stood up as square white teeth, a bar chart along the horizon (15 Nov, photoreal pass)
+                    float[] Smooth(float[] a)
+                    {
+                        var o = new float[a.Length];
+                        for (int k = 0; k < a.Length; k++)
+                            o[k] = (a[(k + n - 2) % n] + 2f * a[(k + n - 1) % n] + 3f * a[k] + 2f * a[(k + 1) % n] + a[(k + 2) % n]) / 9f;
+                        return o;
+                    }
+                    B.lo = Smooth(B.lo);
+                    B.hi = Smooth(B.hi);
+                    B.elev = Smooth(B.elev);
+                }
+                // the snow range enlarged a little, so it reads as it does to the eye; at 2.2 the peaks stood up as a white
+                // comb along the horizon (15 Nov, photoreal pass)
+                float ex = range ? 1.35f : 1f;
                 for (int i = 0; i <= n; i++)
                 {
                     int k = i % n;
@@ -48,7 +65,7 @@ namespace Nainital.EditorTools
                     float dist = Mathf.Max(B.dist[k], 1f);
                     float snowDepth = B.elev[k] > data.snowLine ? Mathf.Atan((B.elev[k] - data.snowLine) / dist) * ex : 0f;
                     if (snowDepth > 0f && b == data.bands.Length - 1) snowCols++;
-                    float haze = range ? 0.3f : Mathf.Clamp(1f - Mathf.Exp(-dist / 60000f), 0.04f, 0.6f);   // the atmosphere pass adds the rest
+                    float haze = range ? 0.42f : Mathf.Clamp(1f - Mathf.Exp(-dist / 60000f), 0.04f, 0.6f);   // the atmosphere pass adds the rest
                     var rock = range ? rockRange : Color.Lerp(rockNear, rockFar, Mathf.InverseLerp(4000f, 40000f, dist));
                     // one flank of each peak in sun, the other in blue shade, from which way the skyline climbs
                     float climb = B.lo[(k + 1) % n] - B.lo[(k + n - 1) % n];
@@ -56,8 +73,9 @@ namespace Nainital.EditorTools
                     // bottom (valley mist), rock top, snow start, top
                     verts.Add(new Vector3(az, bottom, bottom)); cols.Add(rock); uvs.Add(new Vector2(Mathf.Min(haze + 0.3f, 0.85f), 0));
                     verts.Add(new Vector3(az, lo - snowDepth, hi - snowDepth)); cols.Add(rock); uvs.Add(new Vector2(haze, 0));
-                    verts.Add(new Vector3(az, lo - snowDepth, hi - snowDepth)); cols.Add(snow); uvs.Add(new Vector2(0.14f, 0));
-                    verts.Add(new Vector3(az, lo, hi)); cols.Add(snowDepth > 0f ? snow : rock); uvs.Add(new Vector2(snowDepth > 0f ? 0.12f : haze, 0));
+                    // the snow sits deep in the haze, as it does 100 km off (it stood out crisp white at 0.12-0.14)
+                    verts.Add(new Vector3(az, lo - snowDepth, hi - snowDepth)); cols.Add(snow); uvs.Add(new Vector2(0.40f, 0));
+                    verts.Add(new Vector3(az, lo, hi)); cols.Add(snowDepth > 0f ? snow : rock); uvs.Add(new Vector2(snowDepth > 0f ? 0.36f : haze, 0));
                 }
                 for (int i = 0; i < n; i++)
                 {

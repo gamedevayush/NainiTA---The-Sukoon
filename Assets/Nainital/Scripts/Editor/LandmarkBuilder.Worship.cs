@@ -292,7 +292,9 @@ namespace Nainital.EditorTools
         // ------------------------------------------------------------------ St. Francis Catholic Church
         static void StFrancisChurch(MeshBuilder mb, float depth)
         {
-            Plinth(mb, new Vector3(18, 0, 26), depth, M(Atlas.MatStone));
+            // the compound as deep as the church and its fence (z -11 .. +12), not 26 m: it stands in a 24 m gap between
+            // Upper Mall Road and Snowview Road, and the 26 m plinth ran out over both (user, 2026-11-15: "church road pe")
+            mb.Box(new Vector3(0f, -depth * 0.5f, 0.5f), new Vector3(18f, depth, 23f), M(Atlas.MatStone));
             // the walls are a pale grey-buff stone in the photo (the atlas's stone cell is a dark rubble: the concrete cell is nearer)
             Vector2 stone = M(Atlas.MatConcrete), white = S(Pal.TempleWhite), red = S(Pal.TempleRed), glass = M(Atlas.MatGlass), wood = S(Pal.WoodDark),
                     cap = M(Atlas.MatConcrete), dark = S(Pal.IronBlack);

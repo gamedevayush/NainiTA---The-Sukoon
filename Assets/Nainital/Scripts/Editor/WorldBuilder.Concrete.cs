@@ -36,7 +36,9 @@ namespace Nainital.EditorTools
                 {
                     float u = x / (float)S, v = y / (float)S;
                     float g = photo != null
-                        ? 0.06f + 0.9f * photo[((y * 2) % phh) * pw + ((x * 2) % pw)].grayscale + (Mathf.PerlinNoise(x * 0.02f, y * 0.02f) - 0.5f) * 0.03f
+                        // pale cement grey (15 Nov, photoreal pass): 0.06 + 0.9 x the dark scan averaged 88/255 and the Mall
+                        // Road read near black from street level (30,32,40); real cement concrete there is light grey
+                        ? 0.36f + 0.55f * photo[((y * 2) % phh) * pw + ((x * 2) % pw)].grayscale + (Mathf.PerlinNoise(x * 0.02f, y * 0.02f) - 0.5f) * 0.03f
                         : 0.6f + (Mathf.PerlinNoise(x * 0.02f, y * 0.02f) - 0.5f) * 0.06f
                                    + (Mathf.PerlinNoise(x * 0.11f + 30f, y * 0.11f) - 0.5f) * 0.035f
                                    + ((float)rnd.NextDouble() - 0.5f) * 0.045f;

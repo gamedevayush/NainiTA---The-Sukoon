@@ -134,15 +134,37 @@ namespace Nainital.EditorTools
             mb.Box(new Vector3(-0.68f, 1.68f, -0.22f), new Vector3(0.02f, 0.18f, 2.75f), trim);
         }
 
-        public static void Yacht(MeshBuilder mb, int sailColor)
+        /// <param name="bandColor">when set, the mainsail is in broad bands of the two colours, as the Boat House Club's
+        /// dinghies sail (2025 videos: yellow-green, red-yellow, white-red stripes); -1 = one colour</param>
+        public static void Yacht(MeshBuilder mb, int sailColor, int bandColor = -1)
         {
             Vector2 white = S(Pal.SailWhite), stripe = S(Pal.BoatBlue), wood = S(Pal.WoodLight), mast = S(Pal.StoneGrey), sail = S(sailColor);
             Hull(mb, BoatRim, 1.3f, 0.5f, -0.3f, white, stripe, wood);
             mb.Limb(new Vector3(0, 0.3f, 0.5f), new Vector3(0, 7.2f, 0.5f), 0.06f, 0.04f, 5, mast);
             mb.Limb(new Vector3(0, 1.25f, 0.45f), new Vector3(0, 1.25f, -2.2f), 0.04f, 0.04f, 4, mast);
             Vector3 a = new Vector3(0, 1.32f, 0.42f), b = new Vector3(0, 7.0f, 0.42f), c = new Vector3(0, 1.32f, -2.15f);
-            mb.Tri(a, b, c, sail, Vector3.right);
-            mb.Tri(a, b, c, sail, Vector3.left);
+            if (bandColor < 0)
+            {
+                mb.Tri(a, b, c, sail, Vector3.right);
+                mb.Tri(a, b, c, sail, Vector3.left);
+            }
+            else
+            {
+                // six bands from the boom to the head, each a strip between the luff (a-b) and the leech (c-b)
+                Vector2 band = S(bandColor);
+                const int n = 6;
+                for (int i = 0; i < n; i++)
+                {
+                    float t0 = i / (float)n, t1 = (i + 1) / (float)n;
+                    Vector3 l0 = Vector3.Lerp(a, b, t0), l1 = Vector3.Lerp(a, b, t1), r0 = Vector3.Lerp(c, b, t0), r1 = Vector3.Lerp(c, b, t1);
+                    Vector2 col = (i & 1) == 0 ? sail : band;
+                    foreach (var side in new[] { Vector3.right, Vector3.left })
+                    {
+                        mb.Tri(l0, l1, r0, col, side);
+                        if (i < n - 1) mb.Tri(l1, r1, r0, col, side);   // the top band is a triangle
+                    }
+                }
+            }
             Vector3 j1 = new Vector3(0, 0.7f, 2.6f), j2 = new Vector3(0, 6.3f, 0.6f), j3 = new Vector3(0, 0.9f, 0.7f);
             mb.Tri(j1, j2, j3, white, Vector3.right);
             mb.Tri(j1, j2, j3, white, Vector3.left);

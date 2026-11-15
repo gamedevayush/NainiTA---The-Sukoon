@@ -113,16 +113,17 @@ namespace Nainital.EditorTools
 
             // ---- extra boats moored along the Mallital & Tallital shore
             var moored = new MeshBuilder();
-            int[] colors = { Pal.BoatRed, Pal.BoatBlue, Pal.BoatYellow, Pal.BoatGreen };
+            // mostly yellow (2025 videos of the Mallital boat stand: rows of yellow wooden boats at the steps), a few others
+            int[] colors = { Pal.BoatYellow, Pal.BoatYellow, Pal.BoatYellow, Pal.BoatRed, Pal.BoatYellow, Pal.BoatBlue, Pal.BoatYellow, Pal.BoatGreen };
             foreach (var shore in new[] { ctx.mallitalShore, ctx.tallitalShore })
             {
                 // REFERENCE_REPORT (v02 3:14): the boats are tied straight out from the ghat, shoulder to shoulder, so each
                 // one points along the real shore's normal where it lies, not at the lake's centre, and barely swings
                 Vector2 o0 = (shore - ctx.lakeCenter).normalized;
                 Vector2 along0 = new Vector2(-o0.y, o0.x);
-                for (int i = 0; i < 12; i++)
+                for (int i = 0; i < 16; i++)   // shoulder to shoulder, more of them (was 12)
                 {
-                    Vector2 edge = shore + along0 * (i - 5.5f) * 2.0f;
+                    Vector2 edge = shore + along0 * (i - 7.5f) * 1.9f;
                     Vector2 near = NearestOnLakeEdge(ctx, edge);
                     Vector2 toLake = ctx.InLake(near + (ctx.lakeCenter - near).normalized * 2f) ? (ctx.lakeCenter - near).normalized : -o0;
                     // the shore's own direction here, from its points a little either side; the normal is the side that is water

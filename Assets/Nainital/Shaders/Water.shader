@@ -108,6 +108,11 @@ Shader "Nainital/Water"
                     + Wave(p, t, normalize(float2(0.9, -0.3)), 9.7, 0.0016, 6.1)) * fine;
                 float n1 = VNoise(p * 0.9 + t * 0.35) - 0.5, n2 = VNoise(p.yx * 1.3 - t * 0.27) - 0.5;
                 s += float2(n1, n2) * 0.05 * fine;
+                // broad, slow patches at every distance (15 Nov, photoreal pass): past 160 m only the four long swells were
+                // left, and the sun's glitter lay on them in straight parallel stripes; real lake glitter is broken up
+                float m1 = VNoise(p * 0.11 + t * 0.06) - 0.5, m2 = VNoise(p.yx * 0.17 - t * 0.05 + 3.7) - 0.5;
+                float b1 = VNoise(p * 0.045 - t * 0.02) - 0.5;
+                s += float2(m1 + b1 * 0.6, m2 - b1 * 0.4) * 0.09;
                 return normalize(float3(-s.x * _WaveStrength, 1.0, -s.y * _WaveStrength));
             }
 

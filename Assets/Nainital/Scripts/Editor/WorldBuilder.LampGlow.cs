@@ -110,8 +110,7 @@ namespace Nainital.EditorTools
                 if (ctx.InLake(q)) return;
                 float dl = ctx.LakeDistance(q);
                 if (dl > 45f) return;
-                float h = Mathf.Max(1f, light.y - ctx.lakeY);
-                float len = Mathf.Clamp(14f + h * 2.2f, 16f, 48f);
+                float h = Mathf.Max(1f, light.y - ctx.lakeY);   // the shader works the streak's length out from this and the camera
                 // it starts where the water starts (the shore point nearest the light, half a metre out), not under the
                 // light: a lamp on Upper Mall stands 20 m back and its streak was lost under the bank
                 Vector2 shore = NearestOnLakeEdge(ctx, q);
@@ -122,7 +121,7 @@ namespace Nainital.EditorTools
                 var key = new Vector2Int(Mathf.FloorToInt(at.x / 250f), Mathf.FloorToInt(at.z / 250f));
                 if (!cells.TryGetValue(key, out var m)) { m = (new List<Vector3>(), new List<Color>(), new List<Vector2>(), new List<Vector2>(), new List<int>()); cells[key] = m; }
                 int b = m.v.Count;
-                for (int k = 0; k < 4; k++) { m.v.Add(at); m.c.Add(col); m.uv2.Add(new Vector2(-len, width)); }
+                for (int k = 0; k < 4; k++) { m.v.Add(at); m.c.Add(col); m.uv2.Add(new Vector2(-h, width)); }
                 m.uv.Add(new Vector2(0, 0)); m.uv.Add(new Vector2(1, 0)); m.uv.Add(new Vector2(1, 1)); m.uv.Add(new Vector2(0, 1));
                 m.t.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3 });
                 streaks++;
@@ -152,7 +151,7 @@ namespace Nainital.EditorTools
                 mesh.SetTriangles(kv.Value.t, 0);
                 mesh.RecalculateBounds();
                 var bnd = mesh.bounds;
-                bnd.Expand(streaks > 0 ? 200f : 4f);   // the billboards (and the lake streaks, 90+ m) reach past their points
+                bnd.Expand(streaks > 0 ? 600f : 4f);   // the billboards (and the lake streaks, which reach most of the way to the camera) go past their points
                 mesh.bounds = bnd;
                 string path = Gen + "/" + mesh.name + ".asset";
                 if (System.IO.File.Exists(path)) UnityEditor.AssetDatabase.DeleteAsset(path);

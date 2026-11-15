@@ -38,7 +38,7 @@ namespace Nainital.EditorTools
                     if (!merged) nodes.Add(e);
                 }
 
-            var meshes = new Dictionary<Material, MeshBuilder>();
+            var meshes = new Dictionary<int, MeshBuilder>();   // by road-mask channel
             int made = 0;
             foreach (var J in nodes)
             {
@@ -93,16 +93,19 @@ namespace Nainital.EditorTools
                 }
 
                 // 4. material of the main road here
-                Material mat = ctx.mats.asphalt;
                 bool lake = false, allWalk = true;
                 foreach (var a in arms)
                 {
                     if (IsLakeRoad(ctx, a.road)) lake = true;
                     if (a.road.kind != "pedestrian" && a.road.kind != "living_street") allWalk = false;
                 }
-                if (lake) mat = ConcreteMaterial(ctx);
-                else if (allWalk) mat = PhotoMaterial("cobblestone_floor_08", "M_MallCobblePhoto", new Color(0.92f, 0.92f, 0.9f), 0.45f) ?? ctx.mats.paver;
-                if (!meshes.TryGetValue(mat, out var mb)) meshes[mat] = mb = new MeshBuilder();
+                // painted into the ground like the roads (2026-11-16): one surface with them, no seam where they meet
+                int ch = lake ? ChConcrete : allWalk ? ChGreyPaver : ChAsphalt;
+                bool onDeck = false;
+                foreach (var a in arms) if (IsMallDeck(a.road.name) || a.road.name == MallLower) onDeck = true;
+                if (!meshes.TryGetValue(ch, out var mb)) meshes[ch] = mb = new MeshBuilder();
+                var fanL = new List<Vector3>(); var fanR = new List<Vector3>();
+                bool wet = false;
 
                 // 5. fan from the centre in three rings, each vertex on the ground just above the ribbons
                 float Y(Vector2 p) => (ctx.InLake(p) ? ctx.lakeY + 0.3f : ctx.H(p)) + RoadLift + 0.045f;   // just over the road slabs it joins
@@ -115,24 +118,27 @@ namespace Nainital.EditorTools
                         float f = ring / 3f;
                         Vector2 c0 = Vector2.Lerp(J, p0, f), c1 = Vector2.Lerp(J, p1, f);
                         Vector2 U(Vector2 p) => p / 6f;   // planar, so the texture runs straight across the whole junction
+                        if (ctx.InLake(c0) || ctx.InLake(c1)) wet = true;
                         if (ring == 1) mb.Tri(V(J, Y(J)), V(c1, Y(c1)), V(c0, Y(c0)), U(J), U(c1), U(c0), Vector3.up);
                         else
                         {
                             mb.Tri(V(prev0, Y(prev0)), V(c0, Y(c0)), V(c1, Y(c1)), U(prev0), U(c0), U(c1), Vector3.up);
                             mb.Tri(V(prev0, Y(prev0)), V(c1, Y(c1)), V(prev1, Y(prev1)), U(prev0), U(c1), U(prev1), Vector3.up);
                         }
+                        if (ring == 3) { fanL.Add(V(J, Y(J))); fanR.Add(V(c0, Y(c0))); fanL.Add(V(J, Y(J))); fanR.Add(V(c1, Y(c1))); }
                         prev0 = c0;
                         prev1 = c1;
                     }
                 }
+                // the ground over the whole patch follows it too (the last CarveUnderRoads), averaged with the roads that cross it:
+                // a strip J-c0, J-c1 per rim edge rasterises the fan triangle J, c0, c1
+                if (!onDeck && !wet)
+                    for (int i = 0; i + 1 < fanL.Count; i += 2)
+                        roadStrips.Add((new[] { fanL[i], fanL[i + 1] }, new[] { fanR[i], fanR[i + 1] }, RoadLift + 0.045f, true));
                 noGrassExtra.Add((new[] { J - Vector2.right * D, J + Vector2.right * D }, D));
                 made++;
             }
-            foreach (var kv in meshes)
-            {
-                for (int i = 0; i < kv.Value.N.Count; i++) kv.Value.N[i] = Vector3.up;   // one smooth surface, no fan-shaped facets
-                ctx.MeshObject("Junctions " + kv.Key.name, parent, kv.Value, kv.Key, null, false, true);
-            }
+            foreach (var kv in meshes) PaintRoadSurface(kv.Value, kv.Key);
             Debug.Log($"[Nainital] junctions: {made} with curved corners");
         }
 

@@ -94,15 +94,17 @@ namespace Nainital
                 Color moonCol = new Color(0.5f, 0.58f, 0.85f);
                 float fade = Mathf.Clamp01(Mathf.Abs(elev + 2f) / 4f);  // dip to 0 while swapping sun <-> moon
                 sun.color = useMoon ? moonCol : sunCol;
-                sun.intensity = (useMoon ? 0.07f : Mathf.Lerp(0.3f, 1.4f, day)) * fade * weatherDim + flash * 3f;
+                sun.intensity = (useMoon ? 0.07f : Mathf.Lerp(0.3f, 1.8f, day)) * fade * weatherDim + flash * 3f;   // a mountain sun, with less ambient below
                 if (flash > 0f) sun.color = Color.Lerp(sun.color, new Color(0.8f, 0.85f, 1f), flash);
-                sun.shadowStrength = useMoon ? 0.55f : 0.85f;
+                sun.shadowStrength = useMoon ? 0.55f : 0.72f;   // skylight still fills the shade (0.85 left shaded streets near black)
             }
 
             // Ambient (trilight): near black at night - only lamps, windows and headlights light the town
-            Color skyDay = new Color(0.55f, 0.66f, 0.82f), skyNight = new Color(0.016f, 0.019f, 0.03f), skyGold = new Color(0.75f, 0.5f, 0.4f);
-            Color eqDay = new Color(0.5f, 0.52f, 0.5f), eqNight = new Color(0.01f, 0.012f, 0.018f);
-            Color grDay = new Color(0.22f, 0.24f, 0.18f), grNight = new Color(0.004f, 0.004f, 0.006f);
+            // daylight ambient lowered (15 Nov, photoreal pass): a strong flat fill took the shape out of every wall and slope
+            // (at 0.46 / 0.38 / 0.16 the streets in shade went near black: skylight still lights a shaded street well)
+            Color skyDay = new Color(0.52f, 0.62f, 0.78f), skyNight = new Color(0.016f, 0.019f, 0.03f), skyGold = new Color(0.75f, 0.5f, 0.4f);
+            Color eqDay = new Color(0.45f, 0.47f, 0.45f), eqNight = new Color(0.01f, 0.012f, 0.018f);
+            Color grDay = new Color(0.20f, 0.21f, 0.16f), grNight = new Color(0.004f, 0.004f, 0.006f);
             if (nightVolume) nightVolume.weight = Mathf.SmoothStep(0f, 1f, NightFactor);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = Color.Lerp(Color.Lerp(skyNight, skyDay, day), skyGold, golden * 0.5f);
@@ -116,7 +118,7 @@ namespace Nainital
             // aerial-perspective haze for the full-screen atmosphere pass
             float wFog = WeatherSystem.Instance ? WeatherSystem.Instance.Fog : 0f;
             float wRain = WeatherSystem.Instance ? WeatherSystem.Instance.Rain : 0f;
-            Color hz = Color.Lerp(Color.Lerp(new Color(0.006f, 0.008f, 0.013f), new Color(0.66f, 0.74f, 0.84f), day), new Color(0.9f, 0.66f, 0.5f), golden * 0.6f);
+            Color hz = Color.Lerp(Color.Lerp(new Color(0.006f, 0.008f, 0.013f), new Color(0.60f, 0.70f, 0.85f), day), new Color(0.9f, 0.66f, 0.5f), golden * 0.6f);
             hz = Color.Lerp(hz, new Color(0.62f, 0.65f, 0.68f) * Mathf.Lerp(0.15f, 1f, day), wFog * 0.7f);
             bool moonUp = elev < -2f;
             Color scatter = moonUp ? new Color(0.02f, 0.025f, 0.04f)
@@ -124,10 +126,11 @@ namespace Nainital
             Shader.SetGlobalColor("_HazeColor", hz);
             Shader.SetGlobalColor("_SunHazeColor", Color.Lerp(scatter, hz, wFog * 0.6f));
             Shader.SetGlobalVector("_HazeLightDir", moonUp ? moonDir : sunDir);
-            Shader.SetGlobalFloat("_HazeDensity", 0.00072f * (1f + wFog * 10f + wRain * 2.5f));   // far ridges fade to blue-grey like the photos
+            // far ridges fade to blue-grey like the photos; lighter than the old 0.00072, which milked out the town across the lake
+            Shader.SetGlobalFloat("_HazeDensity", 0.00046f * (1f + wFog * 15f + wRain * 3.5f));
             Shader.SetGlobalFloat("_HazeBase", valleyHeight - 30f);
             Shader.SetGlobalFloat("_HazeFalloff", Mathf.Lerp(0.0045f, 0.0022f, wFog));
-            Shader.SetGlobalFloat("_HazeMax", Mathf.Lerp(0.8f, 0.97f, wFog));
+            Shader.SetGlobalFloat("_HazeMax", Mathf.Lerp(0.74f, 0.97f, wFog));
 
             Shader.SetGlobalVector(SunDirId, sunDir);
             Shader.SetGlobalVector(MoonDirId, moonDir);

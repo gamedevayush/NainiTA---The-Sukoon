@@ -50,13 +50,10 @@ namespace Nainital.EditorTools
             Pad(ctx.Poi("Snow View"), 19f);              // the plaza on the top
             Pad(ctx.Poi("Naina Peak summit"), 8f);       // viewpoints stand on levelled ground, not on stone blocks
             Pad(ctx.Poi("Tiffin Top"), 8f);
-            Pad(ctx.Poi("Land's End"), 7f);
-            Pad(ctx.Poi("Himalaya Darshan"), 9f);
+            // (the roadside lookouts - Land's End, Himalaya Darshan, Lover's Point, the two Khurpatal points - get no pad:
+            // they stand at their road's level as railed ledges, and a pad on a knife ridge raised a rock pillar; 15 Nov)
             Pad(ctx.Poi("Tower 360"), 14f);
-            Pad(ctx.Poi("Lovers Point"), 7f);
             Pad(ctx.Poi("Barapathar"), 11f);
-            Pad(ctx.Poi("Khurpatal Lake View Point"), 8f);
-            Pad(ctx.Poi("Khurpatal View Point"), 8f);
             Pad(ctx.Poi("Eco Cave Garden"), 13f);
             Pad(ctx.Poi("Nainital Zoo"), 7f);
             Pad(ctx.Poi("Nainital Stadium"), 16f);
@@ -182,11 +179,18 @@ namespace Nainital.EditorTools
                 if (!found.HasValue) { Debug.LogWarning($"[Nainital] G.O.A.N. {kit}: no free plot near {target.Value}"); return; }
                 p = found.Value;
             }
-            else p = ctx.PushFromLake(p, r + 10f);
+            else
+            {
+                p = ctx.PushFromLake(p, r + 10f);
+                // the map point is the school's gate or yard, often on its road: keep the building off the carriageway
+                // (RoadAudit, 15 Nov: a residential road ran through the Government Primary School, Tallital)
+                LandmarkBuilder.ClearOfRoads(ctx, ref p, r, title ?? kit);
+            }
             Ground(ctx, p, r, out float gMin, out float gMax);
             ctx.goan.Add(new GoanPlacement
             {
-                kit = kit, pos = p, yaw = FaceRoad(p), top = Mathf.Max(gMax + 0.15f, ctx.lakeY + 1.5f), gMin = gMin,
+                // the lake-level floor only near Naini lake (it would put a building below the lake on a tower)
+                kit = kit, pos = p, yaw = FaceRoad(p), top = Mathf.Max(gMax + 0.15f, ctx.LakeDistance(p) < 200f ? ctx.lakeY + 1.5f : float.MinValue), gMin = gMin,
                 civic = true, title = title, info = info,
             });
             ctx.keepClear.Add((p, r + 3f));

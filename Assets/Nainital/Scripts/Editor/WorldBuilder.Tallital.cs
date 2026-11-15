@@ -264,8 +264,7 @@ namespace Nainital.EditorTools
                 }
             }
             ctx.MeshObject("Tallital terrace benches", parent, benches, ctx.mats.atlas, benchCol);
-            var cobble = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(Gen + "/M_MallCobble.mat");
-            ctx.MeshObject("Tallital chowk paving", parent, mb, cobble ? cobble : ctx.mats.paver, null, false);
+            PaintRoadSurface(mb, ChGreyPaver);   // into the ground with the roads (2026-11-16)
             noGrassExtra.Add((line.ToArray(), 5f));
         }
 
@@ -295,7 +294,7 @@ namespace Nainital.EditorTools
             foreach (var a2 in ctx.world.areas)
                 if (a2.kind == "stadium" || a2.kind == "park" || a2.kind == "playground" || a2.kind == "pitch") keepOut.Add(Geo.ToPoints(a2.pts));
             bool Out(Vector2 p) { foreach (var poly in keepOut) if (Geo.PointInPolygon(poly, p)) return true; return false; }
-            var chunks = new MallChunks(ctx, parent, name, TownGroundMaterial(ctx), false);
+            var chunks = new MallChunks(ctx, parent, name, TownGroundMaterial(ctx), false) { paintChannel = ChConcrete, paintStrength = 0.7f };   // worn: the earth shows through in patches
             const float step = 2.5f;
             for (float x = -radius; x < radius; x += step)
                 for (float z = -radius; z < radius; z += step)
@@ -528,7 +527,7 @@ namespace Nainital.EditorTools
                     var uv = new Rect(a / 6f, s / 6f, step / 6f, (s1 - s) / 6f);
                     mb.Quad(V(p00, ctx.H(p00) + 0.06f), V(p10, ctx.H(p10) + 0.06f), V(p11, ctx.H(p11) + 0.06f), V(p01, ctx.H(p01) + 0.06f), uv, Vector3.up);
                 }
-            ctx.MeshObject("Bus station yard", parent, mb, ctx.mats.asphalt, null, false);
+            PaintRoadSurface(mb, ChAsphalt);   // the yard is part of the ground (2026-11-16)
             noGrassExtra.Add((new[] { t.apron - t.A * halfL, t.apron + t.A * halfL }, 5.5f));
             noGrassExtra.Add((new[] { t.station - t.A * 18f, t.station + t.A * 18f }, 6f));
         }
@@ -637,6 +636,40 @@ namespace Nainital.EditorTools
                 mb.Limb(new Vector3(0.2f, 1.45f, 0f), new Vector3(0.34f, 1.05f, 0.24f), 0.045f, 0.04f, 5, bronze);
                 mb.Limb(new Vector3(0.36f, 0f, 0.36f), new Vector3(0.34f, 1.75f, 0.2f), 0.022f, 0.022f, 5, bronze);   // staff
                 mb.Limb(new Vector3(-0.2f, 1.45f, 0f), new Vector3(-0.3f, 1.0f, 0.06f), 0.045f, 0.04f, 5, bronze);
+
+                // (2025 videos of the Tallital statue: a big spinning wheel beside him and a marigold garland)
+                // the charkha, in bronze, on his right, its wheel facing the chowk
+                Vector3 hub = new Vector3(0.52f, 0.5f, -0.24f);
+                const float R = 0.3f;
+                for (int k = 0; k < 12; k++)
+                {
+                    float a0 = k * Mathf.PI / 6f, a1 = (k + 1) * Mathf.PI / 6f;
+                    mb.Limb(hub + new Vector3(Mathf.Cos(a0), Mathf.Sin(a0), 0f) * R, hub + new Vector3(Mathf.Cos(a1), Mathf.Sin(a1), 0f) * R, 0.022f, 0.022f, 4, bronze);
+                }
+                for (int k = 0; k < 8; k++)
+                {
+                    float a = k * Mathf.PI / 4f;
+                    mb.Limb(hub, hub + new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f) * R, 0.012f, 0.012f, 3, bronze);
+                }
+                mb.Limb(hub + new Vector3(0f, 0f, -0.08f), hub + new Vector3(0f, 0f, 0.1f), 0.03f, 0.03f, 5, bronze);          // axle
+                mb.Limb(hub + new Vector3(0f, 0f, 0.1f), hub + new Vector3(0.1f, -0.06f, 0.12f), 0.015f, 0.015f, 3, bronze);  // handle
+                mb.Limb(new Vector3(0.52f, 0f, -0.16f), hub + new Vector3(0f, 0f, 0.08f), 0.025f, 0.025f, 4, bronze);         // stand, front
+                mb.Limb(new Vector3(0.52f, 0f, -0.32f), hub - new Vector3(0f, 0f, 0.08f), 0.025f, 0.025f, 4, bronze);         // stand, back
+                mb.Box(new Vector3(0.45f, 0.03f, -0.24f), new Vector3(0.5f, 0.06f, 0.3f), bronze);                             // base board
+
+                // the garland: round the neck and hanging down the chest, marigold orange
+                Vector2 marigold = Atlas.SolidUV(Pal.Saffron);
+                for (int k = 0; k <= 14; k++)
+                {
+                    float u = k / 14f;
+                    var p = new Vector3(Mathf.Lerp(-0.16f, 0.16f, u), 1.44f - Mathf.Sin(Mathf.PI * u) * 0.34f, 0.15f + Mathf.Sin(Mathf.PI * u) * 0.04f);
+                    mb.Sphere(p, Vector3.one * 0.035f, 5, 4, marigold);
+                }
+                for (int k = 1; k < 8; k++)   // behind the neck
+                {
+                    float a = k * Mathf.PI / 8f;
+                    mb.Sphere(new Vector3(Mathf.Cos(a) * 0.16f, 1.46f, 0.02f - Mathf.Sin(a) * 0.12f), Vector3.one * 0.032f, 5, 4, marigold);
+                }
             }
         }
 

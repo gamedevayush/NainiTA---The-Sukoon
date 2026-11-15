@@ -367,7 +367,7 @@ namespace Nainital.EditorTools
                             ap.Quad(V(a - side, ctx.H(a - side) + 0.1f), V(a + side, ctx.H(a + side) + 0.1f), V(b + side, ctx.H(b + side) + 0.1f), V(b - side, ctx.H(b - side) + 0.1f),
                                     new Rect(0f, k * 2f / 6f, 1f, 2f / 6f), Vector3.up);
                         }
-                        ctx.MeshObject("Zoo gate approach", parent, ap, ctx.mats.asphalt, null, false, true);
+                        PaintRoadSurface(ap, ChAsphalt);   // into the ground with the roads (2026-11-16)
                         noGrassExtra.Add((new[] { gate, er }, 3.5f));
                     }
                 }

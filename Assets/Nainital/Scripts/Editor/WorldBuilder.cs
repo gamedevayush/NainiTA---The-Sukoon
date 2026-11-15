@@ -209,10 +209,12 @@ namespace Nainital.EditorTools
             Step("Lake", () => BuildLake(ctx));
             Step("Small lakes (Sariyatal, Khurpatal)", () => BuildPonds(ctx));
             Step("Level the landmark sites", () => FlattenSites(ctx));
-            Step("Capitol terraces and the Mallital bank", () => ShapeCapitolGround(ctx));   // before the roads follow the ground
             Step("Level the ground along the roads", () => LevelRoads(ctx));
             Step("The Flats' edge (level with its roads)", () => LevelFlatsEdge(ctx));
-            Step("Roads", () => { roadStrips.Clear(); BuildRoads(ctx); });
+            // after the levelling (its 2.5 m ease beside the walk filled the Capitol's lane up to the walk, 16 Nov) and before the
+            // roads are built on the ground
+            Step("Capitol terraces and the Mallital bank", () => ShapeCapitolGround(ctx));
+            Step("Roads", () => { roadStrips.Clear(); BeginRoadMask(ctx); BuildRoads(ctx); SetGroundToPaintedRoads(ctx); });   // the ground is the road from here on
             Step("G.O.A.N. plan (civic sites)", () => PlanGoan(ctx));
             Step("Tallital plan", () => PlanTallital(ctx));
             Step("Mallital plan", () => PlanMallital(ctx));
@@ -239,6 +241,7 @@ namespace Nainital.EditorTools
             Step("Far ridges (beyond the map)", () => BuildFarRidges(ctx));
             Step("Surface look (weathering)", () => BuildSurfaceLook(ctx));
             Step("Ground under the roads", () => CarveUnderRoads(ctx));   // last: everything above reads the ground (ctx.H)
+            Step("Roads into the terrain", () => FinishRoadMask(ctx));
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
             Step("Placed by hand (Shaktipeeth gate ...)", () => RestorePlacedByHand(ctx));
@@ -378,7 +381,10 @@ namespace Nainital.EditorTools
             var t = go.GetComponent<Terrain>();
             t.materialTemplate = ctx.mats.terrain;
             t.heightmapPixelError = 2;   // at 4 the far terrain LOD swallowed Lower Mall below its 1.6 m step
-            t.basemapDistance = 400;
+            // past basemapDistance the terrain draws its baked basemap, and that ignored the layer tints: the slopes across
+            // the lake came out raw khaki (131,132,113 at 400 m; 64,76,94 on the splat shader at 1000 m; 15 Nov).
+            // 1.6 km keeps the whole lake bowl on the splat shader; beyond it the haze carries the colour
+            t.basemapDistance = 1600;
             t.drawInstanced = true;
             t.drawTreesAndFoliage = false;
             t.allowAutoConnect = false;
@@ -412,6 +418,11 @@ namespace Nainital.EditorTools
                 bool mall = NearMallRoad(ctx, a, 40f);   // Lower Mall's bank: a level ledge behind the wall (LowerMallBank)
                 float back = mall ? 2.8f : 2f;
                 float ta = Mathf.Max(ctx.H(a + oa * back), y + 0.6f) + 0.05f, tb = Mathf.Max(ctx.H(b + ob * back), y + 0.6f) + 0.05f;
+                // a lake wall, not a cliff: where the ground behind climbs steeply (the 63-80 degree slope along Thandi
+                // Sadak) the wall followed it up 10-45 m and read from Mallital as a khaki band along the west shore
+                // (15 Nov, photoreal pass). Above 3 m the hillside itself shows.
+                float cap = y + (mall ? 3.2f : 3.0f);
+                ta = Mathf.Min(ta, cap); tb = Mathf.Min(tb, cap);
                 Vector3 inward = new Vector3(-(oa.x + ob.x), 0, -(oa.y + ob.y));
                 emb.Quad(new Vector3(a.x, y - 2.5f, a.y), new Vector3(b.x, y - 2.5f, b.y), new Vector3(b.x, tb, b.y), new Vector3(a.x, ta, a.y), stone, inward);
                 float capW = mall ? 2.2f : 0.7f;   // by Lower Mall a wide stone top covers the ground just behind the wall
@@ -466,8 +477,13 @@ namespace Nainital.EditorTools
             // sailing yachts
             var inner = Offset(ctx.lake, -25f);
             var rnd = new System.Random(3);
-            int[] sails = { Pal.SailWhite, Pal.Canopy, Pal.BoatYellow, Pal.SailWhite };
-            for (int k = 0; k < 4; k++)
+            // the club's dinghies: broad two-colour bands (2025 videos of the Boat House Club), seven out at a time
+            (int sail, int band)[] sails =
+            {
+                (Pal.BoatYellow, Pal.BoatGreen), (Pal.JacketRed, Pal.BoatYellow), (Pal.SailWhite, Pal.JacketRed), (Pal.BoatYellow, Pal.BoatBlue),
+                (Pal.BoatGreen, Pal.SailWhite), (Pal.SareeOrange, Pal.BoatYellow), (Pal.SailWhite, Pal.BoatBlue),
+            };
+            for (int k = 0; k < sails.Length; k++)
             {
                 Vector2 q = ctx.lakeCenter;
                 for (int tries = 0; tries < 100; tries++)
@@ -476,10 +492,10 @@ namespace Nainital.EditorTools
                     if (Geo.PointInPolygon(inner, q)) break;
                 }
                 var ymb = new MeshBuilder();
-                PropKit.Yacht(ymb, sails[k]);
+                PropKit.Yacht(ymb, sails[k].sail, sails[k].band);
                 var ygo = ctx.MeshObject("Yacht " + (k + 1), parent, ymb, ctx.mats.atlas);
                 ygo.transform.SetPositionAndRotation(new Vector3(q.x, y, q.y), Quaternion.Euler(0, rnd.Next(360), 0));
-                ygo.AddComponent<Yacht>().speed = 1.8f + k * 0.4f;
+                ygo.AddComponent<Yacht>().speed = 1.8f + (k % 4) * 0.4f;
             }
         }
 
@@ -572,13 +588,30 @@ namespace Nainital.EditorTools
                 Vector2 prevNrm = default;
                 float v = 0f;
                 var kerbL = new List<Vector3>(path.Count); var kerbR = new List<Vector3>(path.Count); var vs = new List<float>(path.Count);
+                // the roads are painted into the ground (WorldBuilder.RoadMask.cs) and the ground under them set to their
+                // surface: the line's height smoothed over +-8 m, so a step in the ground (a cut, a pad) is a ramp, not a kerb
+                // in the road (user, 2026-11-16: "jama masjid road abhi bhi khraab hai, smooth kro")
+                bool painted = !mallDeck && r.name != MallLower;
+                var hLine = new float[path.Count];
+                for (int i = 0; i < path.Count; i++) hLine[i] = ctx.H(path[i]);
+                if (painted && !dirtTrack)
+                {
+                    var sm = new float[path.Count];
+                    for (int i = 0; i < path.Count; i++)
+                    {
+                        float s = 0f, wsum = 0f;
+                        for (int j = Mathf.Max(0, i - 4); j <= Mathf.Min(path.Count - 1, i + 4); j++) { float wj = 5 - Mathf.Abs(i - j); s += hLine[j] * wj; wsum += wj; }
+                        sm[i] = s / wsum;
+                    }
+                    hLine = sm;
+                }
                 for (int i = 0; i < path.Count; i++)
                 {
                     Vector2 p = path[i];
                     Vector2 tan = (path[Mathf.Min(i + 1, path.Count - 1)] - path[Mathf.Max(i - 1, 0)]).normalized;
                     Vector2 nrm = new Vector2(-tan.y, tan.x);
                     Vector2 l = p + nrm * half, rr = p - nrm * half;
-                    float hc = ctx.H(p);
+                    float hc = hLine[i];
                     float camber = Mathf.Max(0.05f, r.width * 0.015f);   // at most a road's own camber across, never a ramp
                     Vector3 L = new Vector3(l.x, (mallDeck ? hc : Mathf.Clamp(ctx.H(l), hc - camber, hc + camber)) + lift, l.y);
                     Vector3 R = new Vector3(rr.x, (mallDeck ? hc : Mathf.Clamp(ctx.H(rr), hc - camber, hc + camber)) + lift, rr.y);
@@ -586,14 +619,19 @@ namespace Nainital.EditorTools
                     {
                         float v1 = v + Vector2.Distance(path[i - 1], p) / Mathf.Max(1f, r.width);
                         mb.Quad(prevL, prevR, R, L, new Rect(0f, v, 1f, v1 - v), Vector3.up);
-                        if (!mallDeck && !dirtTrack)
+                        if (!mallDeck && !dirtTrack && !painted)
                         {
                             // the edge of the slab: a short face down into the ground either side (deeper where the ground falls away)
                             Vector3 n3 = new Vector3(nrm.x, 0f, nrm.y), pn3 = new Vector3(prevNrm.x, 0f, prevNrm.y);
                             RoadKerb(ctx, mb, prevL, L, pn3, n3, v, v1);
                             RoadKerb(ctx, mb, prevR, R, -pn3, -n3, v, v1);
                         }
-                        if (lakeRoad && !mallDeck && !NearJunction(ctx, p)) PaintStripes(paint, prevL, prevR, R, L, r.width, run);
+                        if (lakeRoad && !mallDeck && !NearJunction(ctx, p))
+                        {
+                            // the white lines stay a thin decal: on a painted road it lies 4 cm over the ground, which is the road
+                            Vector3 dn = painted ? Vector3.up * (lift - 0.04f) : Vector3.zero;
+                            PaintStripes(paint, prevL - dn, prevR - dn, R - dn, L - dn, r.width, run);
+                        }
                         run += Vector2.Distance(path[i - 1], p);
                         v = v1;
                     }
@@ -608,16 +646,21 @@ namespace Nainital.EditorTools
                 Material mat = lakeRoad ? ConcreteMaterial(ctx) : redTiles ? redTileMat : walk ? (PhotoMaterial("cobblestone_floor_08", "M_MallCobblePhoto", new Color(0.92f, 0.92f, 0.9f), 0.45f) ?? ctx.mats.paver)
                              : (r.kind == "path" || r.kind == "track" || r.kind == "bridleway") ? ctx.mats.dirtPath : ctx.mats.asphalt;
                 string nm = string.IsNullOrEmpty(r.name) ? r.kind : r.name;
-                if (r.name != MallLower) ctx.MeshObject($"{nm} ({r.kind})", parent, mb, mat, null, false, true);   // Lower Mall is built with the Mall Road; walked on, so a collider
-                if (mat == ctx.mats.asphalt && !mallDeck && !lakeRoad) AddRoadFringe(ctx, path, kerbL, kerbR, vs);   // tarmac frays into the ground
-                if (!dirtTrack && !mallDeck && r.name != MallLower) roadStrips.Add((kerbL.ToArray(), kerbR.ToArray()));   // CarveUnderRoads
+                if (painted)
+                {
+                    // into the ground: asphalt, cement concrete (by the lake), grey pavers (footpaths), red pavers (Mallital front),
+                    // trodden earth into the terrain's dirt layer
+                    if (dirtTrack) PaintDirtPath(mb);
+                    else PaintRoadSurface(mb, lakeRoad ? ChConcrete : redTiles ? ChRedPaver : walk ? ChGreyPaver : ChAsphalt);
+                }
+                else if (r.name != MallLower) ctx.MeshObject($"{nm} ({r.kind})", parent, mb, mat, null, false, true);   // the Mall deck; Lower Mall is built with the Mall Road
+                if (!dirtTrack && !mallDeck && r.name != MallLower) roadStrips.Add((kerbL.ToArray(), kerbR.ToArray(), lift, painted));   // CarveUnderRoads
                 if (!string.IsNullOrEmpty(r.name) && (r.name.Contains("Mall Road") || r.name.Contains("Thandi Sadak")))
                     for (int i = 0; i < path.Count; i += 20)
                         ctx.Zone(r.name, new Vector3(path[i].x, 0, path[i].y), 22f);
                 idx++;
             }
             ctx.MeshObject("Lake road paint", parent, paint, ctx.mats.atlas, null, false);
-            EmitRoadFringes(ctx, parent);
         }
 
         // ------------------------------------------------------------------ buildings
@@ -683,11 +726,15 @@ namespace Nainital.EditorTools
                     colonialCount++;
                 }
                 HighStreetOccupy(c, Mathf.Sqrt(w * w + d * d) * 0.5f * 0.8f);
-                if (!lowOnly && !high && !colonial && TryGoanHouse(ctx, i / 9, c, w, d, yaw, gMin, gMax, shop, Chunk(c)[0])) { count++; continue; }
+                // roof type 2: the satellite photo shows a coloured tin roof here and its colour is in the data
+                // (Tools/roof_colours_from_satellite.py, 15 Nov): a sloped tin roof in that colour, never a flat terrace or a
+                // G.O.A.N. box, whatever the street
+                bool photoTin = h[i + 8] > 1.5f;
+                if (!lowOnly && !high && !colonial && !photoTin && TryGoanHouse(ctx, i / 9, c, w, d, yaw, gMin, gMax, shop, Chunk(c)[0])) { count++; continue; }
                 var st = new BuildingKit.Style
                 {
                     wall = wallIdx % Atlas.WallColors, roof = roofIdx,
-                    flatRoof = !colonial && (high || TinRoofLook(ctx, c, i / 9, h[i + 8] > 0.5f)), shop = shop, litChance = high ? 0.6f : 0.45f,
+                    flatRoof = !colonial && !photoTin && (high || TinRoofLook(ctx, c, i / 9, h[i + 8] > 0.5f)), shop = shop, litChance = high ? 0.6f : 0.45f,
                     colonial = colonial,
                 };
                 var ch = Chunk(c);
@@ -806,9 +853,26 @@ namespace Nainital.EditorTools
             var lampMb = new MeshBuilder();
             var lampCol = new MeshBuilder();
             int lampCount = 0;
-            foreach (var p in lampPts)
+            // off the carriageway (user, 2026-11-16, screenshots: lamps and benches standing in the lake road): where a road
+            // runs close to the water the lamp moves into the strip between the road and the railing, or is left out
+            var clear = Clearance(ctx);
+            Vector2 OffRoad(Vector2 p, float from, float[] tries, float pad)
             {
-                if (NearJetty(ctx, p, 6f) || NearMallRoad(ctx, p, 40f)) continue;
+                Vector2 o = OutwardAt(ctx, p);
+                foreach (float t in tries)
+                {
+                    Vector2 q = p - o * (from - t);   // o points inland: p stands 'from' m from the water, q stands t m from it
+                    if (!clear.Blocked(q, pad)) return q;
+                }
+                return new Vector2(float.NaN, float.NaN);
+            }
+            int lampsMoved = 0, lampsDropped = 0;
+            foreach (var p0 in lampPts)
+            {
+                if (NearJetty(ctx, p0, 6f) || NearMallRoad(ctx, p0, 40f)) continue;
+                Vector2 p = OffRoad(p0, 3.2f, new[] { 3.2f, 2.5f, 1.9f }, 0.35f);
+                if (float.IsNaN(p.x)) { lampsDropped++; continue; }
+                if ((p - p0).sqrMagnitude > 0.01f) lampsMoved++;
                 Vector3 basePos = new Vector3(p.x, ctx.H(p), p.y);
                 using (PropKit.At(lampMb, basePos, Quaternion.identity))
                 {
@@ -830,10 +894,13 @@ namespace Nainital.EditorTools
             PropKit.Bench(benchMb);
             var benchMesh = ctx.Save(benchMb, "Bench");
             var benchPts = Resample(Offset(ctx.lake, 3.8f), 75f, true);
+            int benchesDropped = 0;
             for (int i = 0; i < benchPts.Count; i++)
             {
                 Vector2 p = benchPts[i];
                 if (NearJetty(ctx, p, 8f) || NearMallRoad(ctx, p, 40f)) continue;
+                p = OffRoad(p, 3.8f, new[] { 3.8f, 2.9f, 2.3f }, 0.75f);   // a bench needs its depth clear of the road too
+                if (float.IsNaN(p.x)) { benchesDropped++; continue; }
                 Vector2 o = OutwardAt(ctx, p);
                 var rot = Quaternion.LookRotation(new Vector3(-o.x, 0, -o.y));
                 var go = ctx.Instance("Bench", parent, benchMesh, new Vector3(p.x, ctx.H(p), p.y), rot, true);
@@ -843,6 +910,8 @@ namespace Nainital.EditorTools
                 go.AddComponent<Bench>().seat = seat;
             }
 
+            Debug.Log($"[Nainital] lakeside lamps: {lampsMoved} moved off a road, {lampsDropped} left out; benches left out (road): {benchesDropped}");
+
             // momos / chai stalls along the promenade
             var stallPts = Resample(Offset(ctx.lake, 10f), 1f, true);
             int[] awnings = { Pal.Canopy, Pal.Awning, Pal.BoatYellow, Pal.BoatGreen };
@@ -851,7 +920,7 @@ namespace Nainital.EditorTools
             {
                 Vector2 p = stallPts[(int)(stallPts.Count * (0.08f + k * 0.19f)) % stallPts.Count];
                 int stallAt = (int)(stallPts.Count * (0.08f + k * 0.19f)) + 30 * k;
-                for (int tries = 0; tries < 500 && (NearJetty(ctx, p, 12f) || NearMallRoad(ctx, p, 24f)); tries++)
+                for (int tries = 0; tries < 500 && (NearJetty(ctx, p, 12f) || NearMallRoad(ctx, p, 24f) || clear.Blocked(p, 1.3f)); tries++)
                     p = stallPts[(stallAt += 20) % stallPts.Count];
                 var smb = new MeshBuilder();
                 PropKit.FoodStall(smb, awnings[k % awnings.Length]);
@@ -966,6 +1035,8 @@ namespace Nainital.EditorTools
             }
             int townTrees = TownTreeFill(ctx, data, rnd);
             Debug.Log($"[Nainital] town trees added: {townTrees}");
+            int hillTrees = HillForestFill(ctx, data, rnd);
+            Debug.Log($"[Nainital] hillside forest added: {hillTrees} trees, forest now {data.Count / 6}");
             for (int k = 0; k < bankTrees.Count; k++)   // the Mall's own trees (LowerMallBank)
             {
                 var b = bankTrees[k];
@@ -1010,7 +1081,7 @@ namespace Nainital.EditorTools
                 bool card = k <= 3;   // deodar, chir, banj oak, cypress: leaf cards near, impostor cards far
                 field.lod0[k] = k >= 5 ? PropKit.Rock(k - 5, 0) : k == 4 ? PropKit.Rhododendron(0) : TreeKit.Model(k);
                 field.lod1[k] = k >= 5 ? PropKit.Rock(k - 5, 1) : k == 4 ? PropKit.Rhododendron(1) : TreeKit.Billboard(k);
-                field.lod2[k] = k >= 5 ? PropKit.Rock(k - 5, 2) : k == 4 ? PropKit.Rhododendron(2) : TreeKit.Billboard(k);
+                field.lod2[k] = k >= 5 ? PropKit.Rock(k - 5, 2) : k == 4 ? PropKit.Rhododendron(2) : TreeKit.Billboard(k, 1.4f);   // far: crowns close up
                 AssetDatabase.AddObjectToAsset(field.lod0[k], field);
                 AssetDatabase.AddObjectToAsset(field.lod1[k], field);
                 AssetDatabase.AddObjectToAsset(field.lod2[k], field);
@@ -1074,24 +1145,25 @@ namespace Nainital.EditorTools
             if (File.Exists(volPath)) AssetDatabase.DeleteAsset(volPath);
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             AssetDatabase.CreateAsset(profile, volPath);
+            // photographic grade (user, 2026-11-15: "make more photorealistic"): ACES with a little more contrast and colour
+            // than before (-13 saturation and a strong ambient left every shot grey and flat), the sun a touch warm.
             var bloom = profile.Add<Bloom>(true);
-            bloom.threshold.Override(0.95f);
-            bloom.intensity.Override(0.9f);
-            bloom.scatter.Override(0.65f);
+            bloom.threshold.Override(1.0f);
+            bloom.intensity.Override(0.55f);
+            bloom.scatter.Override(0.7f);
             var tone = profile.Add<Tonemapping>(true);
             tone.mode.Override(TonemappingMode.ACES);
             var ca = profile.Add<ColorAdjustments>(true);
-            ca.postExposure.Override(0.2f);
-            ca.contrast.Override(10f);
-            ca.saturation.Override(-13f);   // street photos of Nainital: soft, slightly hazy colour, not neon
+            ca.postExposure.Override(0.3f);
+            ca.contrast.Override(16f);
+            ca.saturation.Override(8f);
+            var smh = profile.Add<ShadowsMidtonesHighlights>(true);   // cool shadows, warm highlights, as in daylight photos
+            smh.shadows.Override(new Vector4(0.96f, 0.99f, 1.06f, -0.02f));
+            smh.highlights.Override(new Vector4(1.04f, 1.01f, 0.95f, 0f));
             var vig = profile.Add<Vignette>(true);
-            vig.intensity.Override(0.2f);
-            // near = sharp, far hills softly blurred
-            var dof = profile.Add<DepthOfField>(true);
-            dof.mode.Override(DepthOfFieldMode.Gaussian);
-            dof.gaussianStart.Override(160f);
-            dof.gaussianEnd.Override(1100f);
-            dof.gaussianMaxRadius.Override(1.1f);
+            vig.intensity.Override(0.18f);
+            // no depth of field: blurring everything past 160 m made the town and hills read as a tilt-shift miniature;
+            // a landscape photograph is sharp to the horizon, the haze does the depth
             // cinematic camera feel
             var mblur = profile.Add<MotionBlur>(true);
             mblur.mode.Override(MotionBlurMode.CameraOnly);
@@ -1103,7 +1175,7 @@ namespace Nainital.EditorTools
             var chroma = profile.Add<ChromaticAberration>(true);
             chroma.intensity.Override(0.05f);
             var wb = profile.Add<WhiteBalance>(true);
-            wb.temperature.Override(2f);
+            wb.temperature.Override(4f);
             wb.tint.Override(0f);
             foreach (var comp in profile.components) AssetDatabase.AddObjectToAsset(comp, profile);
             EditorUtility.SetDirty(profile);

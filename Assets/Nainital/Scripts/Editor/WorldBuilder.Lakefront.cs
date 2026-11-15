@@ -115,12 +115,28 @@ namespace Nainital.EditorTools
                 pc /= poly.Length;
                 if (Vector2.Distance(pc, near) > 150f) continue;
                 parks++;
+                // on the edge of a raised terrace the ground under the fence line is the slope down: stand it on the top
+                float FenceY(Vector2 q)
+                {
+                    float best = ctx.H(q);
+                    foreach (var o in new[] { Vector2.right, Vector2.left, Vector2.up, Vector2.down })
+                        foreach (float k in new[] { 0.8f, 2.2f })   // 2.2 m: past the stone border on a retaining wall
+                            if (Geo.PointInPolygon(poly, q + o * k)) best = Mathf.Max(best, ctx.H(q + o * k));
+                    return best;
+                }
+                // the gate opens where the ground outside is level with the park (2026-11-16: the Capitol's park is a terrace at
+                // the walk's level, walled above the lakeside path), among those on the side nearest the lake
                 int gateEdge = 0;
                 float gd = float.MaxValue;
                 for (int i = 0; i < poly.Length; i++)
                 {
-                    float d = ctx.LakeDistance((poly[i] + poly[(i + 1) % poly.Length]) * 0.5f);
-                    if (d < gd) { gd = d; gateEdge = i; }   // the gate opens on the promenade
+                    Vector2 a = poly[i], b = poly[(i + 1) % poly.Length], m = (a + b) * 0.5f;
+                    if (Vector2.Distance(a, b) < 4f) continue;
+                    Vector2 nrm = new Vector2((b - a).y, -(b - a).x).normalized;
+                    if (Geo.PointInPolygon(poly, m + nrm * 0.5f)) nrm = -nrm;
+                    float step = Mathf.Abs(ctx.H(m + nrm * 1.8f) - ctx.H(m - nrm * 1.8f));
+                    float d = ctx.LakeDistance(m) + (step > 0.35f ? 1000f : 0f);
+                    if (d < gd) { gd = d; gateEdge = i; }
                 }
                 for (int i = 0; i < poly.Length; i++)
                 {
@@ -133,7 +149,7 @@ namespace Nainital.EditorTools
                     {
                         if (i == gateEdge && Mathf.Abs(s - len * 0.5f) < 1.6f) continue;
                         Vector2 q = a + dir * s;
-                        float y = ctx.H(q);
+                        float y = FenceY(q);
                         bool post = Mathf.Repeat(s, 2.4f) < 0.16f;
                         fence.Box(V(q, y) + Vector3.up * (post ? 0.65f : 0.58f), post ? new Vector3(0.08f, 1.3f, 0.08f) : new Vector3(0.025f, 1.16f, 0.025f), rot, green);
                     }
@@ -142,12 +158,12 @@ namespace Nainital.EditorTools
                         if (i == gateEdge)
                         {
                             float g0 = len * 0.5f - 1.6f, g1 = len * 0.5f + 1.6f;
-                            if (g0 > 0.2f) fence.Box(V(a + dir * (g0 * 0.5f), ctx.H(a + dir * (g0 * 0.5f))) + Vector3.up * hgt, new Vector3(0.04f, 0.04f, g0), rot, green);
-                            if (len - g1 > 0.2f) fence.Box(V(a + dir * ((g1 + len) * 0.5f), ctx.H(a + dir * ((g1 + len) * 0.5f))) + Vector3.up * hgt, new Vector3(0.04f, 0.04f, len - g1), rot, green);
+                            if (g0 > 0.2f) fence.Box(V(a + dir * (g0 * 0.5f), FenceY(a + dir * (g0 * 0.5f))) + Vector3.up * hgt, new Vector3(0.04f, 0.04f, g0), rot, green);
+                            if (len - g1 > 0.2f) fence.Box(V(a + dir * ((g1 + len) * 0.5f), FenceY(a + dir * ((g1 + len) * 0.5f))) + Vector3.up * hgt, new Vector3(0.04f, 0.04f, len - g1), rot, green);
                         }
-                        else fence.Box(V((a + b) * 0.5f, ctx.H((a + b) * 0.5f)) + Vector3.up * hgt, new Vector3(0.04f, 0.04f, len), rot, green);
+                        else fence.Box(V((a + b) * 0.5f, FenceY((a + b) * 0.5f)) + Vector3.up * hgt, new Vector3(0.04f, 0.04f, len), rot, green);
                     }
-                    if (i != gateEdge) fcol.Box(V((a + b) * 0.5f, ctx.H((a + b) * 0.5f)) + Vector3.up * 0.65f, new Vector3(0.1f, 1.3f, len), rot, Vector2.zero);
+                    if (i != gateEdge) fcol.Box(V((a + b) * 0.5f, FenceY((a + b) * 0.5f)) + Vector3.up * 0.65f, new Vector3(0.1f, 1.3f, len), rot, Vector2.zero);
                 }
             }
             ctx.MeshObject("Children's park fence", parent, fence, ctx.mats.atlas, fcol);

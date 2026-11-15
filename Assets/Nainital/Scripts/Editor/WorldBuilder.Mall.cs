@@ -155,6 +155,10 @@ namespace Nainital.EditorTools
             readonly bool shadows;
             readonly float cull;
             readonly Dictionary<Vector2Int, MeshBuilder[]> cells = new Dictionary<Vector2Int, MeshBuilder[]>();
+            /// <summary>A road-mask channel (WorldBuilder.RoadMask.cs): the surface is painted into the ground instead of
+            /// built as a mesh (2026-11-16: all paving part of the terrain). -1 builds meshes.</summary>
+            public int paintChannel = -1;
+            public float paintStrength = 1f;
 
             public MallChunks(WorldCtx c, Transform p, string n, Material m, bool castShadows, float cullHeight = 0f)
             {
@@ -172,6 +176,7 @@ namespace Nainital.EditorTools
             {
                 foreach (var kv in cells)
                 {
+                    if (paintChannel >= 0) { PaintRoadSurface(kv.Value[0], paintChannel, paintStrength); continue; }
                     var go = ctx.MeshObject($"{name} {kv.Key.x},{kv.Key.y}", parent, kv.Value[0], mat, kv.Value[1], shadows);
                     var r = go.GetComponent<MeshRenderer>();
                     if (!r || cull <= 0f) continue;
@@ -505,7 +510,9 @@ namespace Nainital.EditorTools
         // ------------------------------------------------------------------ Lower Mall surface
         static void MallLowerDeck(WorldCtx ctx, Transform parent, MallLine L)
         {
-            var road = new MallChunks(ctx, parent, "Lower Mall road", ConcreteMaterial(ctx), false);
+            // painted into the ground (2026-11-16: no road a separate mesh): flat across, so the heightfield takes it; the step
+            // up to Upper Mall is behind the divider wall
+            var road = new MallChunks(ctx, parent, "Lower Mall road", ConcreteMaterial(ctx), false) { paintChannel = ChConcrete };
             float v = 0f;
             for (int i = 0; i + 1 < L.Count; i++)
             {
@@ -530,7 +537,7 @@ namespace Nainital.EditorTools
                 hillE[i] = V(L.p[i] - L.side[i] * L.hillW[i], L.y[i] + 0.12f);
                 lakeE[i] = V(L.p[i] + L.side[i] * L.lakeW[i], L.y[i] + 0.12f);
             }
-            roadStrips.Add((hillE, lakeE));   // CarveUnderRoads (the last step)
+            roadStrips.Add((hillE, lakeE, 0f, true));   // CarveUnderRoads (the last step): the ground is set to the paving
         }
 
         // ------------------------------------------------------------------ road paint

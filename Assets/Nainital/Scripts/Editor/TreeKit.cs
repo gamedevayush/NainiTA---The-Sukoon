@@ -401,9 +401,12 @@ namespace Nainital.EditorTools
         }
 
         /// <summary>The far model: three crossed cards showing this type's picture from the impostor atlas.</summary>
-        public static Mesh Billboard(int type)
+        /// <param name="widen">wider crowns for the far impostors (LOD2, past 420 m): the forest data has a tree every 7-10 m
+        /// and a crown of 4-5 m, so from across the lake half the ground showed through and the slopes read bald; in a real
+        /// forest the crowns close up from a distance (15 Nov, photoreal pass)</param>
+        public static Mesh Billboard(int type, float widen = 1f)
         {
-            float H = Height[type], W = H * 0.5f, u0 = type / 4f, u1 = (type + 1) / 4f, vTop = 512f / 768f;
+            float H = Height[type], W = H * 0.5f * widen, u0 = type / 4f, u1 = (type + 1) / 4f, vTop = 512f / 768f;
             var v = new List<Vector3>();
             var n = new List<Vector3>();
             var uv = new List<Vector2>();
@@ -420,7 +423,7 @@ namespace Nainital.EditorTools
                 t.AddRange(new[] { i0, i0 + 2, i0 + 1, i0, i0 + 3, i0 + 2 });
             }
             {   // the level card: the crown seen from above, so hillsides read as forest from the peaks and from the air
-                float R = CrownRadius[type], y = H * CrownLevel[type];
+                float R = CrownRadius[type] * widen, y = H * CrownLevel[type];
                 float tu0 = (type * 256f + 0f) / 1024f, tu1 = (type * 256f + 256f) / 1024f;
                 int i0 = v.Count;
                 v.Add(new Vector3(-R, y, -R)); v.Add(new Vector3(R, y, -R)); v.Add(new Vector3(R, y, R)); v.Add(new Vector3(-R, y, R));

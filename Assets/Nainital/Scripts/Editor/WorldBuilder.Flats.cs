@@ -59,7 +59,10 @@ namespace Nainital.EditorTools
                 for (float v = -hv; v < hv; v += cell)
                 {
                     Vector2 a = F(u, v), b = F(u + cell, v), c = F(u + cell, v + cell), d = F(u, v + cell);
-                    if (!Geo.PointInPolygon(poly, F(u + cell * 0.5f, v + cell * 0.5f))) continue;
+                    Vector2 gc = F(u + cell * 0.5f, v + cell * 0.5f);
+                    // the cells whose centre falls just outside a slanting edge too, off the roads: with the centre test
+                    // alone the edge was a staircase, and the bare ground showed in its notches like holes (15 Nov)
+                    if (!Geo.PointInPolygon(poly, gc) && (Geo.DistanceToPolyline(poly, gc, true) > cell * 0.75f || NearAnyRoad(ctx, gc))) continue;
                     gm.Quad(V(a, ctx.H(a) + 0.08f), V(b, ctx.H(b) + 0.08f), V(c, ctx.H(c) + 0.08f), V(d, ctx.H(d) + 0.08f), new Rect(a.x / 5f, a.y / 5f, cell / 5f, cell / 5f), Vector3.up);   // 8 cm: clear of the terrain where the ground eases up to a road
                 }
             ctx.MeshObject("Flats ground", parent, gm, grit, null, false);

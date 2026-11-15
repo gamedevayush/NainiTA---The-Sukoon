@@ -45,16 +45,21 @@ Shader "Nainital/LampGlow"
                 o.ws = ws;
                 if (size < 0)   // lake streak (user, 2026-11-14 night photos): a long thin band lying on the water from below
                 {               // the light towards the camera, like a lamp's reflection broken up by ripples
-                    float len = -size, wid = i.uv2.y;
+                    float h = -size, wid = i.uv2.y;   // h: the light's height above the water
                     float2 d = _WorldSpaceCameraPos.xz - ws.xz;
                     float dl = max(length(d), 0.01);
                     d /= dl;
                     // a reflection only stretches into a long streak when it is seen at a low angle across the water;
                     // from high above (a drone, the Scene view) it is just a short smudge under the light
-                    float elev = (_WorldSpaceCameraPos.y - ws.y) / dl;
+                    float camH = max(_WorldSpaceCameraPos.y - ws.y, 0.3);
+                    float elev = camH / dl;
                     float grazing = saturate(1.0 - elev * 2.5);
-                    len = min(len * grazing, dl * 0.8);
-                    wid *= lerp(0.6, 1.0, grazing);
+                    // the mirror point of the light lies dl*c/(c+h) from the camera; ripples spread the glitter on both
+                    // sides of it, so the streak runs from the shore well past that point towards the viewer (a fixed
+                    // 16-48 m streak was a dot from across the lake, 15 Nov)
+                    float spec = dl * camH / (camH + h);
+                    float len = clamp((dl - spec) * 1.5, 4.0, dl * 0.85) * lerp(0.35, 1.0, grazing);
+                    wid *= lerp(0.6, 1.0, grazing) * (1.0 + dl / 120.0);   // keeps a visible width from far away
                     i.col.a *= grazing;
                     float2 side = float2(-d.y, d.x);
                     ws.xz += side * (i.uv.x * 2 - 1) * wid + d * (i.uv.y * 1.1 - 0.1) * len;

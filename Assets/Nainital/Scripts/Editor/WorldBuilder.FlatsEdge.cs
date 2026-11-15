@@ -27,20 +27,26 @@ namespace Nainital.EditorTools
         static bool InStands(Vector2 p, out float into)
         {
             into = 0f;
-            float best = float.MaxValue;
-            for (int i = 0; i + 1 < StandsRoad.Length; i++)
+            float best = float.MaxValue, bestU = 0f;
+            int bestSeg = -1, last = StandsRoad.Length - 2;
+            for (int i = 0; i <= last; i++)
             {
                 Vector2 a = StandsRoad[i], ab = StandsRoad[i + 1] - a;
                 float u = Vector2.Dot(p - a, ab) / ab.sqrMagnitude;
-                // only the two ends of the whole line cut it off; at a bend in between, a point beyond both segments'
-                // ends still belongs to the steps (it left a rock fin standing on the outside of the bend)
-                if ((i == 0 && u < -0.02f) || (i + 2 == StandsRoad.Length && u > 1.02f)) continue;
                 Vector2 q = a + ab * Mathf.Clamp01(u), n = new Vector2(ab.y, -ab.x).normalized;   // the Flats lie east: +x side
                 if (n.x < 0f) n = -n;
-                float d = Vector2.Dot(p - q, n);
-                if (Mathf.Abs(d) < Mathf.Abs(best)) best = d;
+                // the true distance to the segment, signed by the side it lies on. (Projecting p - q on the normal, as
+                // before, came out near zero for a point past a short segment's end, so a strip beside the steps counted
+                // as road: LevelFlatsEdge raised it to the road and the cut skipped it, and the steps sat in blocky pits.)
+                float dist = (p - q).magnitude;
+                float d = Vector2.Dot(p - q, n) < 0f ? -dist : dist;
+                if (dist < Mathf.Abs(best)) { best = d; bestSeg = i; bestU = u; }
             }
-            if (best == float.MaxValue) return false;
+            // only the two ends of the whole line cut it off, and only where that end is the nearest part of the line; at
+            // a bend in between, a point beyond both segments' ends still belongs to the steps (it left a rock fin on the
+            // outside of the bend). (Cutting off the first segment alone let the second one's start vertex claim the
+            // ground south of the steps: it was raised by LevelFlatsEdge and partly cut, a ridge at z 9, 15 Nov.)
+            if (bestSeg < 0 || (bestSeg == 0 && bestU < -0.02f) || (bestSeg == last && bestU > 1.02f)) return false;
             into = best - StandsRoadHalf;
             return true;
         }
@@ -79,7 +85,9 @@ namespace Nainital.EditorTools
             Vector3 tp = ctx.terrain.transform.position, sz = td.size;
             float cx = (res - 1) / sz.x, cz = (res - 1) / sz.z;
             int x0 = Mathf.Clamp(Mathf.FloorToInt((-160f - tp.x) * cx), 0, res - 1), x1 = Mathf.Clamp(Mathf.CeilToInt((-100f - tp.x) * cx), 0, res - 1);
-            int z0 = Mathf.Clamp(Mathf.FloorToInt((12f - tp.z) * cz), 0, res - 1), z1 = Mathf.Clamp(Mathf.CeilToInt((82f - tp.z) * cz), 0, res - 1);
+            // the box reaches everything InStands can claim (26 m out from the first segment goes down to z 3): a box edge
+            // inside the cut left a raised row standing (15 Nov)
+            int z0 = Mathf.Clamp(Mathf.FloorToInt((-10f - tp.z) * cz), 0, res - 1), z1 = Mathf.Clamp(Mathf.CeilToInt((100f - tp.z) * cz), 0, res - 1);
             // (user, 2026-11-14 screenshot: the steps lay in a ditch, "kya kya bana diya"): the ground is cut to the Flats'
             // level under the steps and a 3 m apron at their foot, then rises back to what LevelFlatsEdge left over 14 m,
             // a gentle slope with no cliff. Nothing is raised.
@@ -95,6 +103,33 @@ namespace Nainital.EditorTools
                     if (into > band + 3f) want = Mathf.Lerp(want, cur, Mathf.SmoothStep(0f, 1f, (into - band - 3f) / 14f));
                     if (cur > want) hs[zi, xi] = Mathf.Clamp01((want - tp.y) / sz.y);
                 }
+            // where the steps end, the cut met the ground LevelFlatsEdge raised beside the road in a step of up to 16 cm
+            // that poked through the grit in a line of teeth (15 Nov). Inside the Flats and outside the cut, the ground
+            // now eases down to the cut: no sample more than 10 cm above a neighbour (about 1 in 15). Only lowered.
+            {
+                int nx = x1 - x0 + 1, nz = z1 - z0 + 1;
+                var free = new bool[nz, nx];
+                var flats = FlatsPoly(ctx);
+                for (int zi = 0; zi < nz; zi++)
+                    for (int xi = 0; xi < nx; xi++)
+                    {
+                        var q = new Vector2(tp.x + (x0 + xi) / cx, tp.z + (z0 + zi) / cz);
+                        free[zi, xi] = flats != null && Geo.PointInPolygon(flats, q) && !(InStands(q, out float into) && into >= 0.1f);
+                    }
+                float stepH = 0.1f / sz.y;
+                for (int iter = 0; iter < 40; iter++)
+                {
+                    bool changed = false;
+                    for (int zi = 1; zi < nz - 1; zi++)
+                        for (int xi = 1; xi < nx - 1; xi++)
+                        {
+                            if (!free[zi, xi]) continue;
+                            float lim = Mathf.Min(Mathf.Min(hs[zi - 1, xi], hs[zi + 1, xi]), Mathf.Min(hs[zi, xi - 1], hs[zi, xi + 1])) + stepH;
+                            if (hs[zi, xi] > lim) { hs[zi, xi] = lim; changed = true; }
+                        }
+                    if (!changed) break;
+                }
+            }
             td.SetHeights(x0, z0, hs);
 
             // one continuous set of steps: a smooth centre line with averaged normals and a smoothed road level, every tier a

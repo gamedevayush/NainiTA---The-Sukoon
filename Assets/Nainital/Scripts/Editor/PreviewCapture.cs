@@ -76,10 +76,24 @@ namespace Nainital.EditorTools
             var rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32) { antiAliasing = 2 };
             cam.targetTexture = rt;
 
+            // the lake reflects its live probe (hills, lit windows) in play mode; in these edit-mode shots it showed only the
+            // analytic sky and read as grey steel, so the probe is rendered here too, again whenever the hour changes
+            var lakeProbe = dn ? dn.lakeProbe : null;
+            float probeHour = -1f;
+
             void Shot(string name, Vector3 pos, Vector3 look, float time, bool clearAir = false)
             {
                 if (!Wanted(name)) return;
                 if (dn) { dn.timeOfDay = time; dn.Apply(); }
+                if (lakeProbe && !Mathf.Approximately(probeHour, time))
+                {
+                    lakeProbe.RenderProbe();
+                    Shader.SetGlobalFloat("_LakeProbeReady", 1f);
+                    probeHour = time;
+                }
+                // the lamp halos and lake streaks (Shaders/LampGlow) take their strength from _NtLampGlow, which only
+                // LampManager sets, in play mode: without this every night shot showed them switched off
+                Shader.SetGlobalFloat("_NtLampGlow", dn ? Mathf.Clamp01((dn.NightFactor - 0.2f) / 0.4f) : 0f);
                 bool fogWas = RenderSettings.fog;
                 if (clearAir) { RenderSettings.fog = false; Shader.SetGlobalFloat("_HazeDensity", 0f); }
                 cam.transform.position = pos;
@@ -200,7 +214,8 @@ namespace Nainital.EditorTools
                                                   ("Land's End", "53_lands_end"), ("Himalaya Darshan", "54_himalaya_darshan"), ("Eco Cave Garden", "55_eco_cave"), ("Tower 360", "57_tower360"),
                                                   ("Lover's Point", "80_lovers_point"), ("Barapathar (pony stand)", "81_barapathar"), ("Sariyatal", "82_sariyatal"),
                                                   ("Sariyatal Falls", "83_sariyatal_falls"), ("Khurpatal Lake View Point", "84_khurpatal_lake_view"),
-                                                  ("Khurpatal View Point", "85_khurpatal_view"), ("Khurpatal", "86_khurpatal") })
+                                                  ("Khurpatal View Point", "85_khurpatal_view"), ("Khurpatal", "86_khurpatal"),
+                                                  ("Bada Bazar", "87_bada_bazar"), ("St. Francis Church", "88_st_francis") })
             {
                 var vm = GameObject.Find("ViewShot " + title);
                 if (!vm) { Debug.LogWarning("[Nainital] no ViewShot " + title); continue; }
@@ -253,7 +268,10 @@ namespace Nainital.EditorTools
                 if (Physics.Raycast(new Vector3(p.x, p.y + 60f, p.z), Vector3.down, out var hh, 200f)) p.y = hh.point.y + 1.7f;
                 Shot(file, p, tt.position + Vector3.down * 1.5f, time);
             }
-            FrontOf("24_naina_devi_arch", "Arch SHRI NAINA DEVI MANDIR", 14f, 10.5f);
+            // the temple's red gate (WorldBuilder.Gates) is no longer an "Arch ..." holder: take it from its own camera marker
+            var templeShot = GameObject.Find("GateShotTemple");
+            if (templeShot) Shot("24_naina_devi_arch", templeShot.transform.position, templeShot.transform.position + templeShot.transform.forward * 10f, 10.5f);
+            else FrontOf("24_naina_devi_arch", "Arch SHRI NAINA DEVI MANDIR", 14f, 10.5f);
             FrontOf("25_zoo_gate", "Arch PT. G.B. PANT HIGH ALTITUDE ZOO", 16f, 10.5f);
             FrontOf("26_tallital_board", "Road board", 16f, 10.5f);
 

@@ -30,6 +30,18 @@ namespace Nainital.EditorTools
         static EditorBridge()
         {
             try { Directory.CreateDirectory(Dir); } catch { }
+            // a command written before this editor started is stale: an editor killed before it read a "quit" left one
+            // behind, and the next editor read it and closed itself at once (15 Nov)
+            try
+            {
+                string cmd = Path.Combine(Dir, "cmd.txt");
+                if (File.Exists(cmd) && File.GetLastWriteTime(cmd) < System.Diagnostics.Process.GetCurrentProcess().StartTime)
+                {
+                    File.Delete(cmd);
+                    Debug.Log("[Nainital] bridge: dropped a command left from before this editor started");
+                }
+            }
+            catch { }
             EditorApplication.update += Tick;
             Beat("loaded");
         }

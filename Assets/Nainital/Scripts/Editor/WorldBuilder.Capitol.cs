@@ -19,8 +19,10 @@ namespace Nainital.EditorTools
         {
             Vector2 r2 = new Vector2(f2.y, -f2.x);
             // the floor is the ground in front (the low side), the ground under and round the building cut to it
-            float y = Mathf.Min(ctx.H(c2 + f2 * (D * 0.5f + 3f)), ctx.H(c2 + f2 * (D * 0.5f + 3f) + r2 * (W * 0.4f)), ctx.H(c2 + f2 * (D * 0.5f + 3f) - r2 * (W * 0.4f)));
-            LandmarkBuilder.CutGround(ctx, c2, f2, W * 0.5f + 1f, D * 0.5f + 4f, y - 0.1f);
+            // the floor is the low level the ground was shaped to (WorldBuilder.CapitolGround.cs); no cut of its own, it would
+            // eat into the park's terrace and the walk
+            float y = !float.IsNaN(capLowY) ? capLowY
+                    : Mathf.Min(ctx.H(c2 + f2 * (D * 0.5f + 3f)), ctx.H(c2 + f2 * (D * 0.5f + 3f) + r2 * (W * 0.4f)), ctx.H(c2 + f2 * (D * 0.5f + 3f) - r2 * (W * 0.4f)));
             var rot = Quaternion.LookRotation(Flat(f2));
             Vector3 c = V(c2, y), F = Flat(f2), R = Flat(r2);
             Vector3 P(float x, float h, float z) => c + R * x + Vector3.up * h + F * z;   // x across the front, z out of it
@@ -123,52 +125,74 @@ namespace Nainital.EditorTools
                 Label(holder, font, sx < 0f ? "GALAXY Entertainment 12D" : "HOT WAFFLES", c + side * (W * 0.5f + 0.12f) + F * (fz - 2f) + Vector3.up * 3.0f, side, 0.18f, Color.white);
             }
 
-            // the walk to Naina Devi passes higher up on the west: a stone retaining wall along that side, stairs down at the front
-            Vector2 west = ctx.LakeDistance(c2 + r2 * 12f) > ctx.LakeDistance(c2 - r2 * 12f) ? r2 : -r2;
-            Vector2 wallA = c2 + west * (W * 0.5f + 4f) + f2 * (fz + 6f), wallB = c2 + west * (W * 0.5f + 4f) - f2 * (fz + 2f);
-            float walkY = Mathf.Max(ctx.H(wallA + west * 2f), ctx.H(wallB + west * 2f), ctx.H((wallA + wallB) * 0.5f + west * 2f));
-            float rise = walkY - y;
-            if (rise > 0.6f)
-            {
-                var wrot = Quaternion.LookRotation(Flat((wallB - wallA).normalized));
-                float wl = Vector2.Distance(wallA, wallB);
-                mb.Box(V((wallA + wallB) * 0.5f, y + rise * 0.5f), new Vector3(0.6f, rise, wl), wrot, stone);
-                col.Box(V((wallA + wallB) * 0.5f, y + rise * 0.5f), new Vector3(0.6f, rise, wl), wrot, Vector2.zero);
-                mb.Box(V((wallA + wallB) * 0.5f, walkY + 0.25f), new Vector3(0.7f, 0.5f, wl), wrot, stone);   // the coping people sit on
-            }
-            // the stairs from the walk come down along the retaining wall at the front (WorldBuilder.CapitolGround.cs)
+            // the walk to Naina Devi passes higher up on the west: its retaining wall, the stairs down into the lane, the park's
+            // walls and the red and grey paving (WorldBuilder.CapitolGround.cs)
             CapitolWallAndStairs(ctx, mb, col);
-            // the paved lane in front and down the sides
-            mb.Box(c + F * (fz + 4f) + Vector3.up * 0.02f, new Vector3(W + 8f, 0.04f, 8f), rot, Atlas.SolidUV(Pal.TempleRed));
             ctx.InfoSign("Capitol Cinema", "1930s ka purana cinema hall (Assembly Hall), Mallital mein Flats ke kinare. Neeche Galaxy 12D, Chai Sutta Bar aur The Pahari Store.",
                          V(c2 + f2 * (fz + 6f) + r2 * (W * 0.5f + 1f), y), rot, parent);
         }
 
-        /// <summary>The low white Video Games / Zoom Land hall beside the Capitol toward the lake, red bands, a red board,
-        /// set back from the water behind the lakeside walk.</summary>
+        /// <summary>The Video Games / Zoom Land hall beside the Capitol toward the lake (user, 2026-11-16: "ye video game waali
+        /// building almost end tk hai, side se hlki si gali"; the satellite photo: a long dark-roofed hall from the Capitol to a
+        /// narrow lane above the lakeside path). White, red bands, roller shutters and the boards on its front to the lane.</summary>
         static void VideoGamesHall(WorldCtx ctx, Transform parent, MeshBuilder mb, MeshBuilder col, Font font, Vector2 c2, Vector2 f2, float W, float D)
         {
-            Vector2 r2 = new Vector2(f2.y, -f2.x);
-            Vector2 lake = ctx.LakeDistance(c2 + r2 * 12f) < ctx.LakeDistance(c2 - r2 * 12f) ? r2 : -r2;
-            Vector2 at = c2 + lake * (W * 0.5f + 5.5f) + f2 * (D * 0.5f - 7f);
-            if (ctx.LakeDistance(at) < 12f) return;   // keep the lakeside walk clear
-            float y = ctx.H(at);
-            var rot = Quaternion.LookRotation(Flat(f2));
-            Vector3 c = V(at, y), F = Flat(f2);
-            Vector2 white = Atlas.WallSolid(0), red = Atlas.SolidUV(Pal.TempleRed);
-            mb.Box(c + Vector3.up * 2.1f, new Vector3(10f, 4.2f, 12f), rot, white);
-            col.Box(c + Vector3.up * 2.1f, new Vector3(10f, 4.2f, 12f), rot, Vector2.zero);
-            mb.Box(c + Vector3.up * 4.2f, new Vector3(10.3f, 0.3f, 12.3f), rot, red);
-            mb.Box(c + Vector3.up * 1.6f, new Vector3(10.1f, 0.25f, 12.1f), rot, red);
-            for (int k = 0; k < 3; k++)
-                mb.Box(c + F * 6.04f + Flat(r2) * (-3f + k * 3f) + Vector3.up * 1.1f, new Vector3(2f, 2.2f, 0.05f), rot, Atlas.SolidUV(k == 1 ? Pal.WoodDark : Pal.IronBlack));
-            mb.Box(c + F * 6.1f + Vector3.up * 3.3f, new Vector3(6f, 0.9f, 0.08f), rot, red);
+            var g = CapitolGeo(ctx);
+            if (g == null) return;
+            float hw = g.hallS1 - g.hallS0, hd = g.hallA1 - g.hallA0;
+            if (hw < 4f || hd < 6f) return;
+            Vector2 at = CapW((g.hallA0 + g.hallA1) * 0.5f, (g.hallS0 + g.hallS1) * 0.5f);
+            float y = !float.IsNaN(capLowY) ? capLowY : ctx.H(at);
+            var rot = Quaternion.LookRotation(Flat(CapWalkDir));   // its front looks along the walk, onto the lane
+            Vector3 c = V(at, y), F = Flat(CapWalkDir), R = Flat(CapLakeSide);
+            Vector2 white = Atlas.WallSolid(0), red = Atlas.SolidUV(Pal.TempleRed), roof = Atlas.SolidUV(Pal.StoneGrey), dark = Atlas.SolidUV(Pal.IronBlack),
+                    glow = Atlas.SolidUV(Pal.WindowGlow), shutter = Atlas.MaterialUV(Atlas.MatConcrete);
+            const float H = 6.4f;
+            mb.Box(c + Vector3.up * (H * 0.5f - 0.4f), new Vector3(hw, H + 0.8f, hd), rot, white);
+            col.Box(c + Vector3.up * (H * 0.5f), new Vector3(hw, H, hd), rot, Vector2.zero);
+            mb.Box(c + Vector3.up * (H + 0.05f), new Vector3(hw - 0.3f, 0.1f, hd - 0.3f), rot, roof);          // the dark flat roof
+            mb.Box(c + Vector3.up * (H + 0.3f), new Vector3(hw + 0.1f, 0.5f, hd + 0.1f), rot, white);          // parapet ...
+            mb.Box(c + Vector3.up * (H + 0.32f), new Vector3(hw - 0.4f, 0.52f, hd - 0.4f), rot, roof);         // ... round the roof
+            mb.Box(c + Vector3.up * (H - 0.3f), new Vector3(hw + 0.12f, 0.35f, hd + 0.12f), rot, red);         // red bands
+            mb.Box(c + Vector3.up * 2.6f, new Vector3(hw + 0.12f, 0.25f, hd + 0.12f), rot, red);
+            mb.Box(c + Vector3.up * 0.2f, new Vector3(hw + 0.1f, 0.4f, hd + 0.1f), rot, Atlas.SolidUV(Pal.WoodDark));
+            // the front to the lane: three roller shutters and a door, the red VIDEO GAMES board, ZOOM LAND above
+            float fz = hd * 0.5f;
+            int bays = Mathf.Clamp(Mathf.RoundToInt(hw / 3.4f), 3, 5);
+            for (int k = 0; k < bays; k++)
+            {
+                float x = ((k + 0.5f) / bays - 0.5f) * (hw - 1.2f);
+                bool door = k == bays / 2;
+                mb.Box(c + R * x + F * (fz + 0.03f) + Vector3.up * 1.15f, new Vector3(hw / bays - 0.9f, 2.3f, 0.06f), rot, door ? Atlas.SolidUV(Pal.WoodDark) : shutter);
+                if (door) mb.Box(c + R * x + F * (fz + 0.07f) + Vector3.up * 1.05f, new Vector3(hw / bays - 1.6f, 1.9f, 0.03f), rot, glow);
+            }
             var holder = new GameObject("Video Games sign").transform;
             holder.SetParent(parent, false);
-            Label(holder, font, "VIDEO GAMES", c + F * 6.16f + Vector3.up * 3.3f, F, 0.45f, Color.white);
-            Label(holder, font, "ZOOM LAND", c + F * 6.16f + Vector3.up * 4.75f, F, 0.4f, new Color(0.75f, 0.08f, 0.08f));
-            mb.Box(c + F * 6.1f + Vector3.up * 4.75f, new Vector3(5f, 0.75f, 0.06f), rot, Atlas.SolidUV(Pal.ShirtWhite));
-            ctx.keepClear.Add((at, 8f));
+            mb.Box(c + F * (fz + 0.1f) + Vector3.up * 3.6f, new Vector3(Mathf.Min(hw - 2f, 9f), 1.0f, 0.08f), rot, red);
+            Label(holder, font, "VIDEO GAMES", c + F * (fz + 0.16f) + Vector3.up * 3.6f, F, 0.55f, Color.white);
+            mb.Box(c + F * (fz + 0.1f) + Vector3.up * 4.95f, new Vector3(Mathf.Min(hw - 4f, 6.5f), 0.85f, 0.06f), rot, Atlas.SolidUV(Pal.ShirtWhite));
+            Label(holder, font, "ZOOM LAND", c + F * (fz + 0.16f) + Vector3.up * 4.95f, F, 0.45f, new Color(0.75f, 0.08f, 0.08f));
+            // the long side above the narrow lane: windows and a side door; the back and the Capitol side are blank
+            for (float z = -fz + 2.5f; z < fz - 2f; z += 3.6f)
+            {
+                mb.Box(c + R * (hw * 0.5f + 0.03f) + F * z + Vector3.up * 4.3f, new Vector3(0.05f, 1.2f, 1.6f), rot, dark);
+                mb.Box(c + R * (hw * 0.5f + 0.05f) + F * z + Vector3.up * 4.3f, new Vector3(0.03f, 0.9f, 1.3f), rot, glow);
+            }
+            mb.Box(c + R * (hw * 0.5f + 0.04f) + F * (fz - 4f) + Vector3.up * 1.05f, new Vector3(0.06f, 2.1f, 1.1f), rot, Atlas.SolidUV(Pal.WoodDark));
+            // a water tank and a dish on the roof
+            mb.Cylinder(c + R * (hw * 0.25f) - F * (fz * 0.5f) + Vector3.up * (H + 0.1f), 0.7f, 0.7f, 1.3f, 10, Atlas.SolidUV(Pal.IronBlack), true, true);
+            mb.Cylinder(c - R * (hw * 0.3f) + F * (fz * 0.4f) + Vector3.up * (H + 0.5f), 0.45f, 0.05f, 0.25f, 10, Atlas.SolidUV(Pal.ShirtWhite), true, true);
+        }
+
+        /// <summary>The hall's footprint as circles, for the plan (no generated houses there).</summary>
+        static void KeepVideoGamesClear(WorldCtx ctx)
+        {
+            var g = CapitolGeo(ctx);
+            if (g == null) return;
+            float hw = g.hallS1 - g.hallS0, sc = (g.hallS0 + g.hallS1) * 0.5f;
+            for (float a = g.hallA0; a <= g.hallA1 + 0.01f; a += Mathf.Max(2f, hw * 0.4f))
+                ctx.keepClear.Add((CapW(a, sc), hw * 0.5f + 2.5f));
+            ctx.keepClear.Add((CapW(g.hallA1, sc), hw * 0.5f + 2.5f));
         }
     }
 }

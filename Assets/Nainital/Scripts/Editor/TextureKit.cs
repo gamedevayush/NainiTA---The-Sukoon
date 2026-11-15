@@ -116,7 +116,7 @@ namespace Nainital.EditorTools
                 for (int x = 0; x < S; x++)
                 {
                     int cx = x / C, cy = y / C;
-                    bool textured = cy <= Atlas.RoofRow && !(cy < Atlas.RoofRow && cx >= Atlas.ExtraCol0);
+                    bool textured = cy <= Atlas.RoofRow && !(cy < Atlas.RoofRow && cx >= Atlas.ExtraCol0 && !Atlas.IsStrongCell(cx, cy));
                     if (!textured) { n[y * S + x] = new Color32(128, 128, 255, 255); continue; }
                     int x0 = cx * C, y0 = cy * C;
                     int xl = Mathf.Max(x0, x - R), xr = Mathf.Min(x0 + C - 1, x + R), yd = Mathf.Max(y0, y - R), yu = Mathf.Min(y0 + C - 1, y + R);
@@ -143,7 +143,7 @@ namespace Nainital.EditorTools
                 for (int x = 0; x < S; x++)
                 {
                     int cx = x / C, cy = y / C;
-                    bool on = cy < Atlas.RoofRow ? cx < Atlas.ExtraCol0 : cy == Atlas.RoofRow && cx != Atlas.MatGlass && cx != Atlas.MatGold;
+                    bool on = cy < Atlas.RoofRow ? cx < Atlas.ExtraCol0 || Atlas.IsStrongCell(cx, cy) : cy == Atlas.RoofRow && cx != Atlas.MatGlass && cx != Atlas.MatGold;
                     m[y * S + x] = new Color32(255, 255, 255, (byte)(on ? 255 : 0));
                 }
             var t = new Texture2D(S, S, TextureFormat.RGBA32, false, true);
@@ -274,6 +274,7 @@ namespace Nainital.EditorTools
             {
                 int w = job / Atlas.Cells, s = job % Atlas.Cells;
                 if (s >= Atlas.ExtraCol0 && (11 - w) * 6 + (s - Atlas.ExtraCol0) < extras) return;   // a solid extra colour, below
+                if (Atlas.IsStrongCell(s, w)) return;                                                  // a strong wall colour, below
                 Color wc = walls[w];
                 bool facade = s < Atlas.StyleCount;
                 bool lit = s == Atlas.StyleWinALit || s == Atlas.StyleWinBLit || s == Atlas.StyleShopLit || s == Atlas.StyleBalconyLit;
@@ -286,6 +287,29 @@ namespace Nainital.EditorTools
                         Color c = facade ? FacadeArt.Bay(kinds[s], lit, w, wc, u, v, seed, out e) : FacadeArt.Plaster(wc, u, v, w * 13 + s);
                         c.a = 1f; e.a = 1f;
                         int idx = (w * C + y) * S + s * C + x;
+                        px[idx] = c;
+                        em[idx] = e;
+                    }
+            });
+
+            // The strong high-street wall colours (Atlas.StrongWallPalette): the same ten facade styles, less faded
+            int strongN = Atlas.StrongWallPalette.Length;
+            System.Threading.Tasks.Parallel.For(0, strongN * Atlas.StyleCount, job =>
+            {
+                int j = job / Atlas.StyleCount, s = job % Atlas.StyleCount, w = Atlas.StrongWall0 + j;
+                Color wc = Atlas.StrongWallPalette[j];
+                wc = Color.Lerp(new Color(wc.grayscale, wc.grayscale, wc.grayscale * 0.97f), wc, 0.85f) * 0.96f;
+                wc.a = 1f;
+                var cell = Atlas.StrongCell(w, s);
+                bool lit = s == Atlas.StyleWinALit || s == Atlas.StyleWinBLit || s == Atlas.StyleShopLit || s == Atlas.StyleBalconyLit;
+                int seed = w * 31 + s * 7;
+                for (int y = 0; y < C; y++)
+                    for (int x = 0; x < C; x++)
+                    {
+                        float u = (x + 0.5f) * k, v = (y + 0.5f) * k;
+                        Color c = FacadeArt.Bay(kinds[s], lit, w, wc, u, v, seed, out Color e);
+                        c.a = 1f; e.a = 1f;
+                        int idx = (cell.y * C + y) * S + cell.x * C + x;
                         px[idx] = c;
                         em[idx] = e;
                     }
@@ -514,6 +538,12 @@ namespace Nainital.EditorTools
                 return mm;
             }
             m.asphalt = Tiled("M_Asphalt", asphalt, 0.18f, P("asphalt_02"), PN("asphalt_02"), 1f);
+            // the scan is a fresh black-top; the roads of Nainital are worn, dusty mid-grey (15 Nov, photoreal pass: streets
+            // in shade went near black)
+            // warm dusty grey, and a dull top: at 0.65 smoothness the whole road mirrored the blue sky and read as
+            // purple-black plastic from street level (Mall Road shots, 15 Nov)
+            m.asphalt.SetColor("_BaseColor", new Color(1.5f, 1.45f, 1.36f));
+            m.asphalt.SetFloat("_Smoothness", 0.22f);
             m.paver = Tiled("M_Paver", paver, 0.12f, P("rectangular_paving"), PN("rectangular_paving"), 1f);
             m.dirtPath = Tiled("M_DirtPath", dirt, 0.05f, P("dirt"), PN("dirt"), 1f);
 
@@ -543,11 +573,14 @@ namespace Nainital.EditorTools
             m.water.SetColor("_ShallowColor", new Color(0.42f, 0.62f, 0.56f));
             m.water.SetVector("_Absorption", new Vector4(0.60f, 0.15f, 0.19f, 0f));
             m.water.SetFloat("_Clarity", 0.8f);
-            m.water.SetColor("_DeepColor", new Color(0.06f, 0.30f, 0.25f));   // in-scattered light: the teal of the drone shots
+            m.water.SetColor("_DeepColor", new Color(0.08f, 0.35f, 0.23f));   // in-scattered light: the green-teal of the drone shots (15 Nov: greener, it read navy under the sky reflection)
             m.sky = SaveAsset(new Material(Shader.Find("Nainital/Sky")) { name = "M_Sky" }, mat + "/M_Sky.mat");
-            m.terrain = SaveAsset(new Material(Shader.Find("Universal Render Pipeline/Terrain/Lit")) { name = "M_Terrain" }, mat + "/M_Terrain.mat");
+            // URP TerrainLit with the roads, the dirt and the wet patches drawn in (Shaders/NainitalTerrain.shader, 2026-11-16)
+            m.terrain = SaveAsset(new Material(Shader.Find("Nainital/Terrain") ?? Shader.Find("Universal Render Pipeline/Terrain/Lit")) { name = "M_Terrain" }, mat + "/M_Terrain.mat");
 
             // tint: the photo grass/forest scans are autumn-brown, Kumaon hills are lush green
+            // (15 Nov: baking the tint into copies of the scans was tried, to make the far basemap agree; the splat then
+            // rendered the far slopes khaki again, 124,123,113 against 64,76,94 with the remap, so the remap stays)
             TerrainLayer Layer(string name, Texture2D t, float tile, string pbrName, Color tint)
             {
                 var albedo = P(pbrName);
@@ -562,11 +595,16 @@ namespace Nainital.EditorTools
                 // re-textured (user, 2026-11-11: "nainital pe texturing"): the old lawn-green grass and green-tinted forest floor
                 // read as a golf course. Real ground in the 2025-26 videos: dry mixed grass in the open, dark leaf litter under
                 // the oaks and deodars, grey stony soil on cut banks, packed brown earth in town. Tints only mute the scans.
-                Layer("TL_Grass", grass, 7f, P("forrest_ground_01") ? "forrest_ground_01" : "leafy_grass", P("forrest_ground_01") ? new Color(0.42f, 0.62f, 0.40f) : new Color(0.32f, 0.50f, 0.28f)),
+                Layer("TL_Grass", grass, 7f, P("forrest_ground_01") ? "forrest_ground_01" : "leafy_grass", P("forrest_ground_01") ? new Color(0.37f, 0.55f, 0.33f) : new Color(0.32f, 0.50f, 0.28f)),   // 15 Nov: a touch greener, open slopes read khaki
                 // under the forest (68% of the map): dark green, not beige - from across the lake the ground between the
                 // trees is what you see, and in every drone video the slopes read as one dark green canopy (user, 2026-11-14)
-                Layer("TL_ForestFloor", forest, 8f, P("forest_leaves_02") ? "forest_leaves_02" : "forest_ground_04", P("forest_leaves_02") ? new Color(0.30f, 0.44f, 0.30f) : new Color(0.20f, 0.33f, 0.18f)),
-                Layer("TL_Rock", rock, 9f, P("rocky_trail") ? "rocky_trail" : "rock_ground_02", new Color(0.82f, 0.86f, 0.92f)),
+                Layer("TL_ForestFloor", forest, 8f, P("forest_leaves_02") ? "forest_leaves_02" : "forest_ground_04", P("forest_leaves_02") ? new Color(0.26f, 0.40f, 0.24f) : new Color(0.20f, 0.33f, 0.18f)),
+                // dark mossy grey, not tan (15 Nov, photoreal pass): the warm rocky_trail scan on every steep slope read as a
+                // khaki band across the hills - the probe found it on the 63-80 degree wall above the west shore, too steep for
+                // trees. Kumaon rock faces are dark, damp and mossy; from across the lake they sit into the forest
+                // (0.44 / 0.50 / 0.42 still came out khaki, 141,140,117, on the sunlit face: near-vertical and facing the
+                // morning sun, it takes the full sun)
+                Layer("TL_Rock", rock, 9f, P("rocky_trail") ? "rocky_trail" : "rock_ground_02", new Color(0.28f, 0.36f, 0.26f)),
                 Layer("TL_Dirt", dirt, 6f, "forest_ground_04", new Color(0.80f, 0.80f, 0.80f)),   // Kumaon earth is dark grey-brown, not tan
             };
             AssetDatabase.SaveAssets();

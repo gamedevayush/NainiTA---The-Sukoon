@@ -22,7 +22,7 @@ namespace Nainital
         Joystick stick;
         Text pedalHand;
         static float steerL, steerR, gas, brake;
-        static readonly Color BtnFill = new Color(0.06f, 0.08f, 0.10f, 0.62f), BtnOn = new Color(0.16f, 0.50f, 0.28f, 0.75f);
+        static readonly Color BtnFill = new Color(0.035f, 0.05f, 0.07f, 0.62f), BtnOn = new Color(0.12f, 0.55f, 0.50f, 0.80f);   // HudStyle glass; teal when held
 
         /// <summary>Anti-aliased disc, or a ring of the given thickness (fraction of the radius), as a UI sprite.</summary>
         static Sprite Round(int n, float thickness)
@@ -89,21 +89,30 @@ namespace Nainital
             var radar = root.Find("Radar") as RectTransform;
             if (radar)
             {
+                const float k = 0.82f;
                 radar.anchorMin = radar.anchorMax = new Vector2(0, 1);
                 radar.pivot = new Vector2(0, 1);
-                radar.anchoredPosition = new Vector2(28, -72);
-                radar.localScale = Vector3.one * 0.82f;
+                radar.anchoredPosition = new Vector2(28, -28);
+                radar.localScale = Vector3.one * k;
+                float below = -28 - radar.sizeDelta.y * k - 10;
+                var info = root.Find("AreaInfo") as RectTransform;   // the place / time card goes under it
+                if (info)
+                {
+                    info.anchorMin = info.anchorMax = new Vector2(0, 1);
+                    info.pivot = new Vector2(0, 1);
+                    info.anchoredPosition = new Vector2(28, below);
+                    info.localScale = Vector3.one * k;
+                }
                 var obj = root.Find("Objective") as RectTransform;   // the mission box moves right of it
-                if (obj) obj.anchoredPosition = new Vector2(30 + radar.sizeDelta.x * 0.82f + 20, -78);
+                if (obj) obj.anchoredPosition = new Vector2(28 + radar.sizeDelta.x * k + 20, -28);
             }
             var speed = root.Find("Speed") as RectTransform;   // speedometer: bottom centre, clear of the steering buttons
             if (speed)
             {
                 speed.anchorMin = speed.anchorMax = new Vector2(0.5f, 0f);
                 speed.pivot = new Vector2(0.5f, 0f);
-                speed.anchoredPosition = new Vector2(0, 30);
-                var st = speed.GetComponent<Text>();
-                if (st) st.alignment = TextAnchor.LowerCenter;
+                speed.anchoredPosition = new Vector2(0, 20);
+                speed.localScale = Vector3.one * 0.8f;
             }
             // a tap that moves a few pixels on a 500 dpi screen is still a tap, not a drag (the places list scrolls)
             if (EventSystem.current) EventSystem.current.pixelDragThreshold = Mathf.Max(10, Mathf.RoundToInt((Screen.dpi > 0 ? Screen.dpi : 320f) * 0.06f));
@@ -165,12 +174,12 @@ namespace Nainital
             useLabel = interactButton.GetComponentInChildren<Text>();
 
             // under the HUD's Din/Raat, Help and Menu buttons (top right): the map and the cheats
-            hud.Btn("Map", root, new Vector2(1, 1), new Vector2(-110, -326), new Vector2(180, 54), () => GameInput.TouchMap = true);
-            var cb = hud.Btn("Cheat", root, new Vector2(1, 1), new Vector2(-110, -388), new Vector2(180, 54), ToggleCheats);
+            hud.Btn("Map", root, new Vector2(1, 1), new Vector2(-110, hud.SideButtonY(3)), hud.SideButtonSize, () => GameInput.TouchMap = true, hud.SideButtonFont);
+            var cb = hud.Btn("Cheat", root, new Vector2(1, 1), new Vector2(-110, hud.SideButtonY(4)), hud.SideButtonSize, ToggleCheats, hud.SideButtonFont);
             cb.GetComponent<Image>().color = new Color(0.45f, 0.18f, 0.5f, 0.75f);
-            var wb = hud.Btn("Mausam", root, new Vector2(1, 1), new Vector2(-110, -450), new Vector2(180, 54), ToggleMausam);
+            var wb = hud.Btn("Mausam", root, new Vector2(1, 1), new Vector2(-110, hud.SideButtonY(5)), hud.SideButtonSize, ToggleMausam, hud.SideButtonFont);
             wb.GetComponent<Image>().color = new Color(0.15f, 0.38f, 0.55f, 0.75f);
-            var bb = hud.Btn("Bug", root, new Vector2(1, 1), new Vector2(-110, -512), new Vector2(180, 54), BugReporter.Open);
+            var bb = hud.Btn("Bug", root, new Vector2(1, 1), new Vector2(-110, hud.SideButtonY(6)), hud.SideButtonSize, BugReporter.Open, hud.SideButtonFont);
             bb.GetComponent<Image>().color = new Color(0.55f, 0.2f, 0.15f, 0.75f);
         }
 

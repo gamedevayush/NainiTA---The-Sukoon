@@ -9,6 +9,9 @@ namespace Nainital.EditorTools
     /// booth where Mall Road reaches Mallital. Positions are POIs from process_data.py (MANUAL_POIS) or OSM.</summary>
     public static partial class WorldBuilder
     {
+        static readonly (float u, float v)[] BoxProbe =
+            { (-0.5f, -0.5f), (0.5f, -0.5f), (-0.5f, 0.5f), (0.5f, 0.5f), (-0.5f, 0f), (0.5f, 0f), (0f, -0.5f), (0f, 0.5f) };
+
         static (Vector2 c, Vector2 front, float w, float d)? CapitolBox(WorldCtx ctx)
         {
             foreach (var b in ctx.world.osmBuildings)
@@ -37,8 +40,30 @@ namespace Nainital.EditorTools
                 Vector2 front = dirs[0];
                 foreach (var dd in dirs) if (Vector2.Dot(dd, toPark) > Vector2.Dot(front, toPark)) front = dd;
                 bool frontIsU = Mathf.Abs(Vector2.Dot(front, ux)) > 0.5f;
-                float width = frontIsU ? bd : bw, depth = frontIsU ? bw : bd;
-                return (c, front, Mathf.Min(width, 40f), Mathf.Min(depth, 40f));   // the real footprint: 20 m front, 35 m deep
+                float width = Mathf.Min(frontIsU ? bd : bw, 40f), depth = Mathf.Min(frontIsU ? bw : bd, 40f);
+                // off the walk (user, 2026-11-16 screenshot: "capitol waali building road me kyun ghusri"): the OSM outline
+                // reaches 1.3 m into the 5.5 m walk to Naina Devi. The building stands clear of every road by 1.65 m, room for the
+                // retaining wall at the walk's edge (WorldBuilder.CapitolGround.cs)
+                Vector2 side = new Vector2(front.y, -front.x);
+                for (int pass = 0; pass < 3; pass++)
+                {
+                    float worst = 0f; Vector2 push = Vector2.zero;
+                    foreach (var r in ctx.world.roads)
+                    {
+                        if (NotRoads.Contains(r.kind)) continue;
+                        var line = Geo.ToPoints(r.pts);
+                        foreach (var (u, v) in BoxProbe)   // the corners and the middles of the sides
+                        {
+                            Vector2 q = c + side * (u * width) + front * (v * depth);
+                            float dl = Geo.DistanceToPolyline(line, q, false);
+                            float need = r.width * 0.5f + 1.65f - dl;   // the 1.5 m retaining wall and a gap
+                            if (need > worst && NearestRoadPoint(ctx, q, dl + 0.5f, rr => rr == r, out var rp, out _)) { worst = need; push = (q - rp).normalized * need; }
+                        }
+                    }
+                    if (worst <= 0.01f) break;
+                    c += push;
+                }
+                return (c, front, width, depth);   // the real footprint: 20 m front, 35 m deep
             }
             return null;
         }
@@ -47,6 +72,7 @@ namespace Nainital.EditorTools
         {
             var cap = CapitolBox(ctx);
             if (cap.HasValue) ctx.keepClear.Add((cap.Value.c, Mathf.Max(cap.Value.w, cap.Value.d) * 0.5f + 1f));
+            KeepVideoGamesClear(ctx);   // the hall beside it (WorldBuilder.Capitol.cs)
             foreach (var (name, r) in new[] { ("Tibetan Market", 18f), ("Naina Devi Gate", 9f), ("Mallital Police Booth", 3f), ("Bandstand", 6f), ("Children's Park (Capitol)", 10f) })
             {
                 var p = ctx.Poi(name);
@@ -83,6 +109,12 @@ namespace Nainital.EditorTools
                 CapitolCinema(ctx, parent, mb, col, font, cap.Value.c, cap.Value.front, cap.Value.w, cap.Value.d);
                 VideoGamesHall(ctx, parent, mb, col, font, cap.Value.c, cap.Value.front, cap.Value.w, cap.Value.d);
                 notes.Add("Capitol");
+                // the boat stand below the hall (user, 2026-11-16: "wahan boat stand bhi hai"; the satellite photo shows the
+                // rowing boats moored off the shore there)
+                int bv = 0; float bbd = float.MaxValue;
+                var boatAt = new Vector2(34f, -60f);
+                for (int i = 0; i < ctx.lake.Length; i++) { float dd = (ctx.lake[i] - boatAt).sqrMagnitude; if (dd < bbd) { bbd = dd; bv = i; } }
+                if (bbd < 30f * 30f) { BuildJetty(ctx, parent, bv, "Capitol Boat Stand"); notes.Add("Capitol boat stand"); }
             }
             var park = ctx.Poi("Children's Park (Capitol)");
             if (park.HasValue) { TyrePark(ctx, mb, col, park.Value); notes.Add("park"); }
@@ -144,7 +176,7 @@ namespace Nainital.EditorTools
                     dirt.Quad(V(q00, ctx.H(q00) + 0.05f), V(q10, ctx.H(q10) + 0.05f), V(q11, ctx.H(q11) + 0.05f), V(q01, ctx.H(q01) + 0.05f), new Rect(q00.x / 4f, q00.y / 4f, (r1 - r0) / 4f, (r1 - r0) / 4f), Vector3.up);
                 }
             }
-            ctx.MeshObject("Children's park ground", ctx.worldRoot, dirt, ctx.mats.dirtPath, null, false);
+            PaintDirtPath(dirt);   // trodden earth in the terrain's own dirt layer (2026-11-16: the ground is one surface)
             for (float z = -R; z <= R; z += 4f) { float hx = Mathf.Sqrt(Mathf.Max(0f, R * R - z * z)); if (hx > 1f) noGrassExtra.Add((new[] { p + new Vector2(-hx, z), p + new Vector2(hx, z) }, 2.7f)); }
             var rnd = new System.Random(808);
             int[] cols = { Pal.JacketRed, Pal.BoatYellow, Pal.BoatGreen, Pal.BoatBlue, Pal.SareeOrange };
@@ -178,7 +210,7 @@ namespace Nainital.EditorTools
                     var uv = new Rect((p00.x - c.x) / 2.5f, (p00.y - c.y) / 2.5f, (r1 - r0) / 2.5f, (r1 - r0) / 2.5f);
                     pave.Quad(V(p00, ctx.H(p00) + 0.08f), V(p10, ctx.H(p10) + 0.08f), V(p11, ctx.H(p11) + 0.08f), V(p01, ctx.H(p01) + 0.08f), uv, Vector3.up);
                 }
-            ctx.MeshObject("Tibetan market plaza", parent, pave, cobble ? cobble : ctx.mats.paver, null, false);
+            PaintRoadSurface(pave, ChGreyPaver);   // into the ground (2026-11-16)
             var ring2 = new MeshBuilder();
             Vector2 dark = Atlas.SolidUV(Pal.StoneGrey);
             for (int k = 1; k <= 3; k++)
@@ -189,7 +221,7 @@ namespace Nainital.EditorTools
                     float a0 = i * Mathf.PI / 12f, a1 = (i + 1) * Mathf.PI / 12f;
                     Vector2 p0 = c + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * rr, p1 = c + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * rr;
                     Vector2 q0 = c + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * (rr + 0.25f), q1 = c + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * (rr + 0.25f);
-                    ring2.Quad(V(p0, ctx.H(p0) + 0.1f), V(q0, ctx.H(q0) + 0.1f), V(q1, ctx.H(q1) + 0.1f), V(p1, ctx.H(p1) + 0.1f), dark, Vector3.up);
+                    ring2.Quad(V(p0, ctx.H(p0) + 0.02f), V(q0, ctx.H(q0) + 0.02f), V(q1, ctx.H(q1) + 0.02f), V(p1, ctx.H(p1) + 0.02f), dark, Vector3.up);   // on the painted flagstones
                 }
             }
             ctx.MeshObject("Tibetan market ring", parent, ring2, ctx.mats.atlas, null, false);

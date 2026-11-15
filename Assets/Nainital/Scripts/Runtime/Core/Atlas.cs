@@ -132,8 +132,45 @@ namespace Nainital
 
         public static Vector2 ExtraUV(int i) => CellCenter(ExtraCol0 + i % 6, 11 - i / 6);
 
-        public static Rect Facade(int wallColor, int style) => CellRect(style, wallColor);
-        public static Vector2 WallSolid(int wallColor) => CellCenter(StylePlain, wallColor);
+        // ---- Strong wall colours for the high streets (README, 14 Nov: the Sukhatal chauraha was paler than Street View,
+        // a purple lodge, a blue block, pink hotels; the faded palette above has nothing that strong). Wall ids 12, 13, 14.
+        // Their ten facade styles sit in the free cells of columns 10..15 from row 0 up (rows 0..4), below the Extra
+        // colours, which fill columns 10..15 from row 11 down. The town's random picks stay on the first 12 colours.
+        public static readonly Color[] StrongWallPalette =
+        {
+            new Color(0.56f, 0.36f, 0.74f), // 12 purple (Hotel Beena Lodge)
+            new Color(0.24f, 0.48f, 0.82f), // 13 strong blue
+            new Color(0.88f, 0.42f, 0.56f), // 14 rose pink
+        };
+        public const int StrongWall0 = WallColors;
+
+        /// <summary>The atlas cell of a strong wall colour's facade style.</summary>
+        public static Vector2Int StrongCell(int wallColor, int style)
+        {
+            int i = (wallColor - WallColors) * StyleCount + style;
+            return new Vector2Int(ExtraCol0 + i % 6, i / 6);
+        }
+
+        /// <summary>True for the atlas cells that hold the strong wall colours' facades.</summary>
+        public static bool IsStrongCell(int col, int row)
+        {
+            if (col < ExtraCol0 || row >= RoofRow) return false;
+            return row * 6 + (col - ExtraCol0) < StrongWallPalette.Length * StyleCount;
+        }
+
+        public static Rect Facade(int wallColor, int style)
+        {
+            if (wallColor < WallColors) return CellRect(style, wallColor);
+            var c = StrongCell(wallColor, style);
+            return CellRect(c.x, c.y);
+        }
+
+        public static Vector2 WallSolid(int wallColor)
+        {
+            if (wallColor < WallColors) return CellCenter(StylePlain, wallColor);
+            var c = StrongCell(wallColor, StylePlain);
+            return CellCenter(c.x, c.y);
+        }
         public static Rect Roof(int roofColor) => CellRect(roofColor, RoofRow);
         public static Rect Material(int mat) => CellRect(mat, RoofRow);
         public static Vector2 MaterialUV(int mat) => CellCenter(mat, RoofRow);

@@ -14,8 +14,9 @@ namespace Nainital.EditorTools
     public static partial class WorldBuilder
     {
         const float HighStreetReach = 300f;   // metres from the Tallital traffic post
-        // the strongest wall colours the atlas has: lavender (the purple lodge), sky blue, teal, mustard, pink, brick, yellow
-        static readonly int[] HighStreetWalls = { 8, 8, 4, 4, 11, 11, 10, 3, 9, 2 };
+        // strong purple, blue and rose pink (Atlas.StrongWallPalette, made for the Sukhatal and Tallital Street View),
+        // then teal, mustard, cream (the cream hotels), brick, yellow, lavender, pale pink
+        static readonly int[] HighStreetWalls = { 12, 12, 13, 13, 14, 14, 11, 10, 1, 9, 2, 8, 3 };
         static readonly int[] ColonialWalls = { 0, 0, 1, 1, 4, 5, 3 };   // white, cream, pale blue, pale green, pale pink
         static readonly int[] ColonialRoofs = { 0, 0, 1, 2, 2, 3 };      // red, maroon, green, teal tin
         static List<Vector2[]> highStreetLines;
@@ -82,8 +83,12 @@ namespace Nainital.EditorTools
 
         /// <summary>
         /// The street wall (Street View: shops wall to wall, no grass between). Walking each high-street road on both
-        /// sides every 8 m, a 3-4 storey painted shop building goes wherever the frontage is empty: its front 1.5 m behind
-        /// the road edge, not on another road, the lake or a kept-clear site, and clear of every building already there.
+        /// sides in 1.5 m steps, a 3-4 storey painted shop building goes wherever the frontage is empty, starting where the
+        /// last one ended: its front 1.5 m behind the road edge, not on another road, the lake or a kept-clear site, and
+        /// clear of every building already there. Where a full-size one does not fit, a narrower or shallower one is
+        /// tried (in front of a house set back from the road, beside a lane).
+        /// (README 14 Nov, "grass gaps between high-street buildings": the old pass placed one every 8 m and tested
+        /// overlap with circles of 0.8 x the half diagonal, about 9 m apart for two of them, so every other one failed.)
         /// </summary>
         static int HighStreetInfill(WorldCtx ctx, System.Func<Vector2, MeshBuilder[]> chunk)
         {
@@ -102,52 +107,90 @@ namespace Nainital.EditorTools
                 foreach (var (line, half) in allRoads) if (Geo.DistanceToPolyline(line, p, false) < half + margin) return false;
                 return true;
             }
-            bool Free(Vector2 p, float rad)
+            var existing = new List<(Vector2 c, float r)>(highStreetTaken);   // the map's houses (circles)
+            var placed = new List<(Vector2 c, Vector2 ax, Vector2 ay, float hx, float hy)>();
+            // a rectangle (centre, unit axes, half sizes) against a circle: the rectangle's nearest point to its centre
+            bool HitsHouse(Vector2 c, Vector2 ax, Vector2 ay, float hx, float hy)
             {
-                foreach (var t in highStreetTaken) if ((t.c - p).sqrMagnitude < (t.r + rad) * (t.r + rad)) return false;
-                return true;
+                foreach (var t in existing)
+                {
+                    Vector2 d = t.c - c;
+                    if (d.sqrMagnitude > (t.r + hx + hy) * (t.r + hx + hy)) continue;
+                    Vector2 q = c + ax * Mathf.Clamp(Vector2.Dot(d, ax), -hx, hx) + ay * Mathf.Clamp(Vector2.Dot(d, ay), -hy, hy);
+                    if ((q - t.c).sqrMagnitude < t.r * t.r) return true;
+                }
+                return false;
             }
+            // two rectangles (separating axes); touching walls are allowed
+            bool HitsInfill(Vector2 c, Vector2 ax, Vector2 ay, float hx, float hy)
+            {
+                foreach (var o in placed)
+                {
+                    Vector2 d = o.c - c;
+                    if (d.sqrMagnitude > (hx + hy + o.hx + o.hy) * (hx + hy + o.hx + o.hy)) continue;
+                    bool apart = false;
+                    foreach (var axis in new[] { ax, ay, o.ax, o.ay })
+                    {
+                        float ra = hx * Mathf.Abs(Vector2.Dot(ax, axis)) + hy * Mathf.Abs(Vector2.Dot(ay, axis));
+                        float rb = o.hx * Mathf.Abs(Vector2.Dot(o.ax, axis)) + o.hy * Mathf.Abs(Vector2.Dot(o.ay, axis));
+                        if (Mathf.Abs(Vector2.Dot(d, axis)) >= ra + rb - 0.15f) { apart = true; break; }
+                    }
+                    if (!apart) return true;
+                }
+                return false;
+            }
+            // full size first, then narrower, then shallower
+            (float w, float d)[] sizes = { (7.5f, 9f), (6f, 9f), (7.5f, 6.5f), (5f, 6.5f), (5f, 4.5f), (3.6f, 4.5f) };
+            const float step = 1.5f;
             var rng = new System.Random(4242);
             int made = 0;
             for (int li = 0; li < highStreetLines.Count; li++)
             {
                 var line = highStreetLines[li];
                 float half = highStreetHalf[li];
-                foreach (var (p, tan) in ResampleWithTangent(line, 8f))
+                foreach (float side in new[] { -1f, 1f })
                 {
-                    Vector2 n = new Vector2(-tan.y, tan.x);
-                    foreach (float side in new[] { -1f, 1f })
+                    float s = -step * 0.5f, nextFree = float.MinValue;
+                    foreach (var (p, tan) in ResampleWithTangent(line, step))
                     {
-                        float w = 6.5f + (float)rng.NextDouble() * 2f, d = 9f;
-                        Vector2 toRoad = -n * side;
-                        Vector2 c = p + n * side * (half + 1.5f + d * 0.5f);
-                        if (!InHighStreetZone(c) || ctx.InLake(c) || ctx.LakeDistance(c) < 12f || ctx.InKeepClear(c, 6f)) continue;
-                        Vector2 along = new Vector2(tan.x, tan.y);
-                        Vector2 fl = c + toRoad * (d * 0.5f) - along * (w * 0.5f), fr = c + toRoad * (d * 0.5f) + along * (w * 0.5f);
-                        Vector2 bl = c - toRoad * (d * 0.5f) - along * (w * 0.5f), br = c - toRoad * (d * 0.5f) + along * (w * 0.5f);
-                        if (!OffRoads(fl, 1.2f) || !OffRoads(fr, 1.2f) || !OffRoads(bl, 1.2f) || !OffRoads(br, 1.2f) || !OffRoads(c, 1.2f)) continue;
-                        float rad = Mathf.Sqrt(w * w + d * d) * 0.5f * 0.8f;
-                        if (!Free(c, rad)) continue;
-                        float gMin = float.MaxValue, gMax = float.MinValue;
-                        foreach (var q in new[] { fl, fr, bl, br, c })
+                        s += step;
+                        if (s < nextFree) continue;
+                        Vector2 n = new Vector2(-tan.y, tan.x), toRoad = -n * side, along = tan;
+                        Vector2 frontStart = p + n * side * (half + 1.5f);
+                        foreach (var (w0, d) in sizes)
                         {
-                            float g = ctx.H(q);
-                            gMin = Mathf.Min(gMin, g); gMax = Mathf.Max(gMax, g);
+                            float w = w0 + (float)(rng.NextDouble() - 0.5) * 0.8f;
+                            Vector2 c = frontStart + n * side * (d * 0.5f) + along * (w * 0.5f);
+                            float hx = w * 0.5f, hy = d * 0.5f;
+                            if (!InHighStreetZone(c) || ctx.InLake(c) || ctx.LakeDistance(c) < 10f + hy || ctx.InKeepClear(c, Mathf.Max(hx, hy))) continue;
+                            if (HitsHouse(c, along, toRoad, hx - 0.3f, hy - 0.3f) || HitsInfill(c, along, toRoad, hx, hy)) continue;
+                            Vector2 fl = c + toRoad * hy - along * hx, fr = c + toRoad * hy + along * hx;
+                            Vector2 bl = c - toRoad * hy - along * hx, br = c - toRoad * hy + along * hx;
+                            if (!OffRoads(fl, 1.2f) || !OffRoads(fr, 1.2f) || !OffRoads(bl, 1.2f) || !OffRoads(br, 1.2f) || !OffRoads(c, 1.2f)) continue;
+                            float gMin = float.MaxValue, gMax = float.MinValue;
+                            foreach (var q in new[] { fl, fr, bl, br, c })
+                            {
+                                float g = ctx.H(q);
+                                gMin = Mathf.Min(gMin, g); gMax = Mathf.Max(gMax, g);
+                            }
+                            if (gMax - gMin > 7f) continue;   // a cliff: leave it
+                            float front = ctx.H(p);           // the shop floor at the road's level, as in the photos
+                            float streetTop = Mathf.Max(front + 0.25f, gMin + 0.4f);
+                            float yaw = Mathf.Atan2(toRoad.x, toRoad.y) * Mathf.Rad2Deg;
+                            int levels = rng.NextDouble() < 0.4 ? 4 : 3;
+                            var st = new BuildingKit.Style
+                            {
+                                wall = HighStreetWalls[rng.Next(HighStreetWalls.Length)], roof = rng.Next(Atlas.RoofColors),
+                                flatRoof = true, shop = true, litChance = 0.6f,
+                            };
+                            var ch = chunk(c);
+                            BuildingKit.House(ch[0], ch[1], c, w, d, yaw, levels, gMin, Mathf.Min(gMax, streetTop), st, rng);
+                            placed.Add((c, along, toRoad, hx, hy));
+                            highStreetTaken.Add((c, Mathf.Min(hx, hy)));
+                            nextFree = s + w;
+                            made++;
+                            break;
                         }
-                        if (gMax - gMin > 7f) continue;   // a cliff: leave it
-                        float front = ctx.H(p);           // the shop floor at the road's level, as in the photos
-                        float streetTop = Mathf.Max(front + 0.25f, gMin + 0.4f);
-                        float yaw = Mathf.Atan2(toRoad.x, toRoad.y) * Mathf.Rad2Deg;
-                        int levels = rng.NextDouble() < 0.4 ? 4 : 3;
-                        var st = new BuildingKit.Style
-                        {
-                            wall = HighStreetWalls[rng.Next(HighStreetWalls.Length)], roof = rng.Next(Atlas.RoofColors),
-                            flatRoof = true, shop = true, litChance = 0.6f,
-                        };
-                        var ch = chunk(c);
-                        BuildingKit.House(ch[0], ch[1], c, w, d, yaw, levels, gMin, Mathf.Min(gMax, streetTop), st, rng);
-                        highStreetTaken.Add((c, rad));
-                        made++;
                     }
                 }
             }
@@ -230,6 +273,105 @@ namespace Nainital.EditorTools
                     taken.Add(new Vector2Int(Mathf.FloorToInt(p.x / cell), Mathf.FloorToInt(p.y / cell)));
                     made++;
                 }
+            return made;
+        }
+
+        /// <summary>
+        /// Forest on the open hillsides round the lake (user, 2026-11-15: "make more photorealistic"). From the Mallital ghat
+        /// and the Flats, the slopes across the lake read as bald khaki bands with a scatter of trees, where every photo shows
+        /// one dark canopy of banj oak and deodar. The map's forest data and TownTreeFill (only up to 140 m over the lake)
+        /// both leave those slopes empty. This fills open ground on slopes of 14-48 degrees (flat lawns and grounds are left,
+        /// and so are cliffs and slips, to stay bare), 25-520 m over the lake within 1.6 km of it, where the ground is not
+        /// rock or bare earth and no tree, road, roof or kept-clear site is near. Instanced like the rest of the forest.
+        /// </summary>
+        static int HillForestFill(WorldCtx ctx, List<float> data, System.Random rnd)
+        {
+            const int Cap = 40000;
+            const float cell = 7f;
+            var taken = new HashSet<Vector2Int>();
+            for (int i = 0; i + 5 < data.Count; i += 6)
+                taken.Add(new Vector2Int(Mathf.FloorToInt(data[i] / cell), Mathf.FloorToInt(data[i + 2] / cell)));
+            // its own 7 m cell only: the map's forest is there but thin (one tree in ~20 m), and testing the 3 x 3 cells
+            // round each point counted every thin patch as full (the first run added 353 trees)
+            bool Near(Vector2 p) => taken.Contains(new Vector2Int(Mathf.FloorToInt(p.x / cell), Mathf.FloorToInt(p.y / cell)));
+            var grounds = new List<Vector2[]>();
+            foreach (var a in ctx.world.areas)
+                if (a.kind == "stadium" || a.kind == "pitch" || a.kind == "playground" || a.kind == "park") grounds.Add(Geo.ToPoints(a.pts));
+            bool InGround(Vector2 p) { foreach (var poly in grounds) if (Geo.PointInPolygon(poly, p)) return true; return false; }
+
+            var td = ctx.terrain.terrainData;
+            Vector3 tp = ctx.terrain.transform.position, sz = td.size;
+            int ar = td.alphamapResolution, layers = td.alphamapLayers;
+            // rock (2) and bare earth (3) of the splat at p
+            float Bare(Vector2 p)
+            {
+                if (layers < 4) return 0f;
+                int ax = Mathf.Clamp(Mathf.RoundToInt((p.x - tp.x) / sz.x * (ar - 1)), 0, ar - 1);
+                int az = Mathf.Clamp(Mathf.RoundToInt((p.y - tp.z) / sz.z * (ar - 1)), 0, ar - 1);
+                var w = td.GetAlphamaps(ax, az, 1, 1);
+                return w[0, 0, 2] + w[0, 0, 3];
+            }
+
+            Physics.SyncTransforms();
+            int mask = ~((1 << 8) | (1 << 9) | (1 << 2) | (1 << 10) | (1 << 4));
+            Vector2 c0 = ctx.lakeCenter;
+            const float reach = 1600f;
+            var found = new List<(Vector2 p, float y, float type, float scale, float rot)>();
+            var why = new int[9];   // why open spots were refused: lake, height, flat, steep, chance, tree, road/site/ground, bare cliff, roof/wall
+            for (float z = c0.y - reach; z < c0.y + reach; z += cell)
+                for (float x = c0.x - reach; x < c0.x + reach; x += cell)
+                {
+                    var p = new Vector2(x + (float)(rnd.NextDouble() - 0.5) * 6f, z + (float)(rnd.NextDouble() - 0.5) * 6f);
+                    if ((p - c0).sqrMagnitude > reach * reach) continue;
+                    if (ctx.InLake(p) || ctx.LakeDistance(p) < 14f) { why[0]++; continue; }
+                    float y = ctx.H(p), rel = y - ctx.lakeY;
+                    if (rel < 10f || rel > 560f) { why[1]++; continue; }
+                    float gx = ctx.H(p + new Vector2(3f, 0f)) - ctx.H(p - new Vector2(3f, 0f));
+                    float gz = ctx.H(p + new Vector2(0f, 3f)) - ctx.H(p - new Vector2(0f, 3f));
+                    float steep = Mathf.Atan(Mathf.Sqrt(gx * gx + gz * gz) / 6f) * Mathf.Rad2Deg;
+                    if (steep < 14f) { why[2]++; continue; }
+                    // oak and deodar hold on far steeper ground than 48 degrees in Kumaon; only the true cliffs stay bare -
+                    // except the 63-80 degree face just above the west shore (a 30 m DEM edge at the lake): bare, it read
+                    // as a sunlit khaki band from Mallital whatever the rock colour (a darker tint moved it only 7 %), so
+                    // smaller trees cling to it there, as they do on the real slopes along Thandi Sadak
+                    bool clingFace = steep > 62f && ctx.LakeDistance(p) < 160f && rel < 140f;
+                    if (steep > 62f && !clingFace) { why[3]++; continue; }
+                    if (rnd.NextDouble() > 0.7) { why[4]++; continue; }
+                    if (Near(p)) { why[5]++; continue; }
+                    // the face rises straight off Thandi Sadak, inside the 7-13 m road margin that kept every tree off it;
+                    // on the face, 8 m over the lake is already above the path (about 3 m back on a 70 degree slope)
+                    if (clingFace && rel < 8f) { why[6]++; continue; }
+                    if (ctx.InKeepClear(p, 3f) || (!clingFace && NearAnyRoad(ctx, p)) || InGround(p)) { why[6]++; continue; }
+                    // rock under the trees is fine (the hills across the lake are rock-floored forest); bare slips stay bare
+                    if (steep > 45f && Bare(p) > 0.6f && !clingFace) { why[7]++; continue; }
+                    if (Physics.Raycast(new Vector3(p.x, y + 40f, p.y), Vector3.down, out var hit, 60f, mask, QueryTriggerInteraction.Ignore)
+                        && hit.collider is not TerrainCollider && hit.point.y > y - 0.6f) { why[8]++; continue; }   // a roof, a wall, a stall
+                    bool blocked = false;
+                    foreach (var col in Physics.OverlapSphere(new Vector3(p.x, y + 2f, p.y), 3f, mask, QueryTriggerInteraction.Ignore))
+                        if (col is not TerrainCollider) { blocked = true; break; }
+                    if (blocked) { why[8]++; continue; }
+                    // banj oak and deodar above all, some chir pine low down, a few cypress near the town
+                    double r = rnd.NextDouble();
+                    float type = rel < 200f ? (r < 0.38 ? 0 : r < 0.75 ? 2 : r < 0.9 ? 1 : 3)
+                                            : (r < 0.35 ? 0 : r < 0.85 ? 2 : 1);
+                    if (type == 2 && rel > 90f && rnd.NextDouble() < 0.25) type = 4;   // buransh in the oak forest
+                    // on the face: smaller, and sunk a little more so the roots sit in the rock
+                    float scale = clingFace ? 0.65f + (float)rnd.NextDouble() * 0.3f : 0.85f + (float)rnd.NextDouble() * 0.45f;
+                    found.Add((p, clingFace ? y - 0.6f : y, type, scale, (float)rnd.NextDouble() * 360f));
+                    taken.Add(new Vector2Int(Mathf.FloorToInt(p.x / cell), Mathf.FloorToInt(p.y / cell)));
+                }
+            // over the cap: thinned evenly over the whole basin, not cut off at whichever row the count ran out
+            double keep = found.Count > Cap ? (double)Cap / found.Count : 1.0;
+            int made = 0;
+            foreach (var f in found)
+            {
+                if (keep < 1.0 && rnd.NextDouble() > keep) continue;
+                data.Add(f.p.x); data.Add(f.y - 0.2f); data.Add(f.p.y);
+                data.Add(f.type); data.Add(f.scale); data.Add(f.rot);
+                made++;
+            }
+            Debug.Log($"[Nainital] hillside forest: {found.Count} open spots found, {made} planted; refused - lake {why[0]}, height {why[1]}, " +
+                      $"flat {why[2]}, cliff {why[3]}, chance {why[4]}, tree there {why[5]}, road/site/ground {why[6]}, bare slip {why[7]}, roof/wall {why[8]}");
             return made;
         }
 
