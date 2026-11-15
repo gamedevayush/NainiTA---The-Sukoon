@@ -18,3 +18,4 @@
 Assets/Nainital/Generated/**/*.asset filter=lfs diff=lfs merge=lfs -text
 Assets/Nainital/Data/*.json filter=lfs diff=lfs merge=lfs -text
 *.unity filter=lfs diff=lfs merge=lfs -text
+*.sh text eol=lf
