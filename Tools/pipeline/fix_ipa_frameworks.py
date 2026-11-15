@@ -78,5 +78,25 @@ def main():
     print("fixed:", ", ".join(sorted(signed)))
 
 
+def verify(ipa):
+    """Every framework must look unsigned and thin, or Sideloadly's install fails on the phone. Exit 1 if not."""
+    z = zipfile.ZipFile(ipa)
+    names = z.namelist()
+    fws = sorted({n.split("/Frameworks/")[0] + "/Frameworks/" + n.split("/Frameworks/")[1].split("/")[0]
+                  for n in names if "/Frameworks/" in n and n.split("/Frameworks/")[1].split("/")[0].endswith(".framework")})
+    bad = []
+    for fw in fws:
+        exe = fw + "/" + os.path.basename(fw)[:-len(".framework")]
+        if any(n.startswith(fw + "/_CodeSignature") for n in names):
+            bad.append(fw + ": _CodeSignature left")
+        if exe in names and z.read(exe)[:4] != b"\xcf\xfa\xed\xfe":
+            bad.append(fw + ": binary is not a thin arm64 Mach-O")
+    if bad:
+        print("IPA frameworks NOT ok:\n  " + "\n  ".join(bad))
+        sys.exit(1)
+    print(f"IPA frameworks ok: {len(fws)} ({', '.join(os.path.basename(f) for f in fws)})")
+
+
 if __name__ == "__main__":
     main()
+    verify(sys.argv[1])
