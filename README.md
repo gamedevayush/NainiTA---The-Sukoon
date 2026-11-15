@@ -110,6 +110,16 @@ Start here when you pick the project up on another PC. Build the world first (**
 
 In-game positions are metres: x = east, z = north. A Scene view camera looking at the point is enough to check each one. With the editor open, `Bridge/cmd.txt` takes commands (`refresh`, `world`, `shot name;x,y,z;lookX,lookY,lookZ;hour`), see `Editor/EditorBridge.cs`; shots go to `Shots/`.
 
+Helper scripts (Windows, run from the project folder; paths are worked out from where the script is):
+
+| Script | What it does |
+|---|---|
+| `Tools/pipeline/run_photobatch.ps1` | One batch-mode Unity run (BelowNormal) for the steps in `Bridge/batch.txt`: `world`, `call Type.Method`, `shots 03,38`, `shot name;x,y,z;lx,ly,lz;hour[;g]` (`g`: heights over the ground). Prints the results; log in `Logs/photobatch.log`. The editor must be closed. |
+| `Tools/pipeline/make_ipa.ps1` | iPhone build with no Mac: Unity iOS batch build → zip → GitHub release `ios-build` → the `ios-ipa.yml` workflow on GitHub's Mac → `Builds/NainiTA-unsigned.ipa`. Needs the iOS module, Git for Windows with a saved GitHub login, Python. About 25 min; progress in `Logs/make_ipa.log`. |
+| `Tools/pipeline/install_apple_for_sideloadly.ps1` | iTunes, iCloud, Sideloadly, and Apple Mobile Device Support (without it Sideloadly says "no Apple devices detected") |
+| `Tools/satcheck/*.py` | Satellite comparisons (Esri World Imagery tiles cached in `Shots/satcompare/_tiles`): `satcompare.py` (the game's top view from `Editor/TopView.cs` beside the photo), `footprints_on_sat.py`, `capcrop.py x z half out.jpg` (data outlines on the photo), `gamecrop.py`, `sheet.py` (contact sheet of shots) |
+| `docs/TRACKER.md` | The work log, day by day: what was tried, measured and left open |
+
 ### Fixed and checked on 16 Nov
 
 | What | Where (x, z) | Code |
@@ -137,7 +147,7 @@ In-game positions are metres: x = east, z = north. A Scene view camera looking a
 | Lake: greener deep colour; broad slow ripple patches at every distance so the sun's glitter is broken up, not straight stripes; preview shots render the lake probe | lake | `Shaders/Water.shader`, `Editor/PreviewCapture.cs` |
 | Forest: `HillForestFill` plants the open hillsides round the lake (about 21,500 trees; the build log says why spots were refused), and smaller trees cling to the 63-80 degree face over the west shore; far impostors 1.4x wider so the canopy closes from across the lake | hills | `Editor/WorldBuilder.HighStreet.cs`, `Editor/TreeKit.cs` |
 | Lake wall capped at 3 m over the water: on the steep west shore it climbed 10-45 m with the slope and read as a khaki band from Mallital | west shore | `Editor/WorldBuilder.cs` (`BuildLakeEmbankment`) |
-| `Editor/PhotoBatch.cs`: one batch-mode Unity run for a list of steps in `Bridge/batch.txt` (`world`, `call Type.Method`, `shots 03,38`), then it quits; `Logs/run_photobatch.ps1` runs it at BelowNormal and prints the results. Use it instead of leaving the editor open. | — | — |
+| `Editor/PhotoBatch.cs`: one batch-mode Unity run for a list of steps in `Bridge/batch.txt` (`world`, `call Type.Method`, `shots 03,38`), then it quits; `Tools/pipeline/run_photobatch.ps1` runs it at BelowNormal and prints the results. Use it instead of leaving the editor open. | — | — |
 | Positions: `Editor/RoadAudit.cs` lists anything with a road through it. Landmarks and civic buildings are pushed off roads (`LandmarkBuilder.ClearOfRoads`); St. Francis Church fits between its two roads; lookouts are ledges at their road's level; the "above Naini lake level" floor only applies near the lake (it put the Khurpatal View Point on a 260 m tower) | Khurpatal (-2490, -1755), church (842, -765) | `Editor/LandmarkBuilder.cs`, `LandmarkBuilder.Worship.cs`, `WorldBuilder.Goan.cs` |
 | Roads by the lake (Mall Road, Tallital) pale cement grey (the texture averaged 88/255 and read black); Gandhi ji's statue has his charkha and a marigold garland; ghat boats mostly yellow; yachts with striped sails | Mall Road, Tallital | `Editor/WorldBuilder.Concrete.cs`, `WorldBuilder.Tallital.cs`, `WorldBuilder.Details.cs`, `PropKit.cs` |
 | Buildings against the satellite (Esri World Imagery, top view at 0.5 m/px: `Editor/TopView.cs`): the shop rows of process_data had replaced real footprints. `Tools/restore_footprints.py` put back 863 real Overture footprints (Google / Microsoft / OSM) and dropped 159 row houses on real buildings or open ground; `Tools/prune_rows_by_satellite.py` dropped 61 more row houses standing on trees (the Mall Road row is kept); `Tools/roof_colours_from_satellite.py` gives 986 real buildings their roof colour from the photo (roof type 2 = photo tin: sloped, never a G.O.A.N. box). `world.json` before all this: `Data/world.before_restore.json`. They need `fetch_overture.py` output and the tile cache in `Shots/satcompare/_tiles` | town | `Tools/*.py`, `Editor/WorldBuilder.cs` |
