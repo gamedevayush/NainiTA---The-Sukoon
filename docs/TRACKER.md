@@ -95,3 +95,9 @@ Shots land in `Shots/`; before/after pairs are listed here.
   the walk the lane rose in a hump to the path (shot hall_lane). Stairs 13 steps. Checked: Shots/stairs_lane,
   stairs_high, cap_stairs, cap_hall, cap_park, hall_lane, lane_front, 34_capitol_day, masjid_road2, thandi.
 - 03:41 IPA with all of the above: Builds/NainiTA-unsigned.ipa (652 MB), GitHub run 43766292018. Pushed as 97ff978 (main).
+- 03:55 Sideloadly: "no Apple devices detected" = Apple Mobile Device Support missing (winget iTunes skipped it);
+  installed from Apple's signed iTunes installer (Tools/pipeline/install_apple_for_sideloadly.ps1).
+- 04:00 Install failed: "ApplicationVerificationFailed ... UnityRuntime.framework : 0xe8008001", phone: "integrity
+  could not be verified". Unity 6000.4 ships UnityRuntime.framework pre-signed by Unity, FAT with one arm64 slice;
+  UnityFramework (built unsigned) was fine. Tools/pipeline/fix_ipa_frameworks.py drops its _CodeSignature, thins it,
+  marks it iPhoneOS; the IPA chain now runs it after the download. Original kept as Builds/NainiTA-unsigned.before_fix.ipa.

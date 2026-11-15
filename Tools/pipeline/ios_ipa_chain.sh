@@ -82,4 +82,7 @@ z=zipfile.ZipFile(sys.argv[1])
 apps=[n for n in z.namelist() if n.startswith('Payload/') and n.endswith('.app/Info.plist')]
 print('IPA ok:', apps[:1])
 " "$(cygpath -w "$OUT")"
+# Unity's pre-signed UnityRuntime.framework fails on the phone after Sideloadly (0xe8008001): make it like an
+# unsigned Xcode build (fix_ipa_frameworks.py)
+python "$(cygpath -w "$(dirname "$0")/fix_ipa_frameworks.py")" "$(cygpath -w "$OUT")" || { echo "FRAMEWORK FIX FAILED"; exit 1; }
 echo "ALL DONE"
