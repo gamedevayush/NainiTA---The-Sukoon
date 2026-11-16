@@ -86,7 +86,7 @@ namespace Nainital.EditorTools
                 scene = EditorSceneManager.OpenScene(WorldBuilder.ScenePath, OpenSceneMode.Single);
 
             Directory.CreateDirectory(outDir);
-            foreach (var sub in new[] { "Meshes", "Textures", "Terrain", "Trees", "Characters" })
+            foreach (var sub in new[] { "Meshes", "Textures", "Terrain", "Trees", "Characters", "Network" })
             {
                 var p = Path.Combine(outDir, sub);
                 if (Directory.Exists(p)) Directory.Delete(p, true);   // re-runnable: the export always matches the scene
@@ -112,6 +112,7 @@ namespace Nainital.EditorTools
             Step("lights", () => ExportLights(man));
             Step("lake + markers", () => ExportLakeAndMarkers(man, world, terrain));
             Step("characters", () => ExportCharacters(man));
+            Step("crowd", () => ExportCrowd(man));
             man["materials"] = matsJson;
 
             File.WriteAllText(Path.Combine(outDir, "manifest.json"), man.ToString(), new UTF8Encoding(false));

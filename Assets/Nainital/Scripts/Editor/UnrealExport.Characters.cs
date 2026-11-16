@@ -65,6 +65,72 @@ namespace Nainital.EditorTools
             Debug.Log($"[UnrealExport] characters: {files} people with {clips.Count} baked clips each");
         }
 
+        /// <summary>
+        /// The crowd's data (PedestrianManager): walkways and roads (RoadNetwork, in Network/network.json), where shoppers
+        /// stand, the house doors people go home to, and the locals standing at their posts (NpcWalker in the scene).
+        /// </summary>
+        static void ExportCrowd(J man)
+        {
+            var pm = UnityEngine.Object.FindObjectsByType<PedestrianManager>(FindObjectsInactive.Include, FindObjectsSortMode.None).FirstOrDefault();
+            var lib = Resources.Load<CharacterLibrary>("CharacterLibrary");
+            var crowd = J.Obj();
+            RoadNetwork net = pm ? pm.network : null;
+            if (net)
+            {
+                J Paths(RoadNetwork.Path[] ps)
+                {
+                    var a = J.Arr();
+                    if (ps != null)
+                        foreach (var p in ps)
+                        {
+                            if (p == null || p.pts == null || p.pts.Length < 2) continue;
+                            var pts = J.Arr();
+                            foreach (var v in p.pts) pts.Add(Mathf.Round(v.x * 100f) / 100f).Add(Mathf.Round(v.y * 100f) / 100f).Add(Mathf.Round(v.z * 100f) / 100f);
+                            a.Add(J.Obj().Set("name", p.name ?? "").Set("width", p.width).Set("oneWay", p.oneWay).Set("pts", pts));
+                        }
+                    return a;
+                }
+                Directory.CreateDirectory(Path.Combine(outDir, "Network"));
+                var nj = J.Obj().Set("roads", Paths(net.roads)).Set("walks", Paths(net.walks));
+                File.WriteAllText(Path.Combine(outDir, "Network/network.json"), nj.ToString(), new UTF8Encoding(false));
+                crowd.Set("network", "Network/network.json").Set("roads", net.roads != null ? net.roads.Length : 0).Set("walks", net.walks != null ? net.walks.Length : 0);
+            }
+            if (pm)
+            {
+                crowd.Set("maxPeds", pm.maxPeds).Set("maxBrowsers", pm.maxBrowsers).Set("spawnMin", pm.spawnMin).Set("spawnMax", pm.spawnMax).Set("despawn", pm.despawn);
+                var browse = J.Arr();
+                for (int i = 0; i < pm.browseSpots.Length; i++)
+                {
+                    var f = i < pm.browseFacing.Length ? pm.browseFacing[i] : Vector3.forward;
+                    browse.Add(J.Arr().Add(pm.browseSpots[i].x).Add(pm.browseSpots[i].y).Add(pm.browseSpots[i].z).Add(f.x).Add(f.y).Add(f.z));
+                }
+                var homes = J.Arr();
+                foreach (var h in pm.homeSpots) homes.Add(V3(h));
+                crowd.Set("browse", browse).Set("homes", homes);
+            }
+
+            // locals at their posts: shopkeepers, boatmen, vendors, people on benches
+            var locals = J.Arr();
+            foreach (var w in UnityEngine.Object.FindObjectsByType<NpcWalker>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                         .OrderBy(x => HierarchyKey(x.transform), StringComparer.Ordinal))
+            {
+                if (pm && w.transform.IsChildOf(pm.transform)) continue;
+                var rig = w.GetComponentInChildren<HumanoidRig>(true);
+                string look = null;
+                if (rig && rig.skinModel && lib && lib.entries != null)
+                    foreach (var e in lib.entries) if (e != null && e.prefab == rig.skinModel) { look = e.id; break; }
+                var lines = J.Arr();
+                if (w.lines != null) foreach (var l in w.lines) lines.Add(l);
+                locals.Add(J.Obj().Set("name", w.npcName).Set("position", V3(w.transform.position)).Set("yaw", w.transform.eulerAngles.y)
+                    .Set("sit", w.sit).Set("idle", w.idle).Set("homeAtNight", w.homeAtNight).Set("look", look)
+                    .Set("bodyType", rig ? rig.bodyType.ToString() : "Man").Set("female", rig && rig.female).Set("scale", rig ? rig.scale : 1f)
+                    .Set("walks", w.path != null && w.path.Length > 1).Set("lines", lines));
+            }
+            crowd.Set("locals", locals);
+            man["crowd"] = crowd;
+            Debug.Log($"[UnrealExport] crowd: {(net ? net.walks.Length : 0)} walkways, {(net ? net.roads.Length : 0)} roads, {(pm ? pm.browseSpots.Length : 0)} browse spots, {(pm ? pm.homeSpots.Length : 0)} doors, {locals.Count} locals at posts");
+        }
+
         struct CharInfo { public J materials, clips; public int bones, verts; public bool humanoid; }
 
         static CharInfo WriteCharacterGlb(GameObject prefab, string name, string path, List<(string role, AnimationClip clip, float threshold)> clips)
