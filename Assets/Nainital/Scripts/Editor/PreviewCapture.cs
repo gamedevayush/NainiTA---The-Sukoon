@@ -108,7 +108,8 @@ namespace Nainital.EditorTools
                 File.WriteAllBytes(Path.Combine(dir, name + ".png"), tex.EncodeToPNG());
                 RenderSettings.fog = fogWas;
                 Object.DestroyImmediate(tex);
-                Debug.Log("[Nainital] shot " + name);
+                Debug.Log("[Nainital] shot " + name + System.FormattableString.Invariant(
+                    $" pos={pos.x:F2},{pos.y:F2},{pos.z:F2} look={look.x:F2},{look.y:F2},{look.z:F2} hour={time:F2}"));
             }
 
             Vector3 p = player ? player.transform.position : lakeC;
