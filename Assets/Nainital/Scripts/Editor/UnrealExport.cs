@@ -86,7 +86,7 @@ namespace Nainital.EditorTools
                 scene = EditorSceneManager.OpenScene(WorldBuilder.ScenePath, OpenSceneMode.Single);
 
             Directory.CreateDirectory(outDir);
-            foreach (var sub in new[] { "Meshes", "Textures", "Terrain", "Trees" })
+            foreach (var sub in new[] { "Meshes", "Textures", "Terrain", "Trees", "Characters" })
             {
                 var p = Path.Combine(outDir, sub);
                 if (Directory.Exists(p)) Directory.Delete(p, true);   // re-runnable: the export always matches the scene
@@ -111,6 +111,7 @@ namespace Nainital.EditorTools
             Step("trees", () => ExportTrees(man));
             Step("lights", () => ExportLights(man));
             Step("lake + markers", () => ExportLakeAndMarkers(man, world, terrain));
+            Step("characters", () => ExportCharacters(man));
             man["materials"] = matsJson;
 
             File.WriteAllText(Path.Combine(outDir, "manifest.json"), man.ToString(), new UTF8Encoding(false));
@@ -608,6 +609,80 @@ namespace Nainital.EditorTools
             var bytes = o.EncodeToPNG();
             UnityEngine.Object.DestroyImmediate(o);
             return bytes;
+        }
+
+        // ------------------------------------------------------------------ characters
+        /// <summary>
+        /// The CharacterLibrary people (rigged FBX, copied as they are: Unreal imports them as skeletal meshes) and the
+        /// G.O.A.N. mocap the NainitalLocomotion blend tree plays on them (idle / walk / run, Mixamo skeleton).
+        /// </summary>
+        static void ExportCharacters(J man)
+        {
+            var lib = Resources.Load<CharacterLibrary>("CharacterLibrary");
+            var fbxFiles = new Dictionary<string, string>();
+            string CopyFbx(string assetPath)
+            {
+                if (string.IsNullOrEmpty(assetPath) || !assetPath.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase)) return null;
+                if (fbxFiles.TryGetValue(assetPath, out var f)) return f;
+                f = "Characters/" + Safe(Path.GetFileNameWithoutExtension(assetPath)) + ".fbx";
+                File.Copy(assetPath, Path.Combine(outDir, f), true);
+                fbxFiles[assetPath] = f;
+                return f;
+            }
+            J ImportInfo(string assetPath)
+            {
+                var o = J.Obj();
+                if (AssetImporter.GetAtPath(assetPath) is ModelImporter mi)
+                    o.Set("globalScale", mi.globalScale).Set("useFileScale", mi.useFileScale).Set("fileScale", mi.fileScale)
+                     .Set("animationType", mi.animationType.ToString());
+                return o;
+            }
+
+            var people = J.Arr();
+            if (lib && lib.entries != null)
+                foreach (var e in lib.entries)
+                {
+                    if (e == null || !e.prefab) continue;
+                    var parts = J.Arr();
+                    bool mixamo = false;
+                    foreach (var smr in e.prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                    {
+                        if (!smr.sharedMesh) continue;
+                        string ap = AssetDatabase.GetAssetPath(smr.sharedMesh);
+                        var mats = J.Arr();
+                        foreach (var m in smr.sharedMaterials) mats.Add(Mat(m));
+                        foreach (var b in smr.bones) if (b && (b.name.StartsWith("mixamorig") || b.name == "LeftUpLeg")) { mixamo = true; break; }
+                        parts.Add(J.Obj().Set("fbx", CopyFbx(ap)).Set("mesh", smr.sharedMesh.name).Set("materials", mats)
+                            .Set("import", ImportInfo(ap)));
+                    }
+                    var rt = e.prefab.transform;
+                    people.Add(J.Obj().Set("id", e.id).Set("name", e.displayName).Set("bodyType", e.bodyType.ToString())
+                        .Set("height", e.height).Set("weight", e.weight).Set("female", e.Female).Set("child", e.Child).Set("elder", e.Elder)
+                        .Set("bones", mixamo ? "mixamo" : "humanoid").Set("prefabScale", V3(rt.localScale)).Set("parts", parts));
+                }
+
+            // the mocap blend tree (Speed parameter, m/s thresholds)
+            var clips = J.Arr();
+            var ctrl = Resources.Load<RuntimeAnimatorController>("NainitalLocomotion") as UnityEditor.Animations.AnimatorController;
+            if (ctrl)
+                foreach (var layer in ctrl.layers)
+                    foreach (var st in layer.stateMachine.states)
+                    {
+                        void AddClip(Motion mo, float threshold)
+                        {
+                            if (!(mo is AnimationClip c)) return;
+                            string ap = AssetDatabase.GetAssetPath(c);
+                            clips.Add(J.Obj().Set("state", st.state.name).Set("clip", c.name).Set("fbx", CopyFbx(ap)).Set("threshold", threshold)
+                                .Set("length", c.length).Set("loop", c.isLooping).Set("averageSpeed", V3(c.averageSpeed)).Set("import", ImportInfo(ap)));
+                        }
+                        if (st.state.motion is UnityEditor.Animations.BlendTree bt)
+                            foreach (var ch in bt.children) AddClip(ch.motion, ch.threshold);
+                        else AddClip(st.state.motion, 0f);
+                    }
+
+            man["characters"] = J.Obj().Set("people", people).Set("locomotion", clips)
+                .Set("walkRef", 1.5f).Set("runRef", 4.4f);   // HumanoidRig.WalkRef / RunRef: speeds of the Walking / Fast Run clips
+            Debug.Log($"[UnrealExport] characters: {people.Count} people, {clips.Count} locomotion clips, {fbxFiles.Count} fbx files");
         }
 
         // ------------------------------------------------------------------ trees
