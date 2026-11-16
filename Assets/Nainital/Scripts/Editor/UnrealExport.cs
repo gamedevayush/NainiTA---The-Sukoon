@@ -305,7 +305,9 @@ namespace Nainital.EditorTools
 
             var groups = new Dictionary<string, Group>();
             int used = 0, skipped = 0, glow = 0, unreadable = 0;
-            var renderers = UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            // hierarchy order, so the same scene always writes byte-identical chunk files (Unreal re-imports only what changed)
+            var renderers = UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)
+                .OrderBy(r => HierarchyKey(r.transform), System.StringComparer.Ordinal).ToArray();
             foreach (var r in renderers)
             {
                 if (!r.enabled || skipLod.Contains(r) || r.shadowCastingMode == ShadowCastingMode.ShadowsOnly) { skipped++; continue; }
@@ -675,6 +677,13 @@ namespace Nainital.EditorTools
                 dn.timeOfDay = keep;
                 dn.Apply();
                 man["sunByHour"] = J.Obj().Set("latitude", dn.latitude).Set("valleyHeight", dn.valleyHeight).Set("sceneHour", keep).Set("hours", hours);
+
+                // the atlas materials whose windows light up at night (DayNightCycle.emissiveMaterials)
+                var glowIds = J.Arr();
+                if (dn.emissiveMaterials != null)
+                    foreach (var m in dn.emissiveMaterials)
+                        if (m && matIds.TryGetValue(m, out var gid)) glowIds.Add(gid);
+                man["nightEmission"] = J.Obj().Set("color", Col(dn.emissionColor)).Set("intensity", dn.emissionIntensity).Set("materials", glowIds);
             }
 
             var lm = UnityEngine.Object.FindObjectsByType<LampManager>(FindObjectsInactive.Include, FindObjectsSortMode.None).FirstOrDefault();
@@ -737,6 +746,15 @@ namespace Nainital.EditorTools
         static J V3(Vector3 v) => J.Arr().Add(v.x).Add(v.y).Add(v.z);
         static J V4(Vector4 v) => J.Arr().Add(v.x).Add(v.y).Add(v.z).Add(v.w);
         static J Col(Color c) => J.Arr().Add(c.r).Add(c.g).Add(c.b).Add(c.a);
+
+        /// <summary>Root order + sibling indices down to t: a stable order for the scene's objects.</summary>
+        static string HierarchyKey(Transform t)
+        {
+            var parts = new List<string>();
+            for (; t; t = t.parent) parts.Add(t.GetSiblingIndex().ToString("D6"));   // root objects: their order in the scene
+            parts.Reverse();
+            return string.Join("/", parts);
+        }
 
         /// <summary>Tiny ordered JSON tree (JsonUtility cannot write dictionaries).</summary>
         public class J
