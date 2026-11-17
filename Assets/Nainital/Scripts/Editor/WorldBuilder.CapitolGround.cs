@@ -42,6 +42,9 @@ namespace Nainital.EditorTools
         /// <summary>The foot of the stairs (DataFixes.cs starts the lane's footway there). Nominal: the walk 2.3 m over the lane, 14 steps.</summary>
         internal static Vector2 CapStairsFoot => CapW(3.45f - CapLandLen - 14 * CapTread - 0.4f, CapWallOut + CapStairW * 0.5f);
 
+        /// <summary>The lakeside path is kept at the Capitol's low level from here (beside the Capitol) to the T at the bandstand.</summary>
+        static readonly Vector2 BankLowFrom = new Vector2(28f, -45f), BankLowTo = new Vector2(40f, 19f);
+
         // the lakeside path in front of the Capitol, from the Capitol corner to the boat stand
         static readonly Vector2[] MallitalBankPath =
         {
@@ -238,6 +241,25 @@ namespace Nainital.EditorTools
                 capLowY = Mathf.Min(capLowY, sm[best] + 0.1f);
             }
 
+            // the lake side of the park, from the Capitol to the bandstand at the T where the path from the Flats comes down
+            // (user, iPhone bug 2026-11-16: "terrain near park in lake side should be lower level like capitol.. till bandstand
+            // side"): the lakeside path rose in a 1.2 m hump between them; now one even grade from the Capitol's low level to
+            // the T, and the ground from the park's wall to the water at the path's level (the park stays a walled terrace)
+            int lowA = 0, lowB = 0;
+            {
+                float da = float.MaxValue, db = float.MaxValue;
+                for (int i = 0; i < path.Count; i++)
+                {
+                    float a = (path[i] - BankLowFrom).sqrMagnitude, b = (path[i] - BankLowTo).sqrMagnitude;
+                    if (a < da) { da = a; lowA = i; }
+                    if (b < db) { db = b; lowB = i; }
+                }
+                float yA = Mathf.Min(sm[lowA], capLowY), yB = Mathf.Min(sm[lowB], ctx.H(BankLowTo));
+                for (int i = lowA; i <= lowB; i++) sm[i] = Mathf.Lerp(yA, yB, (i - lowA) / (float)Mathf.Max(1, lowB - lowA));
+            }
+            var lowPath = path.GetRange(lowA, lowB - lowA + 1).ToArray();
+            int lakeSide = 0;
+
             // which edges of the park need a retaining wall: the ground beyond them is (or will be) lower than the terrace
             if (g.park != null)
             {
@@ -251,7 +273,10 @@ namespace Nainital.EditorTools
                     Vector2 o = m + outN * 2.4f;
                     CapUV(m, out float am, out _);
                     CapUV(o, out float ao, out float so);
-                    g.walled[i] = CapLowZone(ctx, g, o, ao, so, out _) || ctx.H(o) < CapWalkLevel(am) - 0.3f;
+                    // the strip between the walk and the park is set to the walk's level below (3.): no wall there, or the low
+                    // ground under it left a hole at the walk's edge (user, 2026-11-17: "hole in terrain near capitol")
+                    bool vergeOut = so > CapWalkHalf + 0.05f && so < 7f && ao > g.a0 - 6f && ao < 50f;
+                    g.walled[i] = !vergeOut && (CapLowZone(ctx, g, o, ao, so, out _) || ctx.H(o) < CapWalkLevel(am) - 0.3f);
                 }
             }
 
@@ -274,6 +299,20 @@ namespace Nainital.EditorTools
                     else if (CapLowZone(ctx, g, q, along, side, out float ease)) { want = Mathf.Lerp(capLowY, cur, ease); low++; }   // 2. the Capitol's level
                     else if (side > CapWalkHalf + 0.05f && side < 7f && along > g.a0 - 6f && along < 50f && !ctx.InLake(q))
                     { want = CapWalkLevel(along); verge++; }   // 3. the strip between the walk and the park
+                    else if (pz == 0 && side >= 7f && !ctx.InLake(q) && lowPath.Length > 1)
+                    {
+                        // 5. beside the lakeside path from the Capitol to the bandstand T: the path's even level (see above),
+                        //    out to 7 m on either side, easing back to the ground over the next 3 m
+                        float dp = Geo.DistanceToPolyline(lowPath, q, false);
+                        if (dp < 10f)
+                        {
+                            int best = lowA; float bd = float.MaxValue;
+                            for (int i = lowA; i <= lowB; i++) { float d = (path[i] - q).sqrMagnitude; if (d < bd) { bd = d; best = i; } }
+                            float k = Mathf.SmoothStep(1f, 0f, Mathf.Clamp01((dp - 7f) / 3f));
+                            want = Mathf.Lerp(cur, sm[best] - 0.02f, k);
+                            lakeSide++;
+                        }
+                    }
 
                     // 4. the bank between the lakeside path and the water: level with the path to the shore
                     if (!ctx.InLake(q))
@@ -307,7 +346,24 @@ namespace Nainital.EditorTools
             }
             td.SetHeights(x0, z0, hs);
             Debug.Log($"[Nainital] Capitol ground: walk {capHighY:F1}, front {capLowY:F1} ({low} samples low, park raised at {park}, under its walls {under}, walk strip {verge}); " +
-                      $"Capitol along {g.a0:F1}..{g.a1:F1} side {g.s0:F1}..{g.s1:F1}; hall side {g.hallS0:F1}..{g.hallS1:F1}; park edge at {g.parkA:F1}; lake bank raised at {bank} samples");
+                      $"Capitol along {g.a0:F1}..{g.a1:F1} side {g.s0:F1}..{g.s1:F1}; hall side {g.hallS0:F1}..{g.hallS1:F1}; park edge at {g.parkA:F1}; lake bank raised at {bank} samples; " +
+                      $"lake side of the park levelled at {lakeSide} samples ({sm[lowA]:F2} to {sm[lowB]:F2})");
+        }
+
+        const float CapLedgeW = 1.5f;
+
+        /// <summary>
+        /// A flat stone strip along the high side of a retaining wall (user, iPhone bug 2026-11-16: "player stucked in terrain
+        /// near capitol stairs.. make it proper flat"). The ground is low under the wall, and with a terrain sample every 1.46 m
+        /// its slope down began up to 1.5 m before the wall: a trench 0.8 m deep between the walk and the wall that the player
+        /// fell into and could not climb out of (the wall's collider on one side). The strip lies 3 cm over the high level, over
+        /// that last 1.5 m, with a collider, so the walk runs flat to the wall's edge.
+        /// </summary>
+        static void InnerLedge(MeshBuilder mb, MeshBuilder col, Vector2 c, Quaternion rot, float len, float top, Vector2 uv)
+        {
+            const float depth = 1.0f;   // down past the bottom of the trench
+            mb.Box(V(c, top + 0.03f - depth * 0.5f), new Vector3(CapLedgeW, depth, len + 0.02f), rot, uv);
+            col.Box(V(c, top + 0.03f - depth * 0.5f), new Vector3(CapLedgeW, depth, len), rot, Vector2.zero);
         }
 
         /// <summary>The retaining wall along the walk, the stairs down in the lane's corner, the park's retaining walls, and the
@@ -338,6 +394,7 @@ namespace Nainital.EditorTools
                 mb.Box(V(m2, (top - 0.04f + bottom) * 0.5f), new Vector3(CapWallT, top - 0.04f - bottom, len + 0.02f), wrot, stone);
                 mb.Box(V(m2, top - 0.02f), new Vector3(CapWallT, 0.05f, len + 0.02f), wrot, cap);   // flagstones on top
                 col.Box(V(m2, (top + bottom) * 0.5f), new Vector3(CapWallT, top - bottom, len), wrot, Vector2.zero);
+                InnerLedge(mb, col, CapW(am, CapWallIn - CapLedgeW * 0.5f), wrot, len, top, cap);
                 if (overLanding) continue;   // open: you step from the walk over the ledge onto the landing
                 Vector2 e2 = CapW(am, edgeS);
                 mb.Box(V(e2, top + 0.15f), new Vector3(0.4f, 0.3f, len + 0.04f), wrot, cap);   // the coping people sit on
@@ -391,6 +448,7 @@ namespace Nainital.EditorTools
                 mb.Box(V(c, (top + 0.04f + lowY - 0.5f) * 0.5f), new Vector3(CapWallT + 0.05f, top + 0.04f - (lowY - 0.5f), len + 0.02f), r, stone);
                 mb.Box(V(c, top + 0.06f), new Vector3(CapWallT + 0.05f, 0.05f, len + 0.02f), r, cap);
                 col.Box(V(c, (top + 0.08f + lowY) * 0.5f), new Vector3(CapWallT, top + 0.08f - lowY, len), r, Vector2.zero);
+                InnerLedge(mb, col, m - outN * (CapWallT + CapLedgeW * 0.5f - 0.05f), r, len, top + 0.05f, cap);
                 wallPieces++;
             }
             if (g.park != null)
@@ -405,6 +463,8 @@ namespace Nainital.EditorTools
                     mb.Box(V(cm, (top - 0.04f + capLowY - 0.5f) * 0.5f), new Vector3(CapWallT + 0.1f, top - 0.04f - (capLowY - 0.5f), cw), crot, stone);
                     mb.Box(V(cm, top - 0.02f), new Vector3(CapWallT + 0.1f, 0.05f, cw), crot, cap);
                     col.Box(V(cm, (top + capLowY) * 0.5f), new Vector3(CapWallT, top - capLowY, cw), crot, Vector2.zero);
+                    // its far side (toward Naina Devi) is the walk-level strip: flat over the slope down under the wall
+                    InnerLedge(mb, col, CapW(g.parkA + CapWallT + CapLedgeW * 0.5f - 0.05f, (CapWallIn + g.cornerS + 0.2f) * 0.5f), crot, cw, top, cap);
                 }
                 for (int i = 0; i < g.park.Length; i++)
                 {

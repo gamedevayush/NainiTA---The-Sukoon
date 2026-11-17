@@ -100,24 +100,34 @@ namespace Nainital.EditorTools
                 using (PropKit.At(mb, V(bp, ctx.H(bp)), Quaternion.LookRotation(Flat(face)))) PropKit.Bench(mb);
             }
 
-            // the footpath side, left of the Street View point: tourist help centre and the parking notice
             var holder = new GameObject("Mallital entry").transform;
             holder.SetParent(parent, false);
-            Vector2 kp = sv - right * 6f + look * 4f;
-            for (int tries = 0; tries < 8 && RoadClear(kp) < 1.2f; tries++) kp -= right * 1.2f;
+            // the footpath side, left of the Street View point: the parking notice
+            Vector2 fp = sv - right * 6f + look * 4f;
+            for (int tries = 0; tries < 8 && RoadClear(fp) < 1.2f; tries++) fp -= right * 1.2f;
+            Vector2 kf = NearestRoadPoint(ctx, fp, 30f, r => !IsMinor(r.kind), out var krp, out _) ? (krp - fp).normalized : right;
+            Vector3 kfront = Flat(kf);
+
+            // the tourist help centre stands in the middle of the road, on the nose of the divider where Upper and Lower Mall
+            // part (user, iPhone bug 2026-11-16: "this tourist help box should in centre mid of road and not in left side"):
+            // on the divider's centre line, its door and board towards Mallital. The divider (Mall.cs) starts 16 m from the
+            // junction and is 1.5 m wide there, so the booth is narrow across (2.4 m) and longer along it (3 m).
+            Vector2 nose = new Vector2(101.55f, 106.38f), along = new Vector2(0.928f, -0.371f);
+            Vector2 kp = nose - along * 1.7f;
             float ky = ctx.H(kp);
-            Vector2 kf = NearestRoadPoint(ctx, kp, 30f, r => !IsMinor(r.kind), out var krp, out _) ? (krp - kp).normalized : right;
-            var krot = Quaternion.LookRotation(Flat(kf));
-            Vector3 k3 = V(kp, ky), kfront = Flat(kf);
-            mb.Box(k3 + Vector3.up * 1.3f, new Vector3(3.4f, 2.6f, 2.4f), krot, cream);
-            mb.Box(k3 + Vector3.up * 2.7f, new Vector3(3.8f, 0.2f, 2.8f), krot, red);
-            mb.Box(k3 + Vector3.up * 1.2f + kfront * 1.21f, new Vector3(1.0f, 2.0f, 0.04f), krot, Atlas.SolidUV(Pal.WoodDark));   // door
-            mb.Box(k3 + Vector3.up * 3.35f + kfront * 0.9f, new Vector3(3.6f, 1.1f, 0.08f), krot, Atlas.SolidUV(Pal.BoatBlue));  // the blue board
-            col.Box(k3 + Vector3.up * 1.3f, new Vector3(3.4f, 2.6f, 2.4f), krot, Vector2.zero);
-            Label(holder, font, "PARYATAK SAHAYATA KENDRA", k3 + Vector3.up * 3.55f + kfront * 0.95f, kfront, 0.2f, Color.white);
-            Label(holder, font, "TOURIST HELP CENTRE  NAINITAL", k3 + Vector3.up * 3.15f + kfront * 0.95f, kfront, 0.17f, new Color(1f, 0.9f, 0.4f));
+            Vector3 bfront = Flat(-along);
+            var krot = Quaternion.LookRotation(bfront);
+            Vector3 k3 = V(kp, ky);
+            mb.Box(k3 + Vector3.up * 1.3f, new Vector3(2.4f, 2.6f, 3.0f), krot, cream);
+            mb.Box(k3 + Vector3.up * 2.7f, new Vector3(2.8f, 0.2f, 3.4f), krot, red);
+            mb.Box(k3 + Vector3.up * 1.2f + bfront * 1.51f, new Vector3(0.9f, 2.0f, 0.04f), krot, Atlas.SolidUV(Pal.WoodDark));   // door
+            mb.Box(k3 + Vector3.up * 3.35f + bfront * 1.2f, new Vector3(2.6f, 1.1f, 0.08f), krot, Atlas.SolidUV(Pal.BoatBlue));  // the blue board
+            col.Box(k3 + Vector3.up * 1.3f, new Vector3(2.4f, 2.6f, 3.0f), krot, Vector2.zero);
+            Label(holder, font, "PARYATAK SAHAYATA KENDRA", k3 + Vector3.up * 3.55f + bfront * 1.25f, bfront, 0.15f, Color.white);
+            Label(holder, font, "TOURIST HELP CENTRE  NAINITAL", k3 + Vector3.up * 3.15f + bfront * 1.25f, bfront, 0.12f, new Color(1f, 0.9f, 0.4f));
+            ctx.keepClear.Add((kp, 2.2f));
             // the parking notice on two posts
-            Vector2 np = kp + look * 4f;
+            Vector2 np = fp + look * 4f;
             float ny = ctx.H(np);
             Vector3 n3 = V(np, ny);
             var nrot = Quaternion.LookRotation(Flat(kf));

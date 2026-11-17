@@ -76,8 +76,13 @@ namespace Nainital.EditorTools
             catch (System.Exception e) { Debug.LogException(e); UnityEditor.EditorApplication.Exit(1); }
         }
 
+        /// <summary>Only the report folders whose name starts with this (e.g. "2026-11-16"); null = all.
+        /// Batch: set env NT_BUGS to the prefix.</summary>
+        public static string OnlyPrefix;
+
         public static void Run()
         {
+            string only = OnlyPrefix ?? System.Environment.GetEnvironmentVariable("NT_BUGS");
             var inv = CultureInfo.InvariantCulture;
             string root = Path.GetFullPath("BugReports");
             if (!Directory.Exists(root)) { Debug.Log("[Nainital] bug review: no BugReports folder"); return; }
@@ -90,6 +95,7 @@ namespace Nainital.EditorTools
             {
                 string note = Path.Combine(dir, "note.txt");
                 if (!File.Exists(note)) continue;
+                if (!string.IsNullOrEmpty(only) && !Path.GetFileName(dir).StartsWith(only)) continue;
                 string id = "bug_" + Path.GetFileName(dir).Replace("-", "").Replace("_", "");
                 string spec = null, player = null, first = null;
                 foreach (var line in File.ReadAllLines(note))

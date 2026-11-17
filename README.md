@@ -92,6 +92,8 @@ A bug report grabs the screen, asks what is wrong (in the editor it can also att
 
 ### 7. Install on an iPhone (optional; no Mac and no paid Apple account needed)
 
+The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper scripts below); it does steps 1 and 2. By hand:
+
 1. **Make the Xcode project (on Windows).** Install the iOS Build Support module for 6000.4.1f1. Then choose **Nainital → 8. iOS: switch platform**, then **Nainital → 9. iOS: build Xcode project**. The project is written to `Builds/iOS`.
 2. **Compile it on GitHub's free Mac.**
    - Zip the contents of `Builds/iOS` as `NainitalGame-iOS-Xcode.zip`.
@@ -104,9 +106,43 @@ A bug report grabs the screen, asks what is wrong (in the editor it can also att
    - On the iPhone, allow the app in **Settings → General → VPN & Device Management**.
    - With a free Apple ID the app works for 7 days. Re-install it from Sideloadly to refresh.
 
-## Work in progress (last updated 16 Nov 2026)
+## Work in progress (last updated 17 Nov 2026)
 
-Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). Everything below was built and checked in renders on 15 Nov, in Unity 6000.4.1f1.
+Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
+
+### To test on the iPhone (IPA of 17 Nov, 15:19)
+
+Install `Builds/NainiTA-unsigned.ipa` (or the `ios-build` release) with Sideloadly. If anything is still wrong, take a bug report on the spot (**Bug** button) and pull it with `Tools/pull_bugs.py` (below).
+
+| # | Where (x, z) | What should be true now |
+|---|---|---|
+| 1 | Upper Mall walk by the Boat House Club (118, 104) | No ground or grass coming up through the walk |
+| 2 | Anywhere on slopes and roads | The player's feet stay on the ground drawn; no stepped, terraced ground |
+| 3 | Help centre at the Upper/Lower Mall split (100, 107) | Stands on the divider's nose in the middle of the road; the Upper Mall walk meets the junction flush |
+| 4 | Road edges everywhere, e.g. Mall Road (77, 118) | Sharp, straight edges along the road; where two surfaces overlap the main one is on top (no pink blobs) |
+| 5 | Colvin Road (95, 121) | No trees on the road; smooth climb |
+| 6 | DSA road, Mall Road down to the Flats (81, 107) | Grey cement, one even slope |
+| 7 | Bandstand, ahead of the T where the path from the Flats meets the lakeside path (45, 16) | At the water's edge, steps toward the T, no white railing or bench across it |
+| 8 | Lakeside path, Capitol to the bandstand (22, -36) | Low and flat, no hump; the children's park fence complete on its wall |
+| 9 | Walk above the Capitol, by the stairs (-2, -14) and the park corner (1, -13) | Flat to the wall, no trench or hole, the player never gets stuck |
+| 10 | Lower Mall by the Boat House Club (153, 74) | Smooth, no dip and rise; the lake-side line lies on the road |
+| 11 | Frame rate | Not lower than the 16 Nov build (the phone terrain is now a CPU mesh, see below) |
+
+### Fixed on 17 Nov (from the iPhone reports of 16 Nov and the owner's screenshots)
+
+| What | Code |
+|---|---|
+| **Phone terrain = collider.** URP decodes terrain heights with `UnpackHeightmap(real4)`, and on phones `real` is half: at our 1437 m height range every height snapped to ~0.7 m terraces (ground through the Upper Mall walk, roads up and down, feet off the ground, player stuck). The terrain shader now decodes in float in every pass, and on phones the terrain is drawn non-instanced (a CPU mesh from the same heights as the `TerrainCollider`), pixel error 1. | `Shaders/NainitalTerrainHeight.hlsl`, `NainitalTerrain.shader`, `Runtime/Core/GameManager.cs` |
+| Upper Mall deck: the ground under it is lowered 40 cm below its top (the deck was left out of the carve: "0 lowered under slabs"), and at both ends the junction rises to meet it over 7 m | `Editor/WorldBuilder.Carve.cs` (`DeckEndRamps`), `WorldBuilder.cs` |
+| **Road mask = signed distances** to each surface's edge (±4 m over 0..255), from 4×4-sampled coverage with Gustavson's anti-aliased edge distance. The shader cuts the edge sharp at 0, so edges stay straight at 4096 on phones (ASTC 4x4 now, not 6x6). Overlaps: cement over asphalt over grey pavers over red pavers, no blending. The plain coverage goes to `Generated/RoadCoverage.png` for the Unreal export. | `Editor/WorldBuilder.RoadMask.cs`, `Shaders/NainitalTerrainRoads.hlsl`, `Runtime/World/TerrainRoads.cs`, `Editor/UnrealExport.cs` |
+| DSA road: grey cement from Mall Road to the Flats, one grade (smoothed ±24 m about the line between its ends) | `Editor/WorldBuilder.cs` (`IsDsaRoad`) |
+| Mapped trees are cleared off every road (Colvin Road had trees on it) | `Editor/WorldBuilder.cs` (`BuildTrees`) |
+| Tourist help centre on the divider's nose; bandstand moved to the water's edge ahead of the T (`BandstandSpot`), the lake railing, the ghat balustrade and benches keep clear of it | `WorldBuilder.MallitalEntry.cs`, `WorldBuilder.DataFixes.cs`, `WorldBuilder.Mallital.cs`, `WorldBuilder.Lakefront.cs` |
+| Lake side of the children's park: the lakeside path one grade from the Capitol's level to the bandstand T (it had a 1.2 m hump); the park fence stands on the wall's coping | `WorldBuilder.CapitolGround.cs`, `WorldBuilder.Lakefront.cs` |
+| Retaining walls: a flat 1.5 m stone ledge with a collider on the high side of the walk wall, the corner wall and the park walls (the low ground under a wall left a trench beside it); the park edge facing the walk strip has no wall | `WorldBuilder.CapitolGround.cs` (`InnerLedge`) |
+| Lower Mall's level smoothed over ±15 m (it dipped 1.4 m by the Boat House Club); the ground follows the road 0.8 m past its lake edge | `WorldBuilder.Mall.cs` |
+
+Everything below was built and checked in renders on 15–16 Nov, in Unity 6000.4.1f1.
 
 In-game positions are metres: x = east, z = north. A Scene view camera looking at the point is enough to check each one. With the editor open, `Bridge/cmd.txt` takes commands (`refresh`, `world`, `shot name;x,y,z;lookX,lookY,lookZ;hour`), see `Editor/EditorBridge.cs`; shots go to `Shots/`.
 
@@ -115,8 +151,9 @@ Helper scripts (Windows, run from the project folder; paths are worked out from 
 | Script | What it does |
 |---|---|
 | `Tools/pipeline/run_photobatch.ps1` | One batch-mode Unity run (BelowNormal) for the steps in `Bridge/batch.txt`: `world`, `call Type.Method`, `shots 03,38`, `shot name;x,y,z;lx,ly,lz;hour[;g]` (`g`: heights over the ground). Prints the results; log in `Logs/photobatch.log`. The editor must be closed. |
-| `Tools/pipeline/make_ipa.ps1` | iPhone build with no Mac: Unity iOS batch build → zip → GitHub release `ios-build` → the `ios-ipa.yml` workflow on GitHub's Mac → `Builds/NainiTA-unsigned.ipa`. Needs the iOS module, Git for Windows with a saved GitHub login, Python. About 25 min; progress in `Logs/make_ipa.log`. |
-| `Tools/pipeline/install_apple_for_sideloadly.ps1` | iTunes, iCloud, Sideloadly, and Apple Mobile Device Support (without it Sideloadly says "no Apple devices detected") |
+| `Tools/pipeline/make_ipa.ps1` | iPhone build with no Mac: Unity iOS batch build → zip → GitHub release `ios-build` → the `ios-ipa.yml` workflow on GitHub's Mac → `Builds/NainiTA-unsigned.ipa`. The editor must be closed. Uses the Unity version in `ProjectVersion.txt` (Hub folder on C: or D:). Upload and workflow: `ios_ipa_chain.sh` with Git Bash, or else `ios_ipa_chain.ps1` with the GitHub CLI (`gh auth login` as the repo owner). Needs the iOS module and Python. About 25–35 min; progress in `Logs/make_ipa.log`. |
+| `Tools/pipeline/install_apple_for_sideloadly.ps1` | iTunes, iCloud, Sideloadly, and Apple Mobile Device Support (without it Sideloadly says "no Apple devices detected"). If winget refuses Sideloadly with "installer hash does not match" (its winget entry is old), download `SideloadlySetup64.exe` from sideloadly.io and run it with `/S`. |
+| `Tools/pull_bugs.py` | Pulls new bug reports from the iPhone over USB: `Tools\.venv\Scripts\python.exe Tools\pull_bugs.py BugReports`. Then **BugReview** (`Editor/BugReview.cs`, set env `NT_BUGS=2026-11-17` for one day's reports) renders each report's camera, an eye-level and a top view into `Shots/bug_*` |
 | `Tools/pipeline/fix_ipa_frameworks.py` | Makes every framework in the IPA signable by Sideloadly and checks it (`IPA frameworks ok`). Unity 6000.4's pre-signed FAT `UnityRuntime.framework` otherwise fails on the phone: "ApplicationVerificationFailed ... 0xe8008001". `make_ipa.ps1` runs it after the download. |
 | `Tools/satcheck/*.py` | Satellite comparisons (Esri World Imagery tiles cached in `Shots/satcompare/_tiles`): `satcompare.py` (the game's top view from `Editor/TopView.cs` beside the photo), `footprints_on_sat.py`, `capcrop.py x z half out.jpg` (data outlines on the photo), `gamecrop.py`, `sheet.py` (contact sheet of shots) |
 | `docs/TRACKER.md` | The work log, day by day: what was tried, measured and left open |

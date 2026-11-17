@@ -108,6 +108,7 @@ Shader "Nainital/Terrain"
             #define SKIP_SHADOWS_LIGHT_INDEX_CHECK 1
             #endif
 
+            #include "NainitalTerrainHeight.hlsl"   // full-precision heights on phones (0.7 m terraces with half)
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitInput.hlsl"
             #include "NainitalTerrainPasses.hlsl"
             ENDHLSL
@@ -136,6 +137,7 @@ Shader "Nainital/Terrain"
             // This is used during shadow map generation to differentiate between directional and punctual light shadows, as they use different formulas to apply Normal Bias
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
 
+            #include "NainitalTerrainHeight.hlsl"   // full-precision heights on phones (0.7 m terraces with half)
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitPasses.hlsl"
             ENDHLSL
@@ -199,6 +201,7 @@ Shader "Nainital/Terrain"
             #define SKIP_SHADOWS_LIGHT_INDEX_CHECK 1
             #endif
 
+            #include "NainitalTerrainHeight.hlsl"   // full-precision heights on phones (0.7 m terraces with half)
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitPasses.hlsl"
             ENDHLSL
@@ -221,6 +224,7 @@ Shader "Nainital/Terrain"
             #pragma multi_compile_instancing
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
+            #include "NainitalTerrainHeight.hlsl"   // full-precision heights on phones (0.7 m terraces with half)
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitPasses.hlsl"
             ENDHLSL
@@ -245,6 +249,7 @@ Shader "Nainital/Terrain"
             #pragma multi_compile_instancing
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
+            #include "NainitalTerrainHeight.hlsl"   // full-precision heights on phones (0.7 m terraces with half)
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitDepthNormalsPass.hlsl"
             ENDHLSL
@@ -265,6 +270,7 @@ Shader "Nainital/Terrain"
             #pragma instancing_options assumeuniformscaling nomatrices nolightprobe nolightmap
 
             #define SCENESELECTIONPASS
+            #include "NainitalTerrainHeight.hlsl"   // full-precision heights on phones (0.7 m terraces with half)
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitPasses.hlsl"
             ENDHLSL
@@ -288,6 +294,7 @@ Shader "Nainital/Terrain"
             #define _METALLICSPECGLOSSMAP 1
             #define _SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A 1
 
+            #include "NainitalTerrainHeight.hlsl"   // full-precision heights on phones (0.7 m terraces with half)
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitInput.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/Shaders/Terrain/TerrainLitMetaPass.hlsl"
 

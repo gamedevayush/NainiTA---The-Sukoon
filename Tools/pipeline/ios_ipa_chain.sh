@@ -22,6 +22,7 @@ sys.exit(0 if ok else 1)
 " "$(cygpath -w "$Z")" || { echo "ZIP BAD - stopping"; exit 1; }
 
 TOK=$(printf 'protocol=https\nhost=github.com\nusername=gamedevayush\n\n' | git credential fill 2>/dev/null | sed -n 's/^password=//p')
+[ -n "$TOK" ] || TOK=$(gh auth token -u gamedevayush 2>/dev/null)   # a PC where only the GitHub CLI is signed in
 [ -n "$TOK" ] || { echo "NO TOKEN - stopping"; exit 1; }
 H=(-H "Authorization: token $TOK" -H "Accept: application/vnd.github+json" -H "User-Agent: nainita-ios-build")
 

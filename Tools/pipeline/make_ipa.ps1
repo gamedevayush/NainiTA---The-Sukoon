@@ -12,7 +12,12 @@ Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 Say "iOS build starting"
 $ulog = "$root\Logs\ios_build.log"
 Remove-Item $ulog -ErrorAction SilentlyContinue
-$cmd = '"C:\Program Files\Unity\Hub\Editor\6000.4.1f1\Editor\Unity.exe" -batchmode -quit -projectPath "' + $root + '" -buildTarget iOS -executeMethod Nainital.EditorTools.IOSBuild.Build -logFile "' + $ulog + '"'
+# the editor the project is on (ProjectVersion.txt), wherever the Hub put it on this PC
+$ver = ((Get-Content "$root\ProjectSettings\ProjectVersion.txt" | Select-String '^m_EditorVersion:') -split ':\s*')[1].Trim()
+$unity = @("D:\Unity\Hub\Editor\$ver\Editor\Unity.exe", "C:\Program Files\Unity\Hub\Editor\$ver\Editor\Unity.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $unity) { Say "STOP: Unity $ver not found"; exit 1 }
+Say "Unity $ver at $unity"
+$cmd = '"' + $unity + '" -batchmode -quit -projectPath "' + $root + '" -buildTarget iOS -executeMethod Nainital.EditorTools.IOSBuild.Build -logFile "' + $ulog + '"'
 $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine = $cmd; CurrentDirectory = $root}
 Start-Sleep 3; try { (Get-Process -Id $r.ProcessId).PriorityClass = 'BelowNormal' } catch {}
 while (Get-Process -Id $r.ProcessId -ErrorAction SilentlyContinue) { Start-Sleep 10 }
@@ -30,7 +35,8 @@ while (Get-Process -Id $z.ProcessId -ErrorAction SilentlyContinue) { Start-Sleep
 Say ("zip done: {0:N0} MB" -f ((Get-Item $zip).Length / 1MB))
 
 # 3. upload, workflow on GitHub's Mac, download (the chain waits on a pid; the zip is finished, so any dead pid)
-$chain = Join-Path $PSScriptRoot 'ios_ipa_chain.sh'
 Say "upload + workflow + download"
-& 'C:\Program Files\Git\bin\bash.exe' $chain 1 2>&1 | ForEach-Object { Say $_ }
+$bash = 'C:\Program Files\Git\bin\bash.exe'
+if (Test-Path $bash) { & $bash (Join-Path $PSScriptRoot 'ios_ipa_chain.sh') 1 2>&1 | ForEach-Object { Say $_ } }
+else { & (Join-Path $PSScriptRoot 'ios_ipa_chain.ps1') -Log $log }   # no Git Bash here: the PowerShell + gh version
 Say "FINISHED"

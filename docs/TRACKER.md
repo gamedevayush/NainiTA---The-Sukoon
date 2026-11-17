@@ -101,3 +101,27 @@ Shots land in `Shots/`; before/after pairs are listed here.
   could not be verified". Unity 6000.4 ships UnityRuntime.framework pre-signed by Unity, FAT with one arm64 slice;
   UnityFramework (built unsigned) was fine. Tools/pipeline/fix_ipa_frameworks.py drops its _CodeSignature, thins it,
   marks it iPhoneOS; the IPA chain now runs it after the download. Original kept as Builds/NainiTA-unsigned.before_fix.ipa.
+
+## 17 Nov 2026 - iPhone bug reports (8) and the owner's 6 screenshots
+Done on PC "AYUSH" in Unity 6000.3.28f1 (repo stays 6000.4.1f1; 6000.3's import changes to .meta / ProjectSettings not committed).
+- Bug reports pulled from the iPhone over USB (`Tools/pull_bugs.py`); `BugReview` takes `OnlyPrefix` / env `NT_BUGS`.
+  Before/after shots: `Shots/bugs_1116_before`, `Shots/bugs_1116_after`, `Shots/fix*.png`.
+- ROOT CAUSE of the phone-only ground bugs: URP `UnpackHeightmap(real4)`; `real` = half on phones -> heights snap to
+  ~0.7 m at our 1437 m range. Fix 1: `NainitalTerrainHeight.hlsl` redefines it in float before TerrainLitInput in every
+  pass. The owner still saw grass through the Upper Mall walk and feet off the ground on that IPA, so fix 2: phones draw
+  the terrain non-instanced (CPU mesh = TerrainCollider heights), pixel error 1 (`GameManager.Start`). Check FPS.
+- The Upper Mall deck was never in `roadStrips` ("0 lowered under slabs"): now carved 40 cm under its top; ends ramped.
+- Road mask is now a signed-distance field (Gustavson AA EDT from 4x4-sampled coverage, +-4 m); shader cuts at 0, overlap
+  priority cement > asphalt > grey > red. Phones ASTC 4x4. The mask step of a world build is ~12 min (BC7 8192 import);
+  `compressionQuality = 0` did not make it faster.
+- A Metal compile check via `ShaderUtil.OpenCompiledShader` tried all 309,120 terrain variants and hung the editor:
+  don't.
+- In-editor world build over MCP: call `WorldBuilder.BuildMenu` directly (a delayCall is wiped by the domain reload).
+- Layout fixes: help centre on the divider nose; bandstand at the water ahead of the T (40,19)+(16,-10)*6.3; DSA road
+  cement + one grade; mapped trees off all roads; lakeside path Capitol->T one grade; wall ledges (`InnerLedge`); park
+  fence on the coping; Lower Mall level +-15 m; ground 0.8 m past its lake edge.
+- Audit: no bumps > 25 cm on carriageways within 400 m of Mallital (flags were props on footways and Mall stairs).
+- IPAs: 13:47 (shader fix) and 15:19 (+ non-instanced phone terrain, deck carve). `make_ipa.ps1` now finds Unity from
+  ProjectVersion; without Git Bash it runs `ios_ipa_chain.ps1` (gh). Trap fixed there: PowerShell `$r` is `$R`.
+- Installed here: iTunes, iCloud, Apple Mobile Device Support, Sideloadly (winget hash stale -> sideloadly.io /S).
+- OPEN: owner to test the 15:19 IPA (README "To test on the iPhone").

@@ -86,6 +86,8 @@ namespace Nainital.EditorTools
             {
                 Vector2 a = rail[i], b = rail[i + 1];
                 if (!InMallitalFront(ctx, a) || !InMallitalFront(ctx, b) || NearJetty(ctx, a, 5f) || NearJetty(ctx, b, 5f)) continue;
+                // the bandstand stands out over the water here, with its own balustrade (DataFixes.cs BandstandSpot)
+                if ((a - BandstandSpot).sqrMagnitude < 4.9f * 4.9f || (b - BandstandSpot).sqrMagnitude < 4.9f * 4.9f) continue;
                 float ya = ctx.H(a), yb = ctx.H(b);
                 Vector3 a3 = V(a, ya + 0.08f), b3 = V(b, yb + 0.08f);
                 Vector3 outward = Flat(OutwardAt(ctx, a));
@@ -103,6 +105,7 @@ namespace Nainital.EditorTools
             Vector2 near = cap.HasValue ? cap.Value.c : flats.Value;
             var fence = new MeshBuilder();
             var fcol = new MeshBuilder();
+            var capParkPoly = CapitolPark(ctx);
             Vector2 green = Atlas.SolidUV(Pal.BoatGreen);   // bright painted green, as in the 2025 video
             int parks = 0;
             foreach (var ar in ctx.world.areas)
@@ -115,10 +118,14 @@ namespace Nainital.EditorTools
                 pc /= poly.Length;
                 if (Vector2.Distance(pc, near) > 150f) continue;
                 parks++;
-                // on the edge of a raised terrace the ground under the fence line is the slope down: stand it on the top
+                // the Capitol's park is a terrace at the walk's level on retaining walls (CapitolGround.cs): the fence stands on
+                // the walls' coping, never lower (user, 2026-11-17: "green boundary is broken" - pickets sank into the wall
+                // where the ground sampled beside them was the low ground under the wall)
+                bool capPark = capParkPoly != null && poly.Length == capParkPoly.Length && poly[0] == capParkPoly[0];
                 float FenceY(Vector2 q)
                 {
                     float best = ctx.H(q);
+                    if (capPark && !float.IsNaN(capHighY)) { CapUV(q, out float fa, out _); best = Mathf.Max(best, CapWalkLevel(fa) + 0.09f); }
                     foreach (var o in new[] { Vector2.right, Vector2.left, Vector2.up, Vector2.down })
                         foreach (float k in new[] { 0.8f, 2.2f })   // 2.2 m: past the stone border on a retaining wall
                             if (Geo.PointInPolygon(poly, q + o * k)) best = Mathf.Max(best, ctx.H(q + o * k));

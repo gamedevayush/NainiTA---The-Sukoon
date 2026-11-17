@@ -16,12 +16,16 @@ namespace Nainital
         public Vector4 tiles = new Vector4(5f, 6f, 3.2f, 70f);         // asphalt, concrete, pavers, dirt (m a repeat)
         public Color redTint = new Color(1.25f, 0.62f, 0.5f), greyTint = new Color(0.95f, 0.95f, 0.95f);
         [Range(0f, 1f)] public float dryWetness;                       // wetness with no rain (editor preview)
+        /// <summary>The mask holds signed distances to each surface's edge, +-sdfRange metres over 0..1 (0: plain coverage,
+        /// an older build). WorldBuilder.RoadMask.cs CoverageToDistance.</summary>
+        public float sdfRange;
 
         static readonly int MaskId = Shader.PropertyToID("_NtRoadMask"), RectId = Shader.PropertyToID("_NtRoadRect"),
             AsphaltId = Shader.PropertyToID("_NtAsphalt"), AsphaltNId = Shader.PropertyToID("_NtAsphaltN"),
             ConcreteId = Shader.PropertyToID("_NtConcrete"), PaverId = Shader.PropertyToID("_NtPaver"), PaverNId = Shader.PropertyToID("_NtPaverN"),
             DirtId = Shader.PropertyToID("_NtDirt"), TilesId = Shader.PropertyToID("_NtTiles"), RedId = Shader.PropertyToID("_NtRedTint"),
-            GreyId = Shader.PropertyToID("_NtGreyTint"), WetId = Shader.PropertyToID("_NtWetness"), OnId = Shader.PropertyToID("_NtRoadsOn");
+            GreyId = Shader.PropertyToID("_NtGreyTint"), WetId = Shader.PropertyToID("_NtWetness"), OnId = Shader.PropertyToID("_NtRoadsOn"),
+            SdfId = Shader.PropertyToID("_NtRoadSdf");
 
         void OnEnable() => Apply();
         void OnValidate() => Apply();
@@ -44,6 +48,7 @@ namespace Nainital
             Shader.SetGlobalColor(RedId, redTint);
             Shader.SetGlobalColor(GreyId, greyTint);
             Shader.SetGlobalFloat(WetId, dryWetness);
+            Shader.SetGlobalFloat(SdfId, sdfRange);
         }
 
         void Update()

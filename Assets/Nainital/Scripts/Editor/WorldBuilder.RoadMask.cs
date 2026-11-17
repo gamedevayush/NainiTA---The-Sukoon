@@ -37,11 +37,12 @@ namespace Nainital.EditorTools
         }
 
         /// <summary>Paints the up-facing triangles of mb into channel ch (2 x 2 samples a texel).</summary>
-        internal static void PaintRoadSurface(MeshBuilder mb, int ch, float strength = 1f)
+        internal static void PaintRoadSurface(MeshBuilder mb, int ch, float strength = 1f, int firstIndex = 0, int endIndex = -1)
         {
             if (roadMask == null || mb == null) return;
             var V = mb.V; var T = mb.T;
-            for (int i = 0; i + 2 < T.Count; i += 3)
+            int end = endIndex < 0 ? T.Count : Mathf.Min(endIndex, T.Count);
+            for (int i = firstIndex; i + 2 < end; i += 3)
             {
                 Vector3 a = V[T[i]], b = V[T[i + 1]], c = V[T[i + 2]];
                 Vector3 n = Vector3.Cross(b - a, c - a);
@@ -64,15 +65,16 @@ namespace Nainital.EditorTools
             for (int y = y0; y <= y1; y++)
                 for (int x = x0; x <= x1; x++)
                 {
+                    // 4 x 4 samples a texel (2 x 2 gave coverage in quarters only: the edges waved by up to 18 cm)
                     int hits = 0;
-                    for (int s = 0; s < 4; s++)
+                    for (int s = 0; s < 16; s++)
                     {
-                        float sx = x + ((s & 1) == 0 ? 0.25f : 0.75f), sy = y + ((s & 2) == 0 ? 0.25f : 0.75f);
+                        float sx = x + 0.125f + 0.25f * (s & 3), sy = y + 0.125f + 0.25f * (s >> 2);
                         if (E(a, b, sx, sy) >= 0f && E(b, c, sx, sy) >= 0f && E(c, a, sx, sy) >= 0f) hits++;
                     }
                     if (hits == 0) continue;
                     int k = (y * RoadMaskN + x) * 4 + ch;
-                    byte v = (byte)Mathf.Min(255, Mathf.RoundToInt(hits * 0.25f * strength * 255f));
+                    byte v = (byte)Mathf.Min(255, Mathf.RoundToInt(hits / 16f * strength * 255f));
                     // a triangle edge shared by two triangles is counted in both: coverage adds up to whole
                     roadMask[k] = (byte)Mathf.Min(255, roadMask[k] + v);
                 }
@@ -126,6 +128,159 @@ namespace Nainital.EditorTools
             dirtTris.Clear();
         }
 
+        /// <summary>How far either side of an edge the mask keeps the distance (m); the shader's RoadSdfRange.</summary>
+        public const float RoadSdfRange = 4f;
+        /// <summary>The plain coverage mask for the Unreal port (outside Assets, so Unity does not import a second 8192).</summary>
+        public static string RoadCoveragePath => Path.GetFullPath("Generated/RoadCoverage.png");
+
+        /// <summary>
+        /// The road edges straight and parallel to the road (user, iPhone bugs 2026-11-16: "road terrain texturing is not
+        /// precise, its dotted and random nature, make it perfect parallel to road"; "green terrain showing up on road").
+        /// A coverage mask, filtered, has a soft rim one texel wide; on the phones (4096, 1.46 m a texel, ASTC blocks) that rim
+        /// went 1.5-3 m wide and stepped, and the frayed-edge noise ate dots into it. Each channel is turned into the signed
+        /// distance to its edge instead (+ inside, - outside, metres, +-range over 0..255): a distance interpolates linearly
+        /// between texels, so the shader can cut the edge sharp at 0 anywhere between them, at any texture size.
+        /// Seeds are the texels on the edge (partly covered, or full next to empty), each with its own sub-texel distance from
+        /// its coverage; every other texel takes the nearest seed (two sweeps, nearest-seed propagation) plus the way to it.
+        /// </summary>
+        static void CoverageToDistance(byte[] m, int N, float texel, float range)
+        {
+            var cov = new byte[N * N];
+            var near = new int[N * N];   // the nearest seed packed as x | y << 16, -1 none
+            int pad = Mathf.CeilToInt(range / texel) + 2;
+            for (int ch = 0; ch < 4; ch++)
+            {
+                int x0 = N, y0 = N, x1 = -1, y1 = -1;
+                for (int y = 0; y < N; y++)
+                {
+                    int row = y * N;
+                    for (int x = 0; x < N; x++)
+                    {
+                        byte c = m[(row + x) * 4 + ch];
+                        cov[row + x] = c;
+                        if (c == 0) continue;
+                        if (x < x0) x0 = x; if (x > x1) x1 = x;
+                        if (y < y0) y0 = y; if (y > y1) y1 = y;
+                    }
+                }
+                if (x1 < 0) continue;   // nothing in this channel: 0 = far outside
+                x0 = Mathf.Max(0, x0 - pad); y0 = Mathf.Max(0, y0 - pad); x1 = Mathf.Min(N - 1, x1 + pad); y1 = Mathf.Min(N - 1, y1 + pad);
+
+                for (int y = y0; y <= y1; y++)
+                    for (int x = x0; x <= x1; x++)
+                    {
+                        int k = y * N + x;
+                        byte c = cov[k];
+                        bool seed = c > 0 && c < 255;
+                        if (!seed)
+                        {
+                            bool inside = c >= 128;
+                            seed = (x > 0 && (cov[k - 1] >= 128) != inside) || (x < N - 1 && (cov[k + 1] >= 128) != inside)
+                                || (y > 0 && (cov[k - N] >= 128) != inside) || (y < N - 1 && (cov[k + N] >= 128) != inside);
+                        }
+                        near[k] = seed ? (x | (y << 16)) : -1;
+                    }
+
+                void Try(int k, int x, int y, int q)
+                {
+                    int s = near[q];
+                    if (s < 0) return;
+                    int dx = x - (s & 0xffff), dy = y - (s >> 16);
+                    int cur = near[k];
+                    if (cur >= 0)
+                    {
+                        int cx = x - (cur & 0xffff), cy = y - (cur >> 16);
+                        if (cx * cx + cy * cy <= dx * dx + dy * dy) return;
+                    }
+                    near[k] = s;
+                }
+                for (int y = y0; y <= y1; y++)
+                {
+                    for (int x = x0; x <= x1; x++)
+                    {
+                        int k = y * N + x;
+                        if (x > x0) Try(k, x, y, k - 1);
+                        if (y > y0)
+                        {
+                            Try(k, x, y, k - N);
+                            if (x > x0) Try(k, x, y, k - N - 1);
+                            if (x < x1) Try(k, x, y, k - N + 1);
+                        }
+                    }
+                    for (int x = x1 - 1; x >= x0; x--) { int k = y * N + x; Try(k, x, y, k + 1); }
+                }
+                for (int y = y1; y >= y0; y--)
+                {
+                    for (int x = x1; x >= x0; x--)
+                    {
+                        int k = y * N + x;
+                        if (x < x1) Try(k, x, y, k + 1);
+                        if (y < y1)
+                        {
+                            Try(k, x, y, k + N);
+                            if (x < x1) Try(k, x, y, k + N + 1);
+                            if (x > x0) Try(k, x, y, k + N - 1);
+                        }
+                    }
+                    for (int x = x0 + 1; x <= x1; x++) { int k = y * N + x; Try(k, x, y, k - 1); }
+                }
+
+                for (int y = y0; y <= y1; y++)
+                    for (int x = x0; x <= x1; x++)
+                    {
+                        int k = y * N + x;
+                        bool inside = cov[k] >= 128;
+                        float d;
+                        int s = near[k];
+                        if (s < 0) d = inside ? range : -range;
+                        else
+                        {
+                            int sx = s & 0xffff, sy = s >> 16;
+                            float way = Mathf.Sqrt((x - sx) * (x - sx) + (y - sy) * (y - sy)) * texel;
+                            float own = SeedDistance(cov, N, sx, sy) * texel;   // the seed's own distance from the edge
+                            d = inside ? own + way : own - way;
+                        }
+                        m[k * 4 + ch] = (byte)Mathf.Clamp(Mathf.RoundToInt(127.5f + d / range * 127.5f), 0, 255);
+                    }
+            }
+        }
+
+        /// <summary>
+        /// A seed texel's signed distance from the edge through it, in texels (+ inside), from its coverage and the edge's
+        /// direction (the coverage gradient over its 3 x 3 neighbours). Coverage alone (cov - 0.5) is right only for an edge
+        /// along the texel grid: on a slanting edge it was off by up to a third of a texel, varying texel to texel, and the
+        /// edges of slanting roads came out wavy (user, 2026-11-17: "thoda straight perfect do"). This is the exact distance
+        /// for a straight edge crossing the texel (S. Gustavson, "Anti-aliased Euclidean distance transform", 2011).
+        /// </summary>
+        static float SeedDistance(byte[] cov, int N, int x, int y)
+        {
+            float a = cov[y * N + x] / 255f;
+            float C(int dx, int dy)
+            {
+                int xx = Mathf.Clamp(x + dx, 0, N - 1), yy = Mathf.Clamp(y + dy, 0, N - 1);
+                return cov[yy * N + xx] / 255f;
+            }
+            float gx = (C(1, -1) + 2f * C(1, 0) + C(1, 1)) - (C(-1, -1) + 2f * C(-1, 0) + C(-1, 1));
+            float gy = (C(-1, 1) + 2f * C(0, 1) + C(1, 1)) - (C(-1, -1) + 2f * C(0, -1) + C(1, -1));
+            float df;   // Gustavson's edgedf: from the texel centre to the edge, + when the centre lies outside (a < 0.5)
+            float gl = Mathf.Sqrt(gx * gx + gy * gy);
+            if (gl < 1e-4f || a <= 0f || a >= 1f) df = 0.5f - a;
+            else
+            {
+                gx = Mathf.Abs(gx / gl); gy = Mathf.Abs(gy / gl);
+                if (gx < gy) { float tmp = gx; gx = gy; gy = tmp; }
+                if (gy < 1e-4f) df = 0.5f - a;
+                else
+                {
+                    float a1 = 0.5f * gy / gx;
+                    if (a < a1) df = 0.5f * (gx + gy) - Mathf.Sqrt(2f * gx * gy * a);
+                    else if (a < 1f - a1) df = (0.5f - a) * gx;
+                    else df = -0.5f * (gx + gy) + Mathf.Sqrt(2f * gx * gy * (1f - a));
+                }
+            }
+            return -df;
+        }
+
         static float DistToTri(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
         {
             float area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
@@ -143,14 +298,23 @@ namespace Nainital.EditorTools
             PaintDirtIntoSplat(ctx);
             string dir = Gen + "/Textures";
             Directory.CreateDirectory(dir);
+            int covered = 0;
+            for (int i = 0; i < roadMask.Length; i += 4) if (roadMask[i] + roadMask[i + 1] + roadMask[i + 2] + roadMask[i + 3] > 0) covered++;
             var tex = new Texture2D(RoadMaskN, RoadMaskN, TextureFormat.RGBA32, false, true);
+            // the plain coverage, outside Assets (not imported): the Unreal port reads it (UnrealExport)
+            tex.SetPixelData(roadMask, 0);
+            tex.Apply(false);
+            Directory.CreateDirectory(Path.GetDirectoryName(RoadCoveragePath));
+            File.WriteAllBytes(RoadCoveragePath, tex.EncodeToPNG());
+            // the game's mask: each channel a signed distance to its edge (see CoverageToDistance)
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            CoverageToDistance(roadMask, RoadMaskN, roadMaskSize / RoadMaskN, RoadSdfRange);
+            Debug.Log($"[Nainital] road mask as distances to the edge: {sw.Elapsed.TotalSeconds:F1} s");
             tex.SetPixelData(roadMask, 0);
             tex.Apply(false);
             string maskPath = dir + "/T_RoadMask.png";
             File.WriteAllBytes(maskPath, tex.EncodeToPNG());
             Object.DestroyImmediate(tex);
-            int covered = 0;
-            for (int i = 0; i < roadMask.Length; i += 4) if (roadMask[i] + roadMask[i + 1] + roadMask[i + 2] + roadMask[i + 3] > 0) covered++;
             roadMask = null;
             AssetDatabase.ImportAsset(maskPath, ImportAssetOptions.ForceSynchronousImport);
             var imp = (TextureImporter)AssetImporter.GetAtPath(maskPath);
@@ -163,9 +327,12 @@ namespace Nainital.EditorTools
             imp.filterMode = FilterMode.Bilinear;
             imp.maxTextureSize = RoadMaskN;
             imp.textureCompression = TextureImporterCompression.CompressedHQ;
+            imp.ignoreMipmapLimit = true;   // a lower texture quality setting must not halve the roads' edges
             imp.SetPlatformTextureSettings(new TextureImporterPlatformSettings { name = "Standalone", overridden = true, maxTextureSize = RoadMaskN, format = TextureImporterFormat.BC7 });
+            // phones: half the size, but the distances keep the edge straight between texels; ASTC 4x4 (not 6x6, whose
+            // blocks showed as steps along the edges on the iPhone)
             foreach (var phone in new[] { "iPhone", "Android" })
-                imp.SetPlatformTextureSettings(new TextureImporterPlatformSettings { name = phone, overridden = true, maxTextureSize = 4096, format = TextureImporterFormat.ASTC_6x6 });
+                imp.SetPlatformTextureSettings(new TextureImporterPlatformSettings { name = phone, overridden = true, maxTextureSize = 4096, format = TextureImporterFormat.ASTC_4x4 });
             imp.SaveAndReimport();
             var mask = AssetDatabase.LoadAssetAtPath<Texture2D>(maskPath);
 
@@ -182,6 +349,7 @@ namespace Nainital.EditorTools
             var tr = ctx.terrain.GetComponent<TerrainRoads>() ?? ctx.terrain.gameObject.AddComponent<TerrainRoads>();
             tr.mask = mask; tr.asphalt = asphalt; tr.asphaltNormal = asphaltN; tr.concrete = concrete; tr.paver = paver; tr.paverNormal = paverN; tr.dirt = dirt;
             tr.rect = new Vector4(roadMaskOrigin.x, roadMaskOrigin.y, roadMaskSize, roadMaskSize);
+            tr.sdfRange = RoadSdfRange;
             tr.Apply();
             EditorUtility.SetDirty(tr);
             Debug.Log($"[Nainital] roads in the terrain: {paintedTris} triangles painted, {covered} of {RoadMaskN * RoadMaskN} texels ({covered * (roadMaskSize / RoadMaskN) * (roadMaskSize / RoadMaskN) / 1e6f:F2} km2)");

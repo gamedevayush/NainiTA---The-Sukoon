@@ -73,7 +73,7 @@ namespace Nainital.EditorTools
             var cap = CapitolBox(ctx);
             if (cap.HasValue) ctx.keepClear.Add((cap.Value.c, Mathf.Max(cap.Value.w, cap.Value.d) * 0.5f + 1f));
             KeepVideoGamesClear(ctx);   // the hall beside it (WorldBuilder.Capitol.cs)
-            foreach (var (name, r) in new[] { ("Tibetan Market", 18f), ("Naina Devi Gate", 9f), ("Mallital Police Booth", 3f), ("Bandstand", 6f), ("Children's Park (Capitol)", 10f) })
+            foreach (var (name, r) in new[] { ("Tibetan Market", 18f), ("Naina Devi Gate", 9f), ("Mallital Police Booth", 3f), ("Bandstand", 7.5f), ("Children's Park (Capitol)", 10f) })
             {
                 var p = ctx.Poi(name);
                 if (p.HasValue) ctx.keepClear.Add((p.Value, r));
@@ -284,19 +284,35 @@ namespace Nainital.EditorTools
 
         static void Bandstand(WorldCtx ctx, MeshBuilder mb, MeshBuilder col, Vector2 p)
         {
-            p = ctx.PushFromLake(p, 5.5f);
-            float y = ctx.H(p);
+            // at the water's edge in front of the T (DataFixes.cs BandstandSpot; iPhone bug 2026-11-16): the plinth stands on
+            // the bank's level, its outer half over the water on a stone base down into the lake, the open side and the steps
+            // toward the T
+            float y = ctx.H(BandstandT + BandstandDir * 3f);
             Vector3 c = V(p, y);
             // 2025 video: an octagon on a stone plinth, dark timber posts, a white balustrade, a maroon roof
             Vector2 white = Atlas.SolidUV(Pal.ShirtWhite), timber = Atlas.SolidUV(Pal.WoodDark), maroon = Atlas.SolidUV(Pal.BoatRed), stone = Atlas.MaterialUV(Atlas.MatStone);
-            mb.Cylinder(c, 4.4f, 4.4f, 0.9f, 8, stone, true);
-            col.Cylinder(c, 4.4f, 4.4f, 0.9f, 8, Vector2.zero, true);
+            float baseY = Mathf.Min(y, ctx.lakeY - 1.2f);
+            mb.Cylinder(V(p, baseY), 4.4f, 4.4f, y + 0.9f - baseY, 8, stone, true);
+            col.Cylinder(V(p, baseY), 4.4f, 4.4f, y + 0.9f - baseY, 8, Vector2.zero, true);
+            // the opening (between posts 0 and 1) faces the T
+            Vector2 toT = -BandstandDir;
+            float yaw = Mathf.Atan2(toT.x, toT.y) * Mathf.Rad2Deg - 45f;
+            Vector3 f3 = Flat(toT);
+            var srot = Quaternion.LookRotation(f3);
+            for (int s = 0; s < 3; s++)   // three steps up to the floor
+            {
+                float top = y + 0.9f - (s + 1) * 0.225f;
+                Vector3 sc = c + f3 * (4.4f + 0.18f + s * 0.36f);
+                mb.Box(new Vector3(sc.x, (top + y - 0.3f) * 0.5f, sc.z), new Vector3(2.6f, top - (y - 0.3f), 0.36f), srot, stone);
+                col.Box(new Vector3(sc.x, (top + y - 0.3f) * 0.5f, sc.z), new Vector3(2.6f, top - (y - 0.3f), 0.36f), srot, Vector2.zero);
+            }
+            ctx.Zone("Bandstand", c, 12f);
             for (int k = 0; k < 8; k++)
             {
-                Vector3 q = c + Quaternion.Euler(0, 22.5f + k * 45f, 0) * Vector3.forward * 3.9f;
+                Vector3 q = c + Quaternion.Euler(0, yaw + 22.5f + k * 45f, 0) * Vector3.forward * 3.9f;
                 mb.Cylinder(q + Vector3.up * 0.9f, 0.15f, 0.15f, 3.2f, 8, timber, true);
                 mb.Box(q + Vector3.up * 3.95f, new Vector3(0.4f, 0.3f, 0.4f), timber);
-                Vector3 q2 = c + Quaternion.Euler(0, 22.5f + (k + 1) * 45f, 0) * Vector3.forward * 3.9f;
+                Vector3 q2 = c + Quaternion.Euler(0, yaw + 22.5f + (k + 1) * 45f, 0) * Vector3.forward * 3.9f;
                 if (k == 0) continue;   // the steps come up here
                 mb.Limb(q + Vector3.up * 1.75f, q2 + Vector3.up * 1.75f, 0.06f, 0.06f, 4, white, false);   // balustrade rail
                 for (int b = 1; b < 7; b++) mb.Cylinder(Vector3.Lerp(q, q2, b / 7f) + Vector3.up * 0.9f, 0.05f, 0.04f, 0.85f, 5, white, true);
@@ -335,6 +351,8 @@ namespace Nainital.EditorTools
                     float s1 = Mathf.Min(s + 3f, 20.4f);
                     Vector2 a = shore + o * 2.6f + along * (side * s), b = shore + o * 2.6f + along * (side * s1);
                     if (ctx.InLake(a + o * 0.6f) || ctx.InLake(b + o * 0.6f)) break;   // the shore turns away: stop at the water
+                    // the bandstand stands at the water here (user, 2026-11-17: "ye ek white boundary beech me aari"): stop short of it
+                    if (Geo.DistanceToPolyline(new[] { a, b }, BandstandSpot, false) < 6.2f) break;
                     float ya = ctx.H(a), yb = ctx.H(b), yl = Mathf.Max(ya, yb);
                     Vector2 m2 = (a + b) * 0.5f;
                     var rr = Quaternion.LookRotation(Flat((b - a).normalized));

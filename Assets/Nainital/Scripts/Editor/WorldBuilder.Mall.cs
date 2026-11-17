@@ -219,7 +219,7 @@ namespace Nainital.EditorTools
         }
 
         /// <summary>A Mall road as evenly spaced samples; side[] points away from the other road.</summary>
-        static MallLine MallPath(WorldCtx ctx, string name, string other, float step)
+        static MallLine MallPath(WorldCtx ctx, string name, string other, float step, int smooth = 2)
         {
             var raw = RoadPoints(ctx, name);
             var rawOther = RoadPoints(ctx, other);
@@ -245,11 +245,15 @@ namespace Nainital.EditorTools
             }
             if (sum < 0f)
                 for (int i = 0; i < n; i++) m.side[i] = -m.side[i];
+            // the level along the road: the ground averaged over +-smooth samples, the window shrinking at the ends so the ends
+            // stay at their junctions (Lower Mall: +-15 m; at +-2 m it dipped 1.4 m by the Boat House Club and the paving and
+            // its lines went down and up with it - user, 2026-11-17: "lower road terrain is bad")
             for (int i = 0; i < n; i++)
             {
+                int r = Mathf.Min(smooth, Mathf.Min(i, n - 1 - i));
                 float t = 0f;
-                for (int k = -2; k <= 2; k++) t += h[Mathf.Clamp(i + k, 0, n - 1)];
-                m.y[i] = t / 5f;
+                for (int k = -r; k <= r; k++) t += h[i + k];
+                m.y[i] = t / (2 * r + 1);
             }
             return m;
         }
@@ -418,7 +422,7 @@ namespace Nainital.EditorTools
             bankTrees.Clear();
             bankTreeY.Clear();
             var U = MallPath(ctx, MallUpper, MallLower, 2f);
-            var L = MallPath(ctx, MallLower, MallUpper, 1f);
+            var L = MallPath(ctx, MallLower, MallUpper, 1f, 15);
             if (U == null || L == null)
             {
                 Debug.LogWarning("[Nainital] Mall Road: Upper/Lower Mall not found in world.json");
@@ -535,7 +539,9 @@ namespace Nainital.EditorTools
             for (int i = 0; i < L.Count; i++)
             {
                 hillE[i] = V(L.p[i] - L.side[i] * L.hillW[i], L.y[i] + 0.12f);
-                lakeE[i] = V(L.p[i] + L.side[i] * L.lakeW[i], L.y[i] + 0.12f);
+                // 0.8 m past the paving's lake edge: its white edge line hung over the ground falling away to the Boat House
+                // Club (user, 2026-11-17: "lower road terrain is bad")
+                lakeE[i] = V(L.p[i] + L.side[i] * (L.lakeW[i] + 0.8f), L.y[i] + 0.12f);
             }
             roadStrips.Add((hillE, lakeE, 0f, true));   // CarveUnderRoads (the last step): the ground is set to the paving
         }

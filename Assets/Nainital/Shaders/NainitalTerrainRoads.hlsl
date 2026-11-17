@@ -22,6 +22,7 @@ float4 _NtRedTint;
 float4 _NtGreyTint;
 float _NtWetness;
 float _NtRoadsOn;
+float _NtRoadSdf;   // > 0: the mask is signed distances, +- this many metres over 0..1
 
 void NtGround(float3 positionWS, inout half3 albedo, inout half smoothness, inout half3 normalTS, inout half occlusion)
 {
@@ -33,10 +34,35 @@ void NtGround(float3 positionWS, inout half3 albedo, inout half smoothness, inou
     half4 fine = SAMPLE_TEXTURE2D(_NtDirt, sampler_NtAsphalt, uvD * 4.37 + 0.31);
 
     float2 muv = (xz - _NtRoadRect.xy) * _NtRoadRect.zw;
-    half4 w = SAMPLE_TEXTURE2D(_NtRoadMask, sampler_NtRoadMask, saturate(muv));
-    // frayed, dusty edges: the soft rim of the mask is eaten into by the fine noise (the inside stays whole)
-    w = saturate((w - fine.g * 0.45) * 2.2);
+    half4 w;
+    half dust = 0.0h;   // a band of dust on the ground just outside an edge
+    if (_NtRoadSdf > 0.0)
+    {
+        // the mask holds each surface's signed distance to its edge (m, + inside; WorldBuilder.RoadMask.cs): the edge is cut
+        // at 0, sharp and parallel to the road at any mask size (iPhone bugs 2026-11-16: "dotted and random", "make it
+        // perfect parallel to road"). Only a hair of wear (+-3 cm) along it, never dots.
+        float4 d = (SAMPLE_TEXTURE2D(_NtRoadMask, sampler_NtRoadMask, saturate(muv)) - 0.5) * (2.0 * _NtRoadSdf);
+        d += (fine.g - 0.5) * 0.02;
+        float4 soft = max(fwidth(d), 0.04);
+        float4 c = saturate(d / soft + 0.5);
+        // where two surfaces overlap the main one lies on top, never a blend (user, 2026-11-17: the red path's end showed as
+        // a pink blob on the grey walk): cement (the lake roads, the main ones) over asphalt (the side roads joining them)
+        // over grey pavers over red pavers
+        w.g = (half)c.y;
+        w.r = (half)(c.x * (1.0 - c.y));
+        w.b = (half)(c.z * (1.0 - c.x) * (1.0 - c.y));
+        w.a = (half)(c.w * (1.0 - c.x) * (1.0 - c.y) * (1.0 - c.z));
+        float dmax = max(max(d.x, d.y), max(d.z, d.w));
+        dust = (half)(saturate(1.0 + dmax / 0.45) * step(dmax, 0.0));
+    }
+    else
+    {
+        w = SAMPLE_TEXTURE2D(_NtRoadMask, sampler_NtRoadMask, saturate(muv));
+        // (an older plain coverage mask) frayed, dusty edges: the soft rim is eaten into by the fine noise
+        w = saturate((w - fine.g * 0.45) * 2.2);
+    }
     half total = saturate(w.r + w.g + w.b + w.a);
+    albedo = lerp(albedo, albedo * half3(1.05h, 0.98h, 0.88h) * 0.95h, dust * 0.5h);
 
     float2 uvA = xz / _NtTiles.x, uvC = xz / _NtTiles.y, uvP = xz / _NtTiles.z;
     float2 dAx = ddx(uvA), dAy = ddy(uvA), dCx = ddx(uvC), dCy = ddy(uvC), dPx = ddx(uvP), dPy = ddy(uvP);

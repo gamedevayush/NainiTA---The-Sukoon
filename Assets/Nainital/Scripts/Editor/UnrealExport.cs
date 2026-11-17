@@ -217,7 +217,9 @@ namespace Nainital.EditorTools
             if (roads)
             {
                 string maskFile = null;
-                string mp = roads.mask ? AssetDatabase.GetAssetPath(roads.mask) : null;
+                // the plain coverage (the game's mask holds distances to the edges since 2026-11-17, WorldBuilder.RoadMask.cs)
+                string mp = File.Exists(WorldBuilder.RoadCoveragePath) ? WorldBuilder.RoadCoveragePath
+                          : roads.mask ? AssetDatabase.GetAssetPath(roads.mask) : null;
                 if (!string.IsNullOrEmpty(mp) && File.Exists(mp))
                 {
                     maskFile = "Terrain/road_mask.png";

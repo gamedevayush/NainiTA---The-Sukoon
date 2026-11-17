@@ -38,12 +38,28 @@ namespace Nainital
             var cam = Camera.main;
             if (cam) cam.farClipPlane = (mobile ? mobileFogEnd : pcFogEnd) + 200f;
 
+            // Phones: the terrain drawn from a mesh Unity builds on the CPU, in full float, from the same heights the
+            // TerrainCollider uses (user, iPhone 2026-11-17: "upper mall road pe grass layer aari hai", "legs distance upar
+            // neeche hori hai, terrain shape change hora"). GPU-instanced terrain reads its heights from a texture in the
+            // vertex shader, at the phone GPU's precision: the ground drawn and the ground walked on came apart, and the
+            // drawn ground rose through the Upper Mall slab. Pixel error 1: the drawn mesh stays within a pixel of the
+            // collider's shape.
+            mobileTerrain = mobile;
+
             if (!FindAnyObjectByType<GameInput>()) new GameObject("GameInput").AddComponent<GameInput>();
             if (!FindAnyObjectByType<HUD>()) new GameObject("HUD").AddComponent<HUD>();
         }
 
+        bool mobileTerrain;
+
         void Start()
         {
+            if (mobileTerrain)   // (see Awake) every terrain is enabled by now
+                foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None))
+                {
+                    t.drawInstanced = false;
+                    t.heightmapPixelError = 1f;
+                }
             GameEvents.ShowToast("Nainital mein swagat hai!  (H = controls, M = map)", 4f);
         }
     }

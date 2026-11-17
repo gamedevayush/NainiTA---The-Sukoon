@@ -214,7 +214,7 @@ namespace Nainital.EditorTools
             // after the levelling (its 2.5 m ease beside the walk filled the Capitol's lane up to the walk, 16 Nov) and before the
             // roads are built on the ground
             Step("Capitol terraces and the Mallital bank", () => ShapeCapitolGround(ctx));
-            Step("Roads", () => { roadStrips.Clear(); BeginRoadMask(ctx); BuildRoads(ctx); SetGroundToPaintedRoads(ctx); });   // the ground is the road from here on
+            Step("Roads", () => { roadStrips.Clear(); deckEnds.Clear(); BeginRoadMask(ctx); BuildRoads(ctx); SetGroundToPaintedRoads(ctx); });   // the ground is the road from here on
             Step("G.O.A.N. plan (civic sites)", () => PlanGoan(ctx));
             Step("Tallital plan", () => PlanTallital(ctx));
             Step("Mallital plan", () => PlanMallital(ctx));
@@ -563,6 +563,18 @@ namespace Nainital.EditorTools
             mb.Quad(fa, fb, b, a, new Rect(0.004f, v0, 0.03f, v1 - v0), (outA + outB) * 0.5f);
         }
 
+        /// <summary>Where the DSA road (Mall Road's Mallital end down past the Flats) reaches the Flats' level: the end of
+        /// its cement concrete.</summary>
+        static readonly Vector2 DsaFlatsEnd = new Vector2(39f, 51f);
+
+        /// <summary>The DSA road: the OSM pedestrian way leaving Mall Road's Mallital end (87, 115) down beside the Flats to
+        /// the Capitol (user calls it "DSA road").</summary>
+        static bool IsDsaRoad(RoadData r)
+        {
+            if (r.kind != "pedestrian" || r.pts == null || r.pts.Length < 4) return false;
+            return Mathf.Abs(r.pts[0] - 87f) < 2f && Mathf.Abs(r.pts[1] - 115f) < 2f;
+        }
+
         static void BuildRoads(WorldCtx ctx)
         {
             var parent = new GameObject("Roads (OpenStreetMap)").transform;
@@ -594,20 +606,34 @@ namespace Nainital.EditorTools
                 bool painted = !mallDeck && r.name != MallLower;
                 var hLine = new float[path.Count];
                 for (int i = 0; i < path.Count; i++) hLine[i] = ctx.H(path[i]);
+                bool dsa = IsDsaRoad(r);
                 if (painted && !dirtTrack)
                 {
+                    // the DSA road: one even grade from Mall Road down to the Flats (iPhone bug 2026-11-16: "DSA road ...
+                    // smoothed not up down"): smoothed over +-24 m about the straight line between its ends, so the ends
+                    // stay at their junctions
+                    int rad = dsa ? 12 : 4;
+                    var trend = new float[path.Count];
+                    for (int i = 0; i < path.Count; i++) trend[i] = dsa ? Mathf.Lerp(hLine[0], hLine[path.Count - 1], i / (float)Mathf.Max(1, path.Count - 1)) : 0f;
                     var sm = new float[path.Count];
                     for (int i = 0; i < path.Count; i++)
                     {
                         float s = 0f, wsum = 0f;
-                        for (int j = Mathf.Max(0, i - 4); j <= Mathf.Min(path.Count - 1, i + 4); j++) { float wj = 5 - Mathf.Abs(i - j); s += hLine[j] * wj; wsum += wj; }
-                        sm[i] = s / wsum;
+                        for (int j = Mathf.Max(0, i - rad); j <= Mathf.Min(path.Count - 1, i + rad); j++) { float wj = rad + 1 - Mathf.Abs(i - j); s += (hLine[j] - trend[j]) * wj; wsum += wj; }
+                        sm[i] = trend[i] + s / wsum;
                     }
                     hLine = sm;
+                }
+                int dsaEndTri = -1, dsaCut = -1;
+                if (dsa)
+                {
+                    float best = 8f * 8f;   // the corner there is rounded (SmoothRoadCorners): the nearest point of the line
+                    for (int i = 0; i < path.Count; i++) { float d2 = (path[i] - DsaFlatsEnd).sqrMagnitude; if (d2 < best) { best = d2; dsaCut = i; } }
                 }
                 for (int i = 0; i < path.Count; i++)
                 {
                     Vector2 p = path[i];
+                    if (i == dsaCut) dsaEndTri = mb.T.Count;
                     Vector2 tan = (path[Mathf.Min(i + 1, path.Count - 1)] - path[Mathf.Max(i - 1, 0)]).normalized;
                     Vector2 nrm = new Vector2(-tan.y, tan.x);
                     Vector2 l = p + nrm * half, rr = p - nrm * half;
@@ -650,11 +676,27 @@ namespace Nainital.EditorTools
                 {
                     // into the ground: asphalt, cement concrete (by the lake), grey pavers (footpaths), red pavers (Mallital front),
                     // trodden earth into the terrain's dirt layer
+                    int ch = lakeRoad ? ChConcrete : redTiles ? ChRedPaver : walk ? ChGreyPaver : ChAsphalt;
                     if (dirtTrack) PaintDirtPath(mb);
-                    else PaintRoadSurface(mb, lakeRoad ? ChConcrete : redTiles ? ChRedPaver : walk ? ChGreyPaver : ChAsphalt);
+                    else if (dsa && dsaEndTri > 0)
+                    {
+                        // the DSA road is grey cement concrete from Mall Road down to the Flats (iPhone bug 2026-11-16: "DSA
+                        // road will not be grass, its all grey concrete path"); the walk on past the Flats keeps its pavers
+                        PaintRoadSurface(mb, ChConcrete, 1f, 0, dsaEndTri);
+                        PaintRoadSurface(mb, ch, 1f, dsaEndTri);
+                    }
+                    else PaintRoadSurface(mb, ch);
                 }
                 else if (r.name != MallLower) ctx.MeshObject($"{nm} ({r.kind})", parent, mb, mat, null, false, true);   // the Mall deck; Lower Mall is built with the Mall Road
-                if (!dirtTrack && !mallDeck && r.name != MallLower) roadStrips.Add((kerbL.ToArray(), kerbR.ToArray(), lift, painted));   // CarveUnderRoads
+                // CarveUnderRoads. The Upper Mall deck too, as a slab: the ground under it is lowered to 40 cm below its top
+                // (it was left out, and only 15-19 cm lay between them, so the phone's terrain came up through it)
+                if (!dirtTrack && r.name != MallLower) roadStrips.Add((kerbL.ToArray(), kerbR.ToArray(), lift, painted && !mallDeck));
+                if (mallDeck && kerbL.Count > 2)   // its ends: the painted ground rises to meet it (Carve.cs DeckEndRamps)
+                {
+                    int e = kerbL.Count - 1;
+                    deckEnds.Add((kerbL[0], kerbR[0], (kerbL[1] + kerbR[1]) * 0.5f));
+                    deckEnds.Add((kerbL[e], kerbR[e], (kerbL[e - 1] + kerbR[e - 1]) * 0.5f));
+                }
                 if (!string.IsNullOrEmpty(r.name) && (r.name.Contains("Mall Road") || r.name.Contains("Thandi Sadak")))
                     for (int i = 0; i < path.Count; i += 20)
                         ctx.Zone(r.name, new Vector3(path[i].x, 0, path[i].y), 22f);
@@ -898,7 +940,7 @@ namespace Nainital.EditorTools
             for (int i = 0; i < benchPts.Count; i++)
             {
                 Vector2 p = benchPts[i];
-                if (NearJetty(ctx, p, 8f) || NearMallRoad(ctx, p, 40f)) continue;
+                if (NearJetty(ctx, p, 8f) || NearMallRoad(ctx, p, 40f) || ctx.InKeepClear(p, 0.8f)) continue;   // e.g. the bandstand
                 p = OffRoad(p, 3.8f, new[] { 3.8f, 2.9f, 2.3f }, 0.75f);   // a bench needs its depth clear of the road too
                 if (float.IsNaN(p.x)) { benchesDropped++; continue; }
                 Vector2 o = OutwardAt(ctx, p);
@@ -1027,6 +1069,10 @@ namespace Nainital.EditorTools
             {
                 Vector2 p = new Vector2(t[i], t[i + 1]);
                 if (ctx.InLake(p) || ctx.InKeepClear(p, 1.5f)) continue;
+                // no tree on a carriageway (user, iPhone bug 2026-11-16: "the road going up opposite the DSA road is having
+                // trees"): the mapped trees were only cleared from the OpenStreetMap roads, and Colvin Road (DataFixes) was
+                // traced in by hand later, across the trees mapped beside the old track
+                if (Clearance(ctx).Blocked(p, 0.6f)) continue;
                 float h = ctx.H(p);
                 float type = t[i + 2];
                 if ((int)type == 2 && h - ctx.lakeY > 90f && rnd.NextDouble() < 0.3) type = 4;   // buransh in the oak forests

@@ -36,3 +36,4 @@ __pycache__/
 /Assets/Nainital/Generated.meta
 # bug reports from the in-game / editor bug capture (local)
 /BugReports/
+/Generated/
