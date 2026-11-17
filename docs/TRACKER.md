@@ -212,3 +212,5 @@ category". All world text was TextMesh in the built-in font (~700 shop signs = ~
   the step lifts the shop floor to the road, often ~0.5 m over the house floor, so a 2.75 m front ran into the
   first-floor slab. Now each front stops under it (H = house floor + 2.9 - shop floor, 2.0..2.75; the house floor is
   the shop-front point's y - 2.75). Checked: Shots/sign1540*.png, sign1080.png, mf1540_shop.png, mf1080_shop.png.
+- 18 Nov 03:29: IPA built from ee07842 (Unity iOS build 3.8 min, GitHub Mac workflow ~15 min), `IPA frameworks ok: 2`,
+  Builds/NainiTA-unsigned.ipa + the ios-build release. README "To test on the iPhone (IPA of 18 Nov)" lists what to try.

@@ -132,6 +132,20 @@ How it works and where:
 - The look (photo size / zoom, height, side shift, depths, light) is the owner's to set: **Nainital → Fake Interior Look** (sliders, live in the Scene and Game views, play mode too; saved in `Assets/Resources/InteriorLook.asset`, which the game applies at start - `Runtime/World/InteriorLook.cs`).
 - Mall Road: `Editor/WorldBuilder.MallFronts.cs` (video 02 timeline → shop kind per unit, the fronts, kiosks), called from `MallShopDressing` in `WorldBuilder.Mall.cs`; rooftop cafes in `BuildingKit.RooftopCafe`, chosen in `WorldBuilder.cs`. `Editor/InteriorCost.cs` (bridge `call InteriorCost.Run`) measures the cost and saves on/off pictures `Shots/int_*.png`.
 
+### To test on the iPhone (IPA of 18 Nov, 03:29)
+
+`Builds/NainiTA-unsigned.ipa` (also on the `ios-build` release), install with Sideloadly. Everything of 17-18 Nov is in it.
+
+| # | Where (x, z) | What should be true |
+|---|---|---|
+| 1 | Upper Mall (556, -240) and (207, 55) | Each shop has its own front and its own 3D name board; the room photo behind the glass slides as you walk; people eating in restaurants, standing in shops |
+| 2 | Any ground-floor window, e.g. Tallital (626, -1047) | A room behind the glass; upper floors unchanged |
+| 3 | Mall Road at night | Shop interiors and some name boards lit |
+| 4 | Roofs above (560, -240) | Rooftop cafes: umbrellas, tables, string lights |
+| 5 | Capitol (0, -30), Naina Devi gate, police booths, road signs | Solid 3D letters in their own fonts |
+| 6 | Settings → Quality → Low | Rooms behind ordinary windows off (Mall Road shop glass stays) |
+| 7 | Frame rate on Mall Road | Not lower than the 17 Nov IPA |
+
 ### Added on 18 Nov: solid 3D shop names in a font by kind
 
 Every sign that had flat text now has solid 3D letters (owner: "tagda 3D name, different stylish font based on their category"): restaurants and cafes in a script (Pacifico), sweets and bakeries rounded (Lilita One), hotels in Roman capitals (Cinzel Decorative), crafts and gifts Indian-style (Yatra One), woollens a heavy serif (Rozha One), clothes tall (Bebas Neue), banks / chemists / opticians / police / road signs bold (Anton), the Capitol art deco (Limelight). Some letters glow at night. Each Mall Road shop has its own board and a name of its kind; kiosks too. Check at (207, 55) and (556, -240) on Upper Mall, the Capitol (0, -30), the welcome gate on the highway. Data: `Tools/fonts3d/make_fonts3d.py` → `Assets/Nainital/Data/Fonts3D/*.json`; letters: `Editor/Glyph3D.cs` (styles and names per kind).
