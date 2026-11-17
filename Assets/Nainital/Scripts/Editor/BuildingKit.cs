@@ -14,6 +14,8 @@ namespace Nainital.EditorTools
             public float litChance;
             /// <summary>Mall Road's first row (REFERENCE_REPORT 2.4): British-era front, full-width verandahs, trim bands.</summary>
             public bool colonial;
+            /// <summary>A cafe on the flat roof (needs flatRoof): Mall Road's busy stretches, WorldBuilder.MallBusy.</summary>
+            public bool rooftopCafe;
         }
 
         /// <summary>
@@ -91,6 +93,8 @@ namespace Nainital.EditorTools
                 if (partial) bottom = yBase;
                 bool isGround = Mathf.Abs(bottom - streetY) < 0.6f;
                 bool below = bottom < streetY - 0.6f;
+                // room slot of the first bay: from where the wall starts, not from rng (the town's random picks stay as they were)
+                int slot0 = Mathf.Abs(Mathf.FloorToInt(a.x * 7.31f) * 3 + Mathf.FloorToInt(a.y * 5.17f));
                 for (int i = 0; i < bays; i++)
                 {
                     Vector2 p0 = Vector2.Lerp(a, b, i / (float)bays), p1 = Vector2.Lerp(a, b, (i + 1) / (float)bays);
@@ -98,8 +102,15 @@ namespace Nainital.EditorTools
                     var br = new Vector3(p1.x, bottom, p1.y);
                     var tr = new Vector3(p1.x, top, p1.y);
                     var tl = new Vector3(p0.x, top, p0.y);
-                    Rect uv = partial ? Atlas.Material(Atlas.MatStone)
-                                      : Atlas.Facade(st.wall, PickStyle(rng, front, isGround, below, st.shop, i == bays / 2, st.litChance));
+                    Rect uv;
+                    if (partial) uv = Atlas.Material(Atlas.MatStone);
+                    else
+                    {
+                        int style = PickStyle(rng, front, isGround, below, st.shop, i == bays / 2, st.litChance);
+                        uv = Atlas.Facade(st.wall, style);
+                        // ground floor only (user, 2026-11-17): a room behind the windows and the open shop fronts
+                        if (isGround && Atlas.HasRoom(style)) uv = Atlas.InteriorBay(uv, (slot0 + i) & 3);
+                    }
                     mb.Quad(bl, br, tr, tl, uv, outward);
                 }
                 // chhajja: concrete sunshade slab along the front at every floor
@@ -229,6 +240,8 @@ namespace Nainital.EditorTools
                 mb.Box(new Vector3(0, ph / 2, -d / 2 + t / 2), new Vector3(w, ph, t), wallUV);
                 mb.Box(new Vector3(w / 2 - t / 2, ph / 2, 0), new Vector3(t, ph, d - 2 * t), wallUV);
                 mb.Box(new Vector3(-w / 2 + t / 2, ph / 2, 0), new Vector3(t, ph, d - 2 * t), wallUV);
+                if (st.rooftopCafe) RooftopCafe(mb, w, d, wallUV, new System.Random(Mathf.RoundToInt(c.x * 13.7f + c.y * 7.3f)));
+                else {
                 if (rng.NextDouble() < 0.3 && w > 5f)   // clothesline with drying clothes
                 {
                     float lz = (float)(rng.NextDouble() - 0.5) * (d - 2f);
@@ -265,12 +278,95 @@ namespace Nainital.EditorTools
                     mb.Box(new Vector3(-w / 2 + 1.6f, 1.2f, -d / 2 + 1.6f), new Vector3(2.4f, 2.4f, 2.4f), wallUV);
                     mb.Box(new Vector3(-w / 2 + 1.6f, 2.45f, -d / 2 + 1.6f), new Vector3(2.8f, 0.12f, 2.8f), conc);
                 }
+                }   // not a rooftop cafe
             }
             mb.M = saved;
 
             // simple collision box
             col.Box(new Vector3(c.x, (yBase + yTop) * 0.5f, c.y), new Vector3(w, yTop - yBase, d), q, Vector2.zero);
             if (!st.flatRoof) { }
+        }
+
+        /// <summary>A rooftop cafe on a Mall Road roof (user, 2026-11-17: "kuch rooftop cafe"), in the roof's own frame
+        /// (y = 0 the roof, +z the street front): a timber deck, a rail on the parapet, tables under big umbrellas with
+        /// chairs round them, string lights on corner poles (the palette's lamp-bulb colour glows at night), pots, and
+        /// the stair hut at the back.</summary>
+        static void RooftopCafe(MeshBuilder mb, float w, float d, Vector2 wallUV, System.Random r)
+        {
+            Vector3 up = Vector3.up;
+            float hw = w * 0.5f - 0.1f, hd = d * 0.5f - 0.1f;
+            mb.Quad(new Vector3(-hw, 0.06f, -hd), new Vector3(hw, 0.06f, -hd), new Vector3(hw, 0.06f, hd), new Vector3(-hw, 0.06f, hd),
+                    Atlas.Material(Atlas.MatWood), up);
+            // a rail on top of the parapet
+            Vector2 rail = Atlas.SolidUV(r.NextDouble() < 0.5 ? Pal.ShirtWhite : Pal.IronBlack);
+            mb.Box(new Vector3(0, 1.12f, hd), new Vector3(2 * hw, 0.05f, 0.05f), rail);
+            mb.Box(new Vector3(0, 1.12f, -hd), new Vector3(2 * hw, 0.05f, 0.05f), rail);
+            mb.Box(new Vector3(hw, 1.12f, 0), new Vector3(0.05f, 0.05f, 2 * hd), rail);
+            mb.Box(new Vector3(-hw, 1.12f, 0), new Vector3(0.05f, 0.05f, 2 * hd), rail);
+            for (float x = -hw; x <= hw + 0.01f; x += 1.5f)
+                foreach (float z in new[] { -hd, hd }) mb.Box(new Vector3(x, 0.94f, z), new Vector3(0.05f, 0.36f, 0.05f), rail);
+            // the stair hut, back left, with its door
+            Vector3 hut = new Vector3(-w * 0.5f + 1.5f, 0f, -d * 0.5f + 1.5f);
+            mb.Box(hut + up * 1.2f, new Vector3(2.4f, 2.4f, 2.4f), wallUV);
+            mb.Box(hut + up * 2.45f, new Vector3(2.8f, 0.12f, 2.8f), Atlas.MaterialUV(Atlas.MatConcrete));
+            mb.Quad(hut + new Vector3(-0.45f, 0.06f, 1.21f), hut + new Vector3(0.45f, 0.06f, 1.21f), hut + new Vector3(0.45f, 2.0f, 1.21f), hut + new Vector3(-0.45f, 2.0f, 1.21f),
+                    Atlas.SolidUV(Pal.WoodDark), Vector3.forward);
+            // tables, chairs, umbrellas
+            int[] canopy = { Pal.JacketRed, Pal.ShirtWhite, Pal.BoatGreen, Pal.BoatBlue, Pal.BoatYellow, Pal.Saffron, Pal.TempleRed };
+            Vector2 metal = Atlas.SolidUV(Pal.IronBlack), top = Atlas.SolidUV(r.NextDouble() < 0.5 ? Pal.ShirtWhite : Pal.WoodLight);
+            Vector2 seat = Atlas.SolidUV(new[] { Pal.WoodDark, Pal.ShirtWhite, Pal.JacketRed, Pal.IronGreen }[r.Next(4)]);
+            int umbrellaCol = canopy[r.Next(canopy.Length)];
+            for (float x = -hw + 1.3f; x <= hw - 1.2f; x += 2.5f)
+                for (float z = -hd + 1.3f; z <= hd - 1.1f; z += 2.5f)
+                {
+                    if (x < hut.x + 2.2f && z < hut.z + 2.2f) continue;   // the hut
+                    Vector3 t = new Vector3(x + (float)(r.NextDouble() - 0.5) * 0.4f, 0.06f, z + (float)(r.NextDouble() - 0.5) * 0.4f);
+                    mb.Limb(t, t + up * 0.72f, 0.035f, 0.035f, 5, metal, false);
+                    mb.Cylinder(t + up * 0.72f, 0.42f, 0.42f, 0.04f, 10, top, true, true);
+                    int chairs = 2 + r.Next(3);
+                    float a0 = (float)r.NextDouble() * Mathf.PI;
+                    for (int k = 0; k < chairs; k++)
+                    {
+                        float a = a0 + k * Mathf.PI * 2f / chairs;
+                        Vector3 dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)), cp = t + dir * 0.75f;
+                        var face = Quaternion.LookRotation(-dir);
+                        mb.Box(cp + up * 0.45f, new Vector3(0.42f, 0.06f, 0.42f), face, seat);
+                        mb.Box(cp + dir * 0.2f + up * 0.72f, new Vector3(0.42f, 0.5f, 0.05f), face, seat);
+                        mb.Box(cp + up * 0.21f, new Vector3(0.36f, 0.42f, 0.36f), face, metal);
+                    }
+                    if (r.NextDouble() < 0.75)
+                    {
+                        mb.Limb(t + up * 0.76f, t + up * 2.45f, 0.025f, 0.025f, 4, metal, false);
+                        int uc = r.NextDouble() < 0.7 ? umbrellaCol : canopy[r.Next(canopy.Length)];
+                        mb.Cylinder(t + up * 2.0f, 1.3f, 0.06f, 0.45f, 8, Atlas.SolidUV(uc), false, true);
+                    }
+                }
+            // string lights round the deck on four corner poles, sagging between them
+            Vector3[] posts = { new Vector3(-hw + 0.2f, 0, -hd + 0.2f), new Vector3(hw - 0.2f, 0, -hd + 0.2f), new Vector3(hw - 0.2f, 0, hd - 0.2f), new Vector3(-hw + 0.2f, 0, hd - 0.2f) };
+            foreach (var p in posts) mb.Limb(p, p + up * 2.8f, 0.04f, 0.04f, 5, metal, false);
+            Vector2 bulb = Atlas.SolidUV(Pal.LampBulb), wire = Atlas.SolidUV(Pal.IronBlack);
+            for (int e = 0; e < 5; e++)
+            {
+                Vector3 a = posts[e % 4] + up * 2.7f, b = (e < 4 ? posts[(e + 1) % 4] : posts[2]) + up * 2.7f;
+                if (e == 4) a = posts[0] + up * 2.7f;   // and once across
+                int n = Mathf.Max(3, Mathf.RoundToInt(Vector3.Distance(a, b) / 0.55f));
+                Vector3 prev = a;
+                for (int k = 1; k <= n; k++)
+                {
+                    float f = k / (float)n;
+                    Vector3 q = Vector3.Lerp(a, b, f) - up * (0.35f * Mathf.Sin(Mathf.PI * f));
+                    mb.Limb(prev, q, 0.008f, 0.008f, 3, wire, false);
+                    if (k < n) mb.Box(q - up * 0.06f, new Vector3(0.07f, 0.09f, 0.07f), bulb);
+                    prev = q;
+                }
+            }
+            // pots at the front corners
+            foreach (float s in new[] { -1f, 1f })
+            {
+                var pot = new Vector3(s * (hw - 0.5f), 0.06f, hd - 0.5f);
+                mb.Cylinder(pot, 0.22f, 0.28f, 0.5f, 8, Atlas.MaterialUV(Atlas.MatTempleOrange), true);
+                mb.Sphere(pot + up * 0.9f, new Vector3(0.42f, 0.5f, 0.42f), 7, 4, Atlas.SolidUV(Pal.Pine));
+            }
         }
 
         /// <summary>What a bazaar facade carries in the photos: projecting balconies with railings (white, wood or green

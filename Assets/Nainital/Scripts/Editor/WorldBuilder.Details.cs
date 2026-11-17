@@ -25,49 +25,35 @@ namespace Nainital.EditorTools
             var rnd = new System.Random(321);
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-            // ---- shop signboards (board mesh combined, text as 3D TextMesh)
+            // ---- shop signboards: the board and the shop's name in solid 3D letters, font and colours by the kind of
+            // shop its name says (user, 2026-11-18: "tagda 3D name, different stylish font based on their category").
+            // Upper Mall's fronts get theirs per shop unit in WorldBuilder.MallFronts.cs.
             var boards = new MeshBuilder();
-            var signRoot = new GameObject("Shop signs").transform;
-            signRoot.SetParent(parent, false);
-            if (font)
-            {
-                var keep = signRoot.gameObject.AddComponent<SignText>();
-                keep.font = font;
-                keep.material = SignTextMaterial(font);
-            }
-            int[] boardCols = { Pal.Saffron, Pal.BoatBlue, Pal.Awning, Pal.JacketRed, Pal.BoatGreen, Pal.TempleRed, Pal.JacketBlack, Pal.BoatYellow };
-            int made = 0;
+            var letters = new MallChunks(ctx, parent, "Shop names", ctx.mats.atlas, false, 0.1f) { cellSize = 40f };
+            int made = 0, skippedMall = 0;
             var fronts = ctx.shopFronts.FindAll(f => NearMallRoad(ctx, new Vector2(f.pos.x, f.pos.z), 16f));
             int mallFronts = fronts.Count;
             fronts.AddRange(ctx.shopFronts.FindAll(f => !NearMallRoad(ctx, new Vector2(f.pos.x, f.pos.z), 16f)));
             foreach (var (pos, n, width) in fronts)
             {
                 if (made >= 700) break;
+                var p2 = new Vector2(pos.x, pos.z);
+                if (OnUpperMall(ctx, p2, 9f)) { skippedMall++; continue; }
                 bool mall = made < mallFronts;
                 Vector3 at = mall ? pos + Vector3.up * 0.65f : pos;
                 float bw = mall ? Mathf.Min(width * 0.96f, 8f) : Mathf.Min(width * 0.85f, 6.5f);
+                float bh = mall ? 1.05f : 0.62f;
                 var rot = Quaternion.LookRotation(n);
-                int col = boardCols[rnd.Next(boardCols.Length)];
-                boards.Box(at, new Vector3(bw, mall ? 1.05f : 0.62f, 0.08f), rot, Atlas.SolidUV(col));
-                if (font)
-                {
-                    var t = new GameObject("Sign");
-                    t.transform.SetParent(signRoot, false);
-                    t.transform.SetPositionAndRotation(at + n * 0.05f, Quaternion.LookRotation(-n));
-                    var tm = t.AddComponent<TextMesh>();
-                    tm.font = font;
-                    t.GetComponent<MeshRenderer>().sharedMaterial = SignTextMaterial(font);
-                    string name = ShopNames[rnd.Next(ShopNames.Length)];
-                    tm.text = name;
-                    tm.fontSize = 48;
-                    tm.characterSize = Mathf.Min(mall ? 0.095f : 0.055f, bw * 0.9f / (name.Length * 0.55f * 4.8f));
-                    tm.anchor = TextAnchor.MiddleCenter;
-                    tm.alignment = TextAlignment.Center;
-                    tm.color = col == Pal.BoatYellow || col == Pal.Saffron ? new Color(0.1f, 0.05f, 0.05f) : new Color(1f, 0.95f, 0.8f);
-                }
+                string name = ShopNames[rnd.Next(ShopNames.Length)];
+                var style = Glyph3D.StyleForName(name);
+                Glyph3D.Pick(style, rnd, out int board, out Vector2 front, out Vector2 side);
+                boards.Box(at, new Vector3(bw, bh, 0.08f), rot, Atlas.SolidUV(board));
+                Glyph3D.Write(letters.At(p2)[0], name, style.face, at + n * 0.04f, n, bh * 0.42f, 0.05f, bw * 0.9f, front, side);
                 made++;
             }
             ctx.MeshObject("Shop boards", parent, boards, ctx.mats.atlas, null, false);
+            letters.Flush();
+            Debug.Log($"[Nainital] shop signs: {made} boards with 3D names ({skippedMall} Upper Mall fronts left to MallFronts)");
 
             // ---- electricity poles and sagging wires along town roads
             var poles = new MeshBuilder();
@@ -169,24 +155,18 @@ namespace Nainital.EditorTools
                     gate.Box(new Vector3(0, 5.6f, 0), new Vector3(halfW * 2f + 1f, 1.2f, 0.5f), Atlas.SolidUV(Pal.Saffron));
                     gate.Box(new Vector3(0, 6.35f, 0), new Vector3(halfW * 2f + 1.4f, 0.3f, 0.7f), Atlas.SolidUV(Pal.TempleRed));
                 }
-                var gateGo = ctx.MeshObject("Welcome gate", parent, gate, ctx.mats.atlas, null, true, true);
-                if (font)
-                    foreach (int s in new[] { -1, 1 })
-                    {
-                        var t = new GameObject("Gate text");
-                        t.transform.SetParent(gateGo.transform, false);
-                        Vector3 fwd = rot * Vector3.forward;
-                        t.transform.SetPositionAndRotation(basePos + Vector3.up * 5.6f + fwd * (0.27f * s), Quaternion.LookRotation(fwd * s));
-                        var tm = t.AddComponent<TextMesh>();
-                        tm.font = font;
-                        t.GetComponent<MeshRenderer>().sharedMaterial = SignTextMaterial(font);
-                        tm.text = "NAINITAL MEIN AAPKA SWAGAT HAI\nWELCOME TO NAINITAL";
-                        tm.fontSize = 48;
-                        tm.characterSize = 0.045f;
-                        tm.anchor = TextAnchor.MiddleCenter;
-                        tm.alignment = TextAlignment.Center;
-                        tm.color = new Color(0.25f, 0.05f, 0.02f);
-                    }
+                // the greeting in solid letters on both faces of the beam (both ways of the road)
+                Vector3 beamFwd = rot * Vector3.forward;
+                float beamW = halfW * 2f + 0.6f;
+                foreach (int s in new[] { -1, 1 })
+                {
+                    Vector3 face = beamFwd * s, onBeam = basePos + face * 0.25f;
+                    Glyph3D.Write(gate, "NAINITAL MEIN AAPKA SWAGAT HAI", Glyph3D.Face.Desi, onBeam + Vector3.up * 5.85f, face, 0.3f, 0.06f, beamW,
+                                  Atlas.SolidUV(Pal.TempleRed), Atlas.SolidUV(Pal.WoodDark));
+                    Glyph3D.Write(gate, "WELCOME TO NAINITAL", Glyph3D.Face.Royal, onBeam + Vector3.up * 5.35f, face, 0.34f, 0.06f, beamW,
+                                  Atlas.SolidUV(Pal.TempleRed), Atlas.SolidUV(Pal.WoodDark));
+                }
+                ctx.MeshObject("Welcome gate", parent, gate, ctx.mats.atlas, null, true, true);
                 ctx.Zone("Nainital Gate", basePos, 30f);
                 break;
             }

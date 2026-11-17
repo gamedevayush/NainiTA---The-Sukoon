@@ -37,3 +37,11 @@ __pycache__/
 # bug reports from the in-game / editor bug capture (local)
 /BugReports/
 /Generated/
+
+# Tools/interiors: LaMa-cleaned copies (pack_rooms.py rebuilds them from raw/), the first test image, the run log
+Tools/interiors/clean/
+Tools/interiors/test/
+Tools/interiors/flow_run.log
+Tools/interiors/rooms_sheet.jpg
+# made by the Performance Testing package during player builds
+Assets/Resources/PerformanceTestRun*

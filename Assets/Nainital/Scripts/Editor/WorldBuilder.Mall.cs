@@ -159,6 +159,8 @@ namespace Nainital.EditorTools
             /// built as a mesh (2026-11-16: all paving part of the terrain). -1 builds meshes.</summary>
             public int paintChannel = -1;
             public float paintStrength = 1f;
+            /// <summary>Map cell size, metres (smaller cells cull sooner: the 3D shop names use 40 m).</summary>
+            public float cellSize = 90f;
 
             public MallChunks(WorldCtx c, Transform p, string n, Material m, bool castShadows, float cullHeight = 0f)
             {
@@ -167,7 +169,7 @@ namespace Nainital.EditorTools
 
             public MeshBuilder[] At(Vector2 q)
             {
-                var key = new Vector2Int(Mathf.FloorToInt(q.x / 90f), Mathf.FloorToInt(q.y / 90f));
+                var key = new Vector2Int(Mathf.FloorToInt(q.x / cellSize), Mathf.FloorToInt(q.y / cellSize));
                 if (!cells.TryGetValue(key, out var b)) cells[key] = b = new[] { new MeshBuilder(), new MeshBuilder() };
                 return b;
             }
@@ -1233,17 +1235,28 @@ namespace Nainital.EditorTools
         static void MallShopDressing(WorldCtx ctx, Transform parent, MallLine U)
         {
             var chunks = new MallChunks(ctx, parent, "Mall shop dressing", ctx.mats.atlas, true, 0.05f);
+            // the rooms behind the fronts (ShopGlass: Flow photos on a plane behind the glass, WorldBuilder.MallFronts.cs)
+            var glassChunks = ctx.mats.shopGlass ? new MallChunks(ctx, parent, "Mall shop glass", ctx.mats.shopGlass, false, 0.03f) : null;
+            var letterChunks = new MallChunks(ctx, parent, "Mall shop names", ctx.mats.atlas, false, 0.1f) { cellSize = 40f };   // 3D names, no shadows, culled far off
             var rnd = new System.Random(4141);
-            int[] awnings = { Pal.BoatBlue, Pal.BoatBlue, Pal.Awning, Pal.BoatYellow, Pal.Canopy, Pal.JacketRed, Pal.BoatGreen };
-            int[] goods = { Pal.SareeOrange, Pal.JacketBlue, Pal.ShirtWhite, Pal.SareePink, Pal.JacketYellow, Pal.Jeans, Pal.TempleRed, Pal.Saffron, Pal.BoatGreen };
-            Vector2 pole = Atlas.SolidUV(Pal.IronBlack), wood = Atlas.MaterialUV(Atlas.MatWood), tube = Atlas.SolidUV(Pal.LampBulb), conc = Atlas.MaterialUV(Atlas.MatConcrete), dark = Atlas.SolidUV(Pal.StoneGrey);
+            Vector2 conc = Atlas.MaterialUV(Atlas.MatConcrete), dark = Atlas.SolidUV(Pal.StoneGrey);
             int[] blades = { Pal.JacketRed, Pal.BoatYellow, Pal.BoatBlue, Pal.TempleRed };
             int done = 0;
+            var set = new MallFrontSet();
 
+            // along the road in the walking order of video 02, so each stretch hands out its shops in turn
+            var fronts = new List<(Vector3 pos, Vector3 n, float width, float sec)>();
             foreach (var (pos, n, width) in ctx.shopFronts)
             {
                 var p2 = new Vector2(pos.x, pos.z);
                 if (Geo.DistanceToPolyline(U.arr, p2, false) > 9f) continue;
+                fronts.Add((pos, n, width, MallVideoSeconds(ctx, p2)));
+            }
+            fronts.Sort((a, b) => a.sec.CompareTo(b.sec));
+
+            foreach (var (pos, n, width, sec) in fronts)
+            {
+                var p2 = new Vector2(pos.x, pos.z);
                 float ground = U.y[NearestIndex(U.p, p2)] + 0.16f;
                 Vector3 nrm = n.normalized, along = Vector3.Cross(Vector3.up, nrm).normalized;
                 Vector3 wall = new Vector3(pos.x, ground, pos.z) - nrm * 0.62f;
@@ -1258,39 +1271,9 @@ namespace Nainital.EditorTools
                 cell[1].Box(wall + nrm * 0.5f + Vector3.up * (PlinthH * 0.5f), new Vector3(w, PlinthH, 1f), rot, Vector2.zero);
                 Vector3 floor = wall + Vector3.up * PlinthH;
 
-                // sloping awning on two poles, with a valance along its front
-                Vector3 topC = floor + Vector3.up * 2.2f, outC = floor + nrm * 1.65f + Vector3.up * 1.95f;
-                Vector3 half = along * (w * 0.5f);
-                var awn = new Rect(Atlas.SolidUV(awnings[rnd.Next(awnings.Length)]), Vector2.zero);
-                mb.QuadDouble(topC - half, topC + half, outC + half, outC - half, awn, Vector3.up);
-                mb.QuadDouble(outC - half + Vector3.down * 0.16f, outC + half + Vector3.down * 0.16f, outC + half, outC - half, awn, nrm);
-                mb.Limb(outC - half * 0.95f, outC - half * 0.95f - Vector3.up * 2.3f, 0.028f, 0.028f, 4, pole, false);
-                mb.Limb(outC + half * 0.95f, outC + half * 0.95f - Vector3.up * 2.3f, 0.028f, 0.028f, 4, pole, false);
-                mb.Box(topC + nrm * 0.55f + Vector3.down * 0.13f, new Vector3(w * 0.8f, 0.05f, 0.08f), rot, tube);
-
-                // shawls, caps and bags hanging from the awning's edge: narrow pieces with gaps, so the shop shows through
-                int hang = Mathf.Clamp(Mathf.RoundToInt(w / 0.42f), 4, 16);
-                for (int k = 0; k < hang; k++)
-                {
-                    if (rnd.NextDouble() < 0.3) continue;
-                    float x = (k + 0.5f) / hang - 0.5f, cw = 0.06f + (float)rnd.NextDouble() * 0.08f, ch = 0.3f + (float)rnd.NextDouble() * 0.65f;
-                    Vector3 c = outC - nrm * 0.16f + along * (x * w) + Vector3.down * 0.16f;
-                    var uv = new Rect(Atlas.SolidUV(goods[rnd.Next(goods.Length)]), Vector2.zero);
-                    mb.QuadDouble(c - along * cw + Vector3.down * ch, c + along * cw + Vector3.down * ch, c + along * cw, c - along * cw, uv, nrm);
-                }
-
-                // goods heaped on a table at the front of the plinth
-                Vector3 table = floor + nrm * 0.62f;
-                float tw = w * 0.72f;
-                mb.Box(table + Vector3.up * 0.38f, new Vector3(tw, 0.76f, 0.8f), rot, wood);
-                int piles = Mathf.Clamp(Mathf.RoundToInt(tw / 0.34f), 4, 16);
-                for (int k = 0; k < piles; k++)
-                {
-                    float x = ((k + 0.5f) / piles - 0.5f) * tw, h = 0.08f + (float)rnd.NextDouble() * 0.26f;
-                    Vector3 c = table + along * x + nrm * (float)((rnd.NextDouble() - 0.5) * 0.45) + Vector3.up * (0.76f + h * 0.5f);
-                    mb.Box(c, new Vector3(0.3f, h, 0.28f), rot, Atlas.SolidUV(goods[rnd.Next(goods.Length)]));
-                }
-                cell[1].Box(table + Vector3.up * 0.5f, new Vector3(tw, 1f, 0.8f), rot, Vector2.zero);
+                // the front by kind: restaurant / cafe / bank / hotel glass, open shop, shutter (+ kiosk); no goods props
+                // any more - the room photo behind shows them (user, 2026-11-17)
+                MallFront(ctx, set, mb, glassChunks?.At(p2)[0], letterChunks.At(p2)[0], wall, nrm, floor.y, pos.y - 2.75f, w, sec, rnd);   // pos.y: the house floor + 2.75 (BuildingKit.House)
 
                 // a tall vertical sign fixed to the wall on some shops
                 if (rnd.NextDouble() < 0.38)
@@ -1335,7 +1318,11 @@ namespace Nainital.EditorTools
                 }
             }
             chunks.Flush();
-            Debug.Log($"[Nainital] Mall Road: {done} shops dressed, {balconies} balconies");
+            glassChunks?.Flush();
+            letterChunks.Flush();
+            var kinds = new List<string>();
+            for (int r = 0; r < set.perRoom.Length; r++) if (set.perRoom[r] > 0) kinds.Add(r + ":" + set.perRoom[r]);
+            Debug.Log($"[Nainital] Mall Road: {done} shop fronts dressed, {balconies} balconies; {set.units} shop units ({set.glassUnits} glass fronts, {set.openUnits} open shops, {set.shutUnits} shut, {set.overlapped} skipped over another front), {set.kiosks} kiosks; rooms {string.Join(" ", kinds)}");
         }
     }
 }

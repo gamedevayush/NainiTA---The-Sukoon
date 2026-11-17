@@ -100,8 +100,9 @@ namespace Nainital.EditorTools
 
         // ------------------------------------------------------------------ window
         /// <summary>A timber window set back in the wall. flags: 1 = small panes, 2 = iron grill, 4 = curtains,
-        /// 8 = one casement standing open (dark gap).</summary>
-        static void Window(ref Color c, ref Color e, float u, float v, float x0, float y0, float x1, float y1, Color trim, Color wall, bool lit, int seed, int flags)
+        /// 8 = one casement standing open (dark gap). glass: set to how much of the room behind shows through this pixel
+        /// (1 clear glass or the open casement, 0.3 a curtain drawn across, 0 frame, grill and the curtains at the sides).</summary>
+        static void Window(ref Color c, ref Color e, float u, float v, float x0, float y0, float x1, float y1, Color trim, Color wall, bool lit, int seed, int flags, ref float glassOut)
         {
             float w = x1 - x0, h = y1 - y0;
             // rain marks below the sill, strongest at its ends
@@ -152,6 +153,7 @@ namespace Nainital.EditorTools
                 float sheen = Mathf.Repeat((u - x0) + (v - y0) * 0.55f + seed * 3f, 19f);
                 if (sheen < 2.2f) glass = Mix(glass, GlassSky, 0.22f);
                 if (open) glass = Mul(GlassDark, 0.7f);
+                glassOut = 1f;
                 if ((flags & 4) != 0 && !open)
                 {
                     // curtains drawn back to the sides (or right across on some)
@@ -162,6 +164,7 @@ namespace Nainital.EditorTools
                         Color cloth = CurtainColor(seed);
                         float fold = 0.82f + 0.18f * Mathf.Sin(u * 2.4f + seed);
                         glass = Mix(glass, Mul(cloth, fold), 0.62f);
+                        glassOut = across && side >= 0.22f ? 0.3f : 0f;
                     }
                 }
                 c = glass;
@@ -179,7 +182,7 @@ namespace Nainital.EditorTools
             {
                 // iron grill outside the glass: uprights and two flats
                 float gu = Mathf.Repeat(u - x0, 2.9f), gv1 = Mathf.Abs(v - (y0 + h * 0.3f)), gv2 = Mathf.Abs(v - (y0 + h * 0.7f));
-                if (gu < 0.42f || gv1 < 0.3f || gv2 < 0.3f) { c = Mix(c, Iron, 0.9f); e = Mul(e, 0.15f); }
+                if (gu < 0.42f || gv1 < 0.3f || gv2 < 0.3f) { c = Mix(c, Iron, 0.9f); e = Mul(e, 0.15f); glassOut = 0f; }
             }
         }
 
@@ -219,6 +222,7 @@ namespace Nainital.EditorTools
         public static Color Bay(int kind, bool lit, int wallIndex, Color wall, float u, float v, int seed, out Color e)
         {
             e = Color.black;
+            float glass = 0f;   // returned as 1 - alpha: where a ground-floor bay shows the room behind (AtlasLit interior)
             Color c = Plaster(wall, u, v, seed);
             Color trim = Trim(wallIndex, wall);
             // floor line: a shallow band where the slab meets the wall, on some colours
@@ -228,7 +232,7 @@ namespace Nainital.EditorTools
                 case WinA:
                 {
                     int flags = ((wallIndex + 1) % 2 == 0 ? 1 : 0) | ((seed % 3) == 0 ? 2 : 0) | 4 | ((seed % 7) == 3 ? 8 : 0);
-                    Window(ref c, ref e, u, v, 19f, 19f, 45f, 48.5f, trim, wall, lit, seed, flags);
+                    Window(ref c, ref e, u, v, 19f, 19f, 45f, 48.5f, trim, wall, lit, seed, flags, ref glass);
                     Sunshade(ref c, u, v, 14.5f, 49.5f, 52f, wall, seed);
                     break;
                 }
@@ -236,8 +240,8 @@ namespace Nainital.EditorTools
                 {
                     int flags = ((wallIndex % 2) == 0 ? 1 : 0) | ((seed % 4) == 1 ? 2 : 0);
                     Color e1 = Color.black, e2 = Color.black;
-                    Window(ref c, ref e1, u, v, 8.5f, 20f, 24.5f, 48.5f, trim, wall, lit, seed, flags | ((seed % 2) == 0 ? 4 : 0));
-                    Window(ref c, ref e2, u, v, 39.5f, 20f, 55.5f, 48.5f, trim, wall, lit && Hash(wallIndex, seed, 3) > 0.3f, seed + 1, flags | 4);
+                    Window(ref c, ref e1, u, v, 8.5f, 20f, 24.5f, 48.5f, trim, wall, lit, seed, flags | ((seed % 2) == 0 ? 4 : 0), ref glass);
+                    Window(ref c, ref e2, u, v, 39.5f, 20f, 55.5f, 48.5f, trim, wall, lit && Hash(wallIndex, seed, 3) > 0.3f, seed + 1, flags | 4, ref glass);
                     e = e1 + e2;
                     break;
                 }
@@ -246,10 +250,10 @@ namespace Nainital.EditorTools
                     else BalconyBay(ref c, ref e, u, v, trim, wall, lit, seed, wallIndex);
                     break;
                 case Door: DoorBay(ref c, ref e, u, v, trim, wall, seed); break;
-                case Shop: ShopBay(ref c, ref e, u, v, wall, lit, seed); break;
+                case Shop: ShopBay(ref c, ref e, u, v, wall, lit, seed, ref glass); break;
                 default: PlainBay(ref c, u, v, wall, seed); break;
             }
-            c.a = 1f;
+            c.a = 1f - glass;
             return c;
         }
 
@@ -412,7 +416,7 @@ namespace Nainital.EditorTools
             if (lit) { c = Mix(c, Lit, 0.10f); e = Mul(Lit, 0.6f + 0.3f * VNoise(u * 0.4f, v * 0.4f, seed)); }
         }
 
-        static void ShopBay(ref Color c, ref Color e, float u, float v, Color wall, bool lit, int seed)
+        static void ShopBay(ref Color c, ref Color e, float u, float v, Color wall, bool lit, int seed, ref float glass)
         {
             bool shut = !lit && (seed % 5) < 2;                      // some shops are closed in the daytime
             Color board = Boards[(int)(Hash(seed, 7, 99) * 7.999f)];
@@ -433,6 +437,8 @@ namespace Nainital.EditorTools
                     // open front: shelves of goods to the roof, a counter, strings of packets across the top
                     Color back = new Color(0.10f, 0.085f, 0.07f);
                     c = back;
+                    // on a ground-floor bay the room shows above the counter (the packets on strings stay in front)
+                    if (v >= 9f && v < 37.8f) glass = 1f;
                     float glow = lit ? 1f : 0.6f;
                     int shelf = Mathf.FloorToInt((v - 9f) / 6.2f);
                     float sv = Mathf.Repeat(v - 9f, 6.2f);
@@ -464,14 +470,14 @@ namespace Nainital.EditorTools
                         float su = Mathf.Repeat(u, 2.1f);
                         int pk = Mathf.FloorToInt(u / 2.1f);
                         float len = 2.2f + 3.2f * Hash(pk, seed, 6);
-                        if (su > 0.3f && v > 38.6f - len && v < 38.8f) c = Color.HSVToRGB(Hash(pk, seed, 8), 0.5f, 0.66f);
+                        if (su > 0.3f && v > 38.6f - len && v < 38.8f) { c = Color.HSVToRGB(Hash(pk, seed, 8), 0.5f, 0.66f); glass = 0f; }
                     }
                     c = Mul(c, 0.72f + 0.28f * Smooth(40.5f, 22f, v));                                     // darker up under the lintel
                     c = Mul(c, glow);
                     if (lit) e = Mul(new Color(1f, 0.93f, 0.8f), 0.38f + 0.3f * c.grayscale);
                 }
                 // the shutter box above the opening
-                if (v > 37.8f) { c = Mul(new Color(0.40f, 0.41f, 0.41f), 0.75f + 0.25f * Mathf.Sin(Mathf.Repeat(v, 0.9f) / 0.9f * Mathf.PI)); e = Color.black; }
+                if (v > 37.8f) { c = Mul(new Color(0.40f, 0.41f, 0.41f), 0.75f + 0.25f * Mathf.Sin(Mathf.Repeat(v, 0.9f) / 0.9f * Mathf.PI)); e = Color.black; glass = 0f; }
             }
             else if (In(u, v, 1.5f, 42.5f, 62.5f, 58.5f))
             {

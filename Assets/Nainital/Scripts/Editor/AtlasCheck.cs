@@ -40,6 +40,8 @@ namespace Nainital.EditorTools
             if (n) { m.SetTexture("_BumpMap", n); m.EnableKeyword("_NORMALMAP"); }
             if (e) { m.SetTexture("_EmissionMap", e); m.EnableKeyword("_EMISSION"); }
             if (mask && m.HasProperty("_DetailMask")) m.SetTexture("_DetailMask", mask);
+            var rooms = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Nainital/Data/Interiors/RoomPhotos.png");
+            if (rooms && m.HasProperty("_RoomTex")) m.SetTexture("_RoomTex", rooms);
             var pd = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Nainital/Data/PBR/plaster_detail.png");
             var pn = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Nainital/Data/PBR/white_rough_plaster_normal.png");
             if (pd && m.HasProperty("_DetailAlbedoMap")) { m.SetTexture("_DetailAlbedoMap", pd); m.SetTextureScale("_DetailAlbedoMap", new Vector2(48f, 48f)); }

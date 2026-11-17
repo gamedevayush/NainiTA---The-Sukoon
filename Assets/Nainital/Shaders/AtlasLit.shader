@@ -37,6 +37,9 @@ Shader "Nainital/AtlasLit"
         [HDR] _EmissionColor("Color", Color) = (0,0,0)
         _EmissionMap("Emission", 2D) = "white" {}
 
+        // Nainital: the rooms behind ground-floor glass (InteriorArt, 2D-atlas interior mapping in AtlasForwardPass.hlsl)
+        [NoScaleOffset] _RoomTex("Rooms (2D atlas)", 2D) = "black" {}
+
         _DetailMask("Detail Mask", 2D) = "white" {}
         _DetailAlbedoMapScale("Scale", Range(0.0, 2.0)) = 1.0
         _DetailAlbedoMap("Detail Albedo x2", 2D) = "linearGrey" {}

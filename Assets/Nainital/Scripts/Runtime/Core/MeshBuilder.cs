@@ -14,14 +14,37 @@ namespace Nainital
         public readonly List<Vector3> N = new List<Vector3>();
         public readonly List<Vector2> UV = new List<Vector2>();
         public readonly List<int> T = new List<int>();
+        /// <summary>Vertex colours: only a mesh that used <see cref="QuadTagged"/> carries the channel (the shop glass:
+        /// room index and open/glass, ShopGlass.shader); everything else stays position + normal + uv.</summary>
+        public readonly List<Color32> C = new List<Color32>();
         public Matrix4x4 M = Matrix4x4.identity;
 
         public int VertexCount => V.Count;
 
         public void Clear()
         {
-            V.Clear(); N.Clear(); UV.Clear(); T.Clear();
+            V.Clear(); N.Clear(); UV.Clear(); T.Clear(); C.Clear();
             M = Matrix4x4.identity;
+        }
+
+        /// <summary>A quad whose uvs stay with their corners (never mirrored) and whose corners carry a colour tag.
+        /// Faces <paramref name="normal"/>.</summary>
+        public void QuadTagged(Vector3 bl, Vector3 br, Vector3 tr, Vector3 tl, Vector2 ubl, Vector2 ubr, Vector2 utr, Vector2 utl,
+                               Vector3 normal, Color32 tag)
+        {
+            bl = P(bl); br = P(br); tr = P(tr); tl = P(tl); normal = D(normal);
+            Vector3 n = Vector3.Cross(tl - bl, tr - bl);
+            if (n.sqrMagnitude < 1e-12f) return;
+            if (Vector3.Dot(n, normal) < 0f) { (bl, br) = (br, bl); (tl, tr) = (tr, tl); (ubl, ubr) = (ubr, ubl); (utl, utr) = (utr, utl); }
+            n = normal.normalized;
+            while (C.Count < V.Count) C.Add(default);
+            int i = V.Count;
+            V.Add(bl); V.Add(br); V.Add(tr); V.Add(tl);
+            N.Add(n); N.Add(n); N.Add(n); N.Add(n);
+            UV.Add(ubl); UV.Add(ubr); UV.Add(utr); UV.Add(utl);
+            C.Add(tag); C.Add(tag); C.Add(tag); C.Add(tag);
+            T.Add(i); T.Add(i + 3); T.Add(i + 2);
+            T.Add(i); T.Add(i + 2); T.Add(i + 1);
         }
 
         Vector3 P(Vector3 p) => M.MultiplyPoint3x4(p);
@@ -243,6 +266,11 @@ namespace Nainital
             mesh.SetVertices(V);
             mesh.SetNormals(N);
             mesh.SetUVs(0, UV);
+            if (C.Count > 0)
+            {
+                while (C.Count < V.Count) C.Add(default);
+                mesh.SetColors(C);
+            }
             mesh.SetTriangles(T, 0);
             mesh.RecalculateBounds();
             return mesh;

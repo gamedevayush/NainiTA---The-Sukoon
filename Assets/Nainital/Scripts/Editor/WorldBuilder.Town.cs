@@ -108,21 +108,41 @@ namespace Nainital.EditorTools
             return found;
         }
 
-        internal static void Label(Transform parent, Font font, string text, Vector3 pos, Vector3 facing, float height, Color col)
+        /// <summary>A line of lettering on a board or a building: solid 3D letters (user, 2026-11-18: "tagda 3D name,
+        /// stylish font"), centred at pos, facing `facing`, `height` the old text-line height (cap height ~0.72 of it),
+        /// in the palette colour nearest `col`. The font follows the words unless given. `font` is no longer used.</summary>
+        internal static void Label(Transform parent, Font font, string text, Vector3 pos, Vector3 facing, float height, Color col, Glyph3D.Face? face = null)
         {
-            if (!font) return;
-            var t = new GameObject("Text");
-            t.transform.SetParent(parent, false);
-            t.transform.SetPositionAndRotation(pos + facing * 0.05f, Quaternion.LookRotation(-facing));
-            var tm = t.AddComponent<TextMesh>();
-            tm.font = font;
-            t.GetComponent<MeshRenderer>().sharedMaterial = SignTextMaterial(font);
-            tm.text = text;
-            tm.fontSize = 64;
-            tm.characterSize = height / 6.4f;
-            tm.anchor = TextAnchor.MiddleCenter;
-            tm.alignment = TextAlignment.Center;
-            tm.color = col;
+            if (buildCtx == null || string.IsNullOrEmpty(text)) return;
+            var mb = new MeshBuilder();
+            int front = NearestPal(col);
+            int side = front == Pal.IronBlack || front == Pal.WoodDark ? Pal.StoneGrey : (col.grayscale > 0.6f ? Pal.StoneGrey : Pal.IronBlack);
+            Glyph3D.Write(mb, text, face ?? LabelFace(text), pos + facing.normalized * 0.02f, facing, height * 0.72f,
+                          Mathf.Clamp(height * 0.12f, 0.02f, 0.12f), float.MaxValue, Atlas.SolidUV(front), Atlas.SolidUV(side));
+            if (mb.VertexCount > 0) buildCtx.MeshObject("Text " + text, parent, mb, buildCtx.mats.atlas, null, false);
+        }
+
+        static Glyph3D.Face LabelFace(string text)
+        {
+            string t = text.ToUpperInvariant();
+            if (t.Contains("CAPITOL") || t.Contains("ZOOM")) return Glyph3D.Face.Deco;
+            if (t.Contains("MANDIR") || t.Contains("DWAR") || t.Contains("TEMPLE") || t.Contains("ZOO")) return Glyph3D.Face.Royal;
+            return Glyph3D.Face.Block;   // police, help centres, road signs, halls
+        }
+
+        /// <summary>The palette entry (Pal.*) closest to a colour.</summary>
+        static int NearestPal(Color c)
+        {
+            int best = Pal.ShirtWhite;
+            float bd = float.MaxValue;
+            for (int i = 0; i < Atlas.Solid.Length; i++)
+            {
+                if (Atlas.SolidEmissive(i)) continue;
+                Color s = Atlas.Solid[i];
+                float d = (s.r - c.r) * (s.r - c.r) + (s.g - c.g) * (s.g - c.g) + (s.b - c.b) * (s.b - c.b);
+                if (d < bd) { bd = d; best = i; }
+            }
+            return best;
         }
 
         /// <summary>A green highway board on two poles beside the road, facing traffic.</summary>

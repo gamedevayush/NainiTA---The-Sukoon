@@ -10,6 +10,8 @@ namespace Nainital.EditorTools
         public class Materials
         {
             public Material atlas, asphalt, paver, dirtPath, water, sky, terrain, marker, rain;
+            /// <summary>Mall Road shop glass and open fronts: the room photos behind (Shaders/ShopGlass).</summary>
+            public Material shopGlass;
             public TerrainLayer[] layers;
         }
 
@@ -134,6 +136,35 @@ namespace Nainital.EditorTools
 
         /// <summary>Detail mask (alpha): plaster micro-detail on walls/roofs/stone, none on solid palette colours. One
         /// value a cell, so a small texture does.</summary>
+        /// <summary>The room photos behind ground-floor glass (Tools/interiors: Google Flow photos packed by pack_rooms.py),
+        /// kept in Data so the build does not need Flow. Clamped, mipped, ASTC 8x8 on the phone (4096 x 2048: ~2.8 MB with
+        /// mips; photos seen through glass do not need finer).</summary>
+        static Texture2D RoomPhotos()
+        {
+            const string path = "Assets/Nainital/Data/Interiors/RoomPhotos.png";
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+            var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (imp == null) { Debug.LogWarning("[Nainital] no " + path + ": ground-floor rooms are black (run Tools/interiors/pack_rooms.py)"); return null; }
+            imp.textureType = TextureImporterType.Default;
+            imp.sRGBTexture = true;
+            imp.mipmapEnabled = true;
+            imp.wrapMode = TextureWrapMode.Clamp;
+            imp.filterMode = FilterMode.Trilinear;
+            imp.anisoLevel = 2;
+            imp.maxTextureSize = Atlas.RoomCols * Atlas.RoomPx;
+            imp.textureCompression = TextureImporterCompression.CompressedHQ;
+            foreach (var platform in new[] { "iPhone", "Android" })
+            {
+                var ps = imp.GetPlatformTextureSettings(platform);
+                ps.overridden = true;
+                ps.maxTextureSize = Atlas.RoomCols * Atlas.RoomPx;
+                ps.format = TextureImporterFormat.ASTC_8x8;
+                imp.SetPlatformTextureSettings(ps);
+            }
+            imp.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
         static Texture2D AtlasDetailMask()
         {
             const int S = 1024;
@@ -285,7 +316,8 @@ namespace Nainital.EditorTools
                         float u = (x + 0.5f) * k, v = (y + 0.5f) * k;
                         Color e = Color.black;
                         Color c = facade ? FacadeArt.Bay(kinds[s], lit, w, wc, u, v, seed, out e) : FacadeArt.Plaster(wc, u, v, w * 13 + s);
-                        c.a = 1f; e.a = 1f;
+                        if (!facade) c.a = 1f;   // a facade's alpha is 1 - glass (where a ground-floor bay shows its room)
+                        e.a = 1f;
                         int idx = (w * C + y) * S + s * C + x;
                         px[idx] = c;
                         em[idx] = e;
@@ -308,7 +340,7 @@ namespace Nainital.EditorTools
                     {
                         float u = (x + 0.5f) * k, v = (y + 0.5f) * k;
                         Color c = FacadeArt.Bay(kinds[s], lit, w, wc, u, v, seed, out Color e);
-                        c.a = 1f; e.a = 1f;
+                        e.a = 1f;   // c.a: 1 - glass, as above
                         int idx = (cell.y * C + y) * S + cell.x * C + x;
                         px[idx] = c;
                         em[idx] = e;
@@ -460,8 +492,11 @@ namespace Nainital.EditorTools
             Directory.CreateDirectory(mat);
 
             BuildAtlas(out var aBase, out var aEm);
-            var atlasBase = SavePng(aBase, tex + "/Atlas_Base.png", false, true, Atlas.Size, true);
-            var atlasEm = SavePng(aEm, tex + "/Atlas_Emission.png", false, true, Mathf.Min(Atlas.Size, 2048), true);   // lit windows: half size is plenty
+            // the atlas textures repeat: a ground-floor bay with a room sits whole atlas widths away (Atlas.InteriorBay),
+            // and every pass that samples them (forward, depth-normals for SSAO) must land on the same texels
+            var atlasBase = SavePng(aBase, tex + "/Atlas_Base.png", true, true, Atlas.Size, true);
+            var atlasEm = SavePng(aEm, tex + "/Atlas_Emission.png", true, true, Mathf.Min(Atlas.Size, 2048), true);   // lit windows: half size is plenty
+            var atlasRooms = RoomPhotos();
 
             var grass = SavePng(Tiling(512, Grass, 0.04f), tex + "/T_Grass.png", true);
             var forest = SavePng(Tiling(512, Forest, 0.02f), tex + "/T_ForestFloor.png", true);
@@ -475,9 +510,9 @@ namespace Nainital.EditorTools
             Texture2D P(string n) => ImportPbr(pbr + n + "_albedo.png", false);
             Texture2D PN(string n) => ImportPbr(pbr + n + "_normal.png", true);
             var atlasNormalTex = AtlasNormal(lastAtlasPixels);
-            var atlasNormal = SavePng(atlasNormalTex, tex + "/Atlas_Normal.png", false, false, Atlas.Size, true, true);
+            var atlasNormal = SavePng(atlasNormalTex, tex + "/Atlas_Normal.png", true, false, Atlas.Size, true, true);
             lastAtlasPixels = null;
-            var atlasMask = SavePng(AtlasDetailMask(), tex + "/Atlas_DetailMask.png", false, false, 1024, true);
+            var atlasMask = SavePng(AtlasDetailMask(), tex + "/Atlas_DetailMask.png", true, false, 1024, true);
             var plasterDetail = ImportPbr(pbr + "plaster_detail.png", false, 512);
             var plasterNormal = PN("white_rough_plaster");
             if (plasterDetail)
@@ -495,6 +530,7 @@ namespace Nainital.EditorTools
             m.atlas.SetTexture("_BaseMap", atlasBase);
             m.atlas.SetColor("_BaseColor", Color.white);
             m.atlas.SetTexture("_EmissionMap", atlasEm);
+            if (m.atlas.HasProperty("_RoomTex")) m.atlas.SetTexture("_RoomTex", atlasRooms);   // fake rooms behind ground-floor glass
             m.atlas.SetColor("_EmissionColor", new Color(0.004f, 0.003f, 0.002f));   // non-black keeps _EMISSION alive
             m.atlas.EnableKeyword("_EMISSION");
             m.atlas.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
@@ -516,6 +552,18 @@ namespace Nainital.EditorTools
             }
             m.atlas.enableInstancing = true;
             EditorUtility.SetDirty(m.atlas);   // saved with it: the grass draws the atlas instanced (was lost on reload: black frame)
+
+            // Mall Road shop glass / open fronts: the same room photos (WorldBuilder.MallFronts.cs)
+            var glassShader = Shader.Find("Nainital/ShopGlass");
+            if (glassShader)
+            {
+                m.shopGlass = SaveAsset(new Material(glassShader) { name = "M_ShopGlass" }, mat + "/M_ShopGlass.mat");
+                m.shopGlass.SetTexture("_RoomTex", atlasRooms);
+                m.shopGlass.SetFloat("_Depth", 2.4f);
+                m.shopGlass.enableInstancing = true;
+                EditorUtility.SetDirty(m.shopGlass);
+            }
+            else Debug.LogWarning("[Nainital] no Nainital/ShopGlass shader: Mall Road fronts get no glass");
 
             Material Tiled(string name, Texture2D t, float smooth, Texture2D albedoPbr = null, Texture2D normalPbr = null, float tiling = 1f)
             {

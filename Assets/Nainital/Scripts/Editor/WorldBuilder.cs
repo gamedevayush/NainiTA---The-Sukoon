@@ -201,6 +201,7 @@ namespace Nainital.EditorTools
             AssetDatabase.CreateAsset(bank, bankPath);
 
             var ctx = new WorldCtx { world = world, mats = mats, bank = bank, bankPath = bankPath };
+            buildCtx = ctx;   // for Label's 3D letters (it is called from many places without the context)
             ctx.worldRoot = new GameObject("World (real Nainital data)").transform;
             ctx.gameplayRoot = new GameObject("Gameplay").transform;
 
@@ -706,6 +707,9 @@ namespace Nainital.EditorTools
         }
 
         // ------------------------------------------------------------------ buildings
+        /// <summary>The world being built (set in Build): Label() writes its 3D letters through it.</summary>
+        static WorldCtx buildCtx;
+
         static bool NearMallRoad(WorldCtx ctx, Vector2 p, float dist)
         {
             foreach (var line in ctx.mallRoad)
@@ -728,7 +732,7 @@ namespace Nainital.EditorTools
             var tallitalBus = ctx.Poi("New Bus Station");
             var mallitalC = ctx.Poi("Nainital Stadium");
             var h = ctx.world.houses;
-            int count = 0, highCount = 0, colonialCount = 0;
+            int count = 0, highCount = 0, colonialCount = 0, rooftopCount = 0;
             PrepareHighStreet(ctx);
             for (int i = 0; i + 8 < h.Length; i += 9)
             {
@@ -773,11 +777,15 @@ namespace Nainital.EditorTools
                 // G.O.A.N. box, whatever the street
                 bool photoTin = h[i + 8] > 1.5f;
                 if (!lowOnly && !high && !colonial && !photoTin && TryGoanHouse(ctx, i / 9, c, w, d, yaw, gMin, gMax, shop, Chunk(c)[0])) { count++; continue; }
+                // a rooftop cafe on some of the front row along Mall Road's busy stretches (user, 2026-11-17: "kuch rooftop
+                // cafe"; WorldBuilder.MallFronts.cs): a flat roof for it
+                bool rooftop = colonial && w > 5f && d > 5f && MallBusy(MallVideoSeconds(ctx, c)) && ((uint)(i / 9) * 2246822519u >> 20) % 100u < 28u;
+                if (rooftop) rooftopCount++;
                 var st = new BuildingKit.Style
                 {
                     wall = wallIdx % Atlas.WallColors, roof = roofIdx,
-                    flatRoof = !colonial && !photoTin && (high || TinRoofLook(ctx, c, i / 9, h[i + 8] > 0.5f)), shop = shop, litChance = high ? 0.6f : 0.45f,
-                    colonial = colonial,
+                    flatRoof = rooftop || (!colonial && !photoTin && (high || TinRoofLook(ctx, c, i / 9, h[i + 8] > 0.5f))), shop = shop, litChance = high ? 0.6f : 0.45f,
+                    colonial = colonial, rooftopCafe = rooftop,
                 };
                 var ch = Chunk(c);
                 BuildingKit.House(ch[0], ch[1], c, w, d, yaw, levels, gMin, gMax, st, ctx.rng);
@@ -831,7 +839,7 @@ namespace Nainital.EditorTools
                 var go = ctx.MeshObject($"Houses {kv.Key.x},{kv.Key.y}", parent, kv.Value[0], ctx.mats.atlas, kv.Value[1]);
                 GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
             }
-            Debug.Log($"[Nainital] buildings: {count} in {chunks.Count} chunks ({highCount} high-street shop buildings + {infill} new street-wall shops, {colonialCount} Mall Road colonial fronts)");
+            Debug.Log($"[Nainital] buildings: {count} in {chunks.Count} chunks ({highCount} high-street shop buildings + {infill} new street-wall shops, {colonialCount} Mall Road colonial fronts, {rooftopCount} rooftop cafes)");
         }
 
         /// <summary>
@@ -1259,7 +1267,7 @@ namespace Nainital.EditorTools
             dn.transform.SetParent(root, false);
             dn.sun = sun;
             dn.skyMaterial = ctx.mats.sky;
-            dn.emissiveMaterials = new[] { ctx.mats.atlas };
+            dn.emissiveMaterials = ctx.mats.shopGlass ? new[] { ctx.mats.atlas, ctx.mats.shopGlass } : new[] { ctx.mats.atlas };   // the shops' lights at night
             dn.lakeProbe = probe;
             dn.nightVolume = nvol;
             dn.valleyHeight = ctx.lakeY;

@@ -44,6 +44,57 @@ void NainitalWeather(float3 positionWS, float3 normalWS, inout SurfaceData s)
     s.smoothness *= lerp(1.0h, 0.6h, _NainitalGrimeStrength);
 }
 
+// Nainital fake interiors on ordinary ground-floor bays (the shared photo rooms: NainitalRooms.hlsl). BuildingKit moves
+// the bay's atlas UV by whole atlas widths (Atlas.InteriorBay: u - 1 - (slot & 1), v - (slot >> 1)); the atlas textures
+// repeat, so every pass samples the same texels, and here the fragment reads the flag (u < 0) and the room slot back from
+// the raw UV. Where the room shows comes from the atlas alpha (1 - glass, FacadeArt). Nothing extra per vertex.
+#include "NainitalRooms.hlsl"
+#define NT_ATLAS_CELLS      16.0
+#define NT_CELL_INSET       (2.5 / 64.0)    // Atlas.InsetPx / Atlas.CellPx
+#define NT_BAY_W            3.2             // a facade bay, metres (BuildingKit: bays of ~3.2 m, floors of 3 m)
+#define NT_BAY_H            3.0
+// back-plane depths, photo size and height: the owner's InteriorLook ("Other ground floors"), NtBayFrame()
+#define NT_GLASS_ALBEDO     0.03
+// photo rooms (Atlas.Room*): homes 0..3; the shops an ordinary bazaar bay picks from
+static const float NtShopPool[12] = { 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 28 };
+
+// rawUV: the mesh UV (flagged when u < 0). sgn: +1 when the bay's u runs along cross(up, N), -1 when mirrored.
+// bayDx, bayDy: the bay coordinates' screen derivatives (taken outside the branch).
+void NainitalInterior(float2 rawUV, float3 positionWS, float3 normalWS, float sgn, float2 bayDx, float2 bayDy, inout SurfaceData s)
+{
+    half glass = saturate(1.0h - s.alpha);
+    s.alpha = 1.0h;
+    if (glass < 0.004h) return;
+    float k = floor(-rawUV.x);
+    float m = rawUV.y < 0.0 ? 1.0 : 0.0;
+    float2 cellF = frac(rawUV) * NT_ATLAS_CELLS;
+    float2 cell = floor(cellF);
+    float2 bay = saturate((cellF - cell - NT_CELL_INSET) / (1.0 - 2.0 * NT_CELL_INSET));
+    // facade style of the cell (Atlas.Facade / StrongCell); 4 and 5 are the shop fronts
+    float style = cell.x < 9.5 ? cell.x : fmod(cell.y * 6.0 + cell.x - 10.0, 10.0);
+    bool shop = abs(style - 4.5) < 0.9;
+    float slot = k + 2.0 * m;
+    float room = shop ? NtShopPool[(int)fmod(slot + 3.0 * cell.y + 5.0 * cell.x, 12.0)] : fmod(slot + cell.y, 4.0);
+
+    float3 N = normalize(normalWS);
+    float3 T = sgn * normalize(cross(float3(0.0, 1.0, 0.0), N));
+    NtFrame f = NtBayFrame();
+    float2 glassM = float2((bay.x - 0.5) * NT_BAY_W, bay.y * NT_BAY_H);
+    float2 plane = NtBackPlane(glassM, positionWS - GetCameraPositionWS(), T, N, shop ? f.depthB : f.depthA);
+    half inside;
+    float2 puv = NtPhotoUV(room, plane, f, inside);
+    float2 sc = float2(NT_BAY_W, NT_BAY_H);
+    half3 photo = SAMPLE_TEXTURE2D_GRAD(_RoomTex, sampler_RoomTex, puv, NtPhotoGrad(bayDx * sc, f), NtPhotoGrad(bayDy * sc, f)).rgb * inside;
+
+    s.emission = lerp(s.emission, NtRoomLight(photo, s.emission), glass);
+    // a window is glass (dark, glossy: the sky and street reflect in it); a shop front is open
+    half3 behind = shop ? half3(0.0h, 0.0h, 0.0h) : half3(NT_GLASS_ALBEDO, NT_GLASS_ALBEDO, NT_GLASS_ALBEDO);
+    s.albedo = lerp(s.albedo, behind, glass);
+    s.smoothness = lerp(s.smoothness, shop ? 0.0h : 0.92h, glass);
+    s.occlusion = lerp(s.occlusion, 1.0h, glass);
+    s.normalTS = normalize(lerp(s.normalTS, half3(0.0h, 0.0h, 1.0h), glass));
+}
+
 struct Attributes
 {
     float4 positionOS   : POSITION;
@@ -204,7 +255,7 @@ Varyings LitPassVertex(Attributes input)
         fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
     #endif
 
-    output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
+    output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);   // a flagged ground-floor bay keeps its shifted UV: the textures repeat
 
     // already normalized from normal transform to WS.
     output.normalWS = normalInput.normalWS;
@@ -271,6 +322,16 @@ void LitPassFragment(
     SurfaceData surfaceData;
     InitializeStandardLitSurfaceData(input.uv, surfaceData);
     NainitalWeather(input.positionWS, input.normalWS, surfaceData);
+    {
+        // derivatives outside the branch: the bay's mip footprint, and which way its u runs (sign of dP/du along
+        // cross(up, N): the facade art is mirrored on some walls)
+        float2 bayDx = ddx(input.uv) * (NT_ATLAS_CELLS / (1.0 - 2.0 * NT_CELL_INSET));
+        float2 bayDy = ddy(input.uv) * (NT_ATLAS_CELLS / (1.0 - 2.0 * NT_CELL_INSET));
+        float3 along = cross(float3(0.0, 1.0, 0.0), input.normalWS);
+        float sgn = dot(ddx(input.positionWS), along) * ddx(input.uv.x) + dot(ddy(input.positionWS), along) * ddy(input.uv.x) >= 0.0 ? 1.0 : -1.0;
+        if (input.uv.x < 0.0 && _NainitalInteriorOff < 0.5)   // one path per bay: the flag is the same over a whole quad
+            NainitalInterior(input.uv, input.positionWS, input.normalWS, sgn, bayDx, bayDy, surfaceData);
+    }
 
 #ifdef LOD_FADE_CROSSFADE
     LODFadeCrossFade(input.positionCS);

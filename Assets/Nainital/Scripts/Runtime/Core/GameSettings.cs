@@ -60,10 +60,13 @@ namespace Nainital
             ApplyGraphics();
         }
 
-        /// <summary>Render scale, shadows, ambient occlusion (PC), grass, tree distances, depth of field.</summary>
+        /// <summary>Render scale, shadows, ambient occlusion (PC), grass, tree distances, depth of field, ground-floor rooms.</summary>
         public static void ApplyGraphics()
         {
             int q = Quality;
+            // the rooms behind ordinary ground-floor windows (AtlasLit, NainitalRooms.hlsl): off on Low; Mall Road's shop
+            // glass (ShopGlass) always shows its room
+            Shader.SetGlobalFloat("_NainitalInteriorOff", q == 0 ? 1f : 0f);
             if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urp)
             {
                 urp.renderScale = new[] { 0.7f, 0.85f, 1f }[q];

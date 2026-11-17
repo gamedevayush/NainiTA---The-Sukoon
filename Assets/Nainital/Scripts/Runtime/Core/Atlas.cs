@@ -174,6 +174,35 @@ namespace Nainital
         public static Rect Roof(int roofColor) => CellRect(roofColor, RoofRow);
         public static Rect Material(int mat) => CellRect(mat, RoofRow);
         public static Vector2 MaterialUV(int mat) => CellCenter(mat, RoofRow);
+
+        // ------------------------------------------------------------------ fake interiors (user, 2026-11-17)
+        /// <summary>The room photos behind ground-floor glass (Data/Interiors/RoomPhotos.png, Tools/interiors/pack_rooms.py):
+        /// RoomCols x RoomRows tiles of RoomPx, room r at column r % RoomCols, row r / RoomCols from the bottom. The order
+        /// is Tools/interiors/prompts.json. Same numbers in Shaders/NainitalRooms.hlsl.</summary>
+        public const int RoomCols = 8, RoomRows = 4, RoomPx = 512;
+        public const int RoomHomeLiving = 0, RoomHomeBedroom = 1, RoomHomeKitchen = 2, RoomHomeOld = 3,
+                         RoomRestFamily = 4, RoomRestPunjabi = 5, RoomRestMulti = 6, RoomRestTibetan = 7,
+                         RoomCafe = 8, RoomBakery = 9, RoomIceCream = 10, RoomSweets = 11, RoomFastFood = 12,
+                         RoomGiftGallery = 13, RoomSouvenir = 14, RoomTibetanCraft = 15, RoomCandles = 16,
+                         RoomShawls = 17, RoomWoollens = 18, RoomFashion = 19, RoomEthnic = 20, RoomBags = 21, RoomFootwear = 22,
+                         RoomLocalProduce = 23, RoomOptical = 24, RoomBank = 25, RoomTravel = 26, RoomPharmacy = 27,
+                         RoomMobile = 28, RoomHotelDesk = 29, RoomHotelHeritage = 30, RoomBooks = 31;
+        /// <summary>Restaurants, cafes, sweets, fast food: a glass front, people eating inside.</summary>
+        public static bool RoomIsEatery(int r) => r >= RoomRestFamily && r <= RoomFastFood;
+        /// <summary>Counters behind glass: optical, bank, travel, chemist, hotel desks.</summary>
+        public static bool RoomIsDesk(int r) => r == RoomOptical || r == RoomBank || r == RoomTravel || r == RoomPharmacy || r == RoomHotelDesk || r == RoomHotelHeritage;
+        public static bool RoomIsHotel(int r) => r == RoomHotelDesk || r == RoomHotelHeritage;
+
+        /// <summary>True for the facade styles with glass or an open shop front, where a ground-floor bay shows a room.</summary>
+        public static bool HasRoom(int style) => style == StyleWinALit || style == StyleWinADark || style == StyleWinBLit ||
+                                                 style == StyleWinBDark || style == StyleShopLit || style == StyleShopDark;
+
+        /// <summary>A ground-floor bay that shows a fake room behind its glass (AtlasLit's interior mapping). The facade
+        /// UV moves by whole atlas widths, u - 1 - (slot &amp; 1) and v - (slot &gt;&gt; 1): the atlas textures repeat, so every
+        /// pass still samples the same texels, the mesh needs no extra channel, and the shader reads the flag (u &lt; 0) and
+        /// the room slot (0..3) back from the shift. Neighbouring bays get different slots, so different rooms.</summary>
+        public static Rect InteriorBay(Rect uv, int slot) =>
+            new Rect(uv.x - 1f - (slot & 1), uv.y - ((slot >> 1) & 1), uv.width, uv.height);
     }
 
     /// <summary>Indices into <see cref="Atlas.Solid"/>.</summary>

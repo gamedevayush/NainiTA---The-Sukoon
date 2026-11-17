@@ -463,7 +463,7 @@ namespace Nainital
             "<color=#FFB829>` ya F1</color> (phone: upar-daaye kone pe 3 tap)  cheat - JEEVAN, AMAR, GAADI, TAXI, JEEP, BUS, UDAAN (jetpack), SAFAR (teleport)\n<color=#FFB829>F2</color>  kisi bhi jagah teleport\n\n" +
             "Sunehra 'M' marker = mission. Hara roshni ka khamba = agla target.\n" +
             "Jheel mein gir gaye? Tairo, kinare pe Space dabake chadho.\n\n" +
-            "<size=22><color=#B8C2C9>Map: (c) OpenStreetMap contributors (ODbL). Elevation: SRTM via AWS Terrain Tiles. Font: Rajdhani (Indian Type Foundry, SIL OFL).</color></size>";
+            "<size=22><color=#B8C2C9>Map: (c) OpenStreetMap contributors (ODbL). Elevation: SRTM via AWS Terrain Tiles. Font: Rajdhani (Indian Type Foundry, SIL OFL). Shop signs: Pacifico, Lilita One, Cinzel Decorative, Yatra One, Rozha One, Bebas Neue, Anton, Limelight (SIL OFL). Shop interiors: made with Google Flow.</color></size>";
 
         const string HelpEn =
             "<size=40><b>NAINITAL  -  Controls</b></size>\n\n" +
@@ -477,7 +477,7 @@ namespace Nainital
             "<color=#FFB829>` or F1</color> (phone: 3 taps top-right)  cheats - JEEVAN, AMAR, GAADI, TAXI, JEEP, BUS, UDAAN (jetpack), SAFAR (teleport)\n<color=#FFB829>F2</color>  teleport to a place\n\n" +
             "Gold 'M' marker = mission. Green light beam = next objective.\n" +
             "Fell in the lake? Swim to the bank and press Space to climb out.\n\n" +
-            "<size=22><color=#B8C2C9>Map: (c) OpenStreetMap contributors (ODbL). Elevation: SRTM via AWS Terrain Tiles. Font: Rajdhani (Indian Type Foundry, SIL OFL).</color></size>";
+            "<size=22><color=#B8C2C9>Map: (c) OpenStreetMap contributors (ODbL). Elevation: SRTM via AWS Terrain Tiles. Font: Rajdhani (Indian Type Foundry, SIL OFL). Shop signs: Pacifico, Lilita One, Cinzel Decorative, Yatra One, Rozha One, Bebas Neue, Anton, Limelight (SIL OFL). Shop interiors: made with Google Flow.</color></size>";
 
         // ------------------------------------------------------------------ events
         void OnToast(string msg, float seconds)

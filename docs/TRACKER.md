@@ -145,3 +145,70 @@ credits khaali, exit), phone based, vibrations, black fade, GTA-style map-to-pla
 - Editor: `PlayTest` / `HudCheck` set PlayerPrefs `nt_skip_menu` (straight into play). `FrontEndCheck.Run(folder)` plays
   from Boot at 2316x1080 and screenshots every screen.
 - OPEN: test on the iPhone (haptics, the intro over Mallital boat stand roof, load time); no IPA built yet.
+
+## 17 Nov 2026 (night) - fake interiors (photos) on ground floors, Mall Road shop fronts by kind
+Owner: "unity fake interior shader pdho... saari building or shops pe lgao, only ground floor, phle check kro heavy to
+nhi pdega"; then the Bgolus interior package from a YouTube video (InteriorShaderAll.unitypackage, read, not imported);
+"phone pe chlega?" -> photos instead of painted rooms, "crowd bhi photos me" (Indian; eating in restaurants, standing in
+shops); "mall road pe same type ki shops mat rakho - restaurant, shops, road shops, rooftop cafe, front look random";
+"low poly smaan htaao, fake interior dikhega".
+- Tried first: Bgolus 2D-atlas box interior mapping with 16 procedurally painted rooms (InteriorArt.cs, removed). It
+  worked (Shots/int_* of the first build) but carried 7 floats per atlas vertex and needed screen-derivative frames
+  (the building meshes have no tangents: MeshBuilder never calls RecalculateTangents). Replaced by plane parallax on
+  photos: one texture read + ~25 ALU per glass pixel, nothing per vertex.
+- Flow: Brave Profile 1 on CDP 9333, project 1:1 x1 Nano Banana Pro, 32 photos in ~15 min, no usage limit hit. A prompt
+  "from the open doorway" gave the door frame and the street; "from just inside the entrance, only the interior" fixed it.
+  Sparkle at (900..944, 900..944) on 1024 x 1024, painted out with LaMa in pack_rooms.py.
+- Reference: v01 / v02 re-downloaded at 480p to D:\Unity\ref\yt10\01, 02 (the 14 Nov frames were not on this PC);
+  v02 every 8 s in D:\Unity\ref\yt10\sheets\v02_*.jpg. Mall Road timeline (Tallital gate 4:20 -> Mallital 28:20) is
+  the table in WorldBuilder.MallFronts.cs; anchors St. Francis church 8:48 and the Grand Hotel arch 23:48.
+- Measured (batch, no GUI): rooms on vs off at 5 street views, 4K: +0.00..+0.06 ms (0.0-0.2 %); 1080p within +-0.3 ms.
+  With the editor GUI open the same test swung +-11 ms: never time with the GUI open.
+- Build: 110 Mall Road fronts -> 177 units (88 glass, 57 open, 32 shut), 8 rooftop cafes. First build: 29 units were
+  the heritage hotel (the long-wall stretch alternated shut / hotel) and the shop photos were mirrored (ShopGlass took
+  x along cross(up, N), which is to the LEFT of someone facing the front); both fixed. Kiosks: 0 at 2.6 m out (all
+  in the road), now on the step in front of a shut shop.
+- Trap: FXC flattens an if() that holds a hardware-derivative texture read; inside such a branch use SAMPLE_GRAD with
+  derivatives taken outside it (or finite differences), or the branch runs on every pixel.
+- Second and third builds: 169 units (80 glass, 56 open, 33 shut; 8 skipped where two houses overlap), 19 kiosks on the
+  steps of shut shops (Upper Mall's road width reaches the shop line, so a road clearance test refused every kiosk).
+- A speckle on some glass fronts (photo pixels mixed with another tile's) was the room index: a half varying turned 8
+  into 7.9999, and fmod/floor then flipped between two tiles per pixel. Now a float varying, rounded in the fragment,
+  and the tile lookup rounds too. Found with InteriorCost.GlassDebug (flat colour per tag + a log of the glass quads:
+  no overlaps, tags whole). Two other fixes on the way: ShopGlass reflects _GlossyEnvironmentCubeMap (unity_SpecCube0
+  is not set up in Forward+), and its depth passes use GetVertexPositionInputs like the forward pass (depth priming).
+- OPEN: owner to look; per-unit signboards (the old one board per building still spans its units); IPA not built.
+- 18 Nov: owner "fake interior thoda zoomed in, thoda chote or andar ko": photo 4.2 -> 4.8 m, back planes deeper (Mall
+  glass 1.9 -> 3.0 m, open 2.4 -> 3.4, windows 1.8 -> 2.6, bazaar shops 2.4 -> 3.2), photo middle at 1.5 m; all in the
+  shader constants (ShopGlass no longer reads the material's _Depth).
+- 18 Nov: "thoda neeche krdo saare": NT_PHOTO_Y0 -0.9 -> -1.3 (the photos' middle at 1.1 m above the floor).
+- 18 Nov: owner "tool jisse main set kr sku, pos and zoom wagera sab, for all": Nainital -> Fake Interior Look
+  (Editor/InteriorLookWindow.cs) edits Assets/Resources/InteriorLook.asset (Runtime/World/InteriorLook.cs, applied as
+  shader globals at start and live). The constants in NainitalRooms.hlsl / AtlasForwardPass / ShopGlass became globals
+  (_NtMall*, _NtBay*, _NtRoom*, _NtShopDayLight, _NtMaxSlide) with the old values as defaults while _NtLookSet = 0.
+- 18 Nov: "mesh hi badi hai, x,y scaling bhi de": the tool now also sets the Mall Road opening (width share of the front,
+  sill and top in metres; outside it a panel in a chosen colour - done in ShopGlass's fragment, the opening's half width
+  comes from |uv.x| of the corners) and a photo X / Y stretch for both groups. Mullions and kick plates are geometry and
+  stay where they are until the next build; bake the chosen opening into WorldBuilder.MallFronts.cs when it is settled.
+
+## 18 Nov 2026 - 3D lettering on every sign, font by shop kind
+Owner: "saare jahan jahan text hai, vo bahut basic hai - usko tagda 3D name kardo, different stylish font based on their
+category". All world text was TextMesh in the built-in font (~700 shop signs = ~700 renderers).
+- `Tools/fonts3d/make_fonts3d.py`: eight OFL fonts (Tools/fonts3d/ttf, from google/fonts) -> outlines flattened (2-6
+  pieces a curve), holes bridged into their outer contour, ear clipping, written to Assets/Nainital/Data/Fonts3D/*.json
+  (cap height 1). Pure Python + fontTools (a pip install of mapbox_earcut was refused, not needed). Variable fonts
+  (Baloo 2, Cinzel) came out broken - their contours overlap - so static ones are used: Lilita One, Cinzel Decorative.
+  `preview_fonts3d.py` draws the faces to check holes.
+- `Editor/Glyph3D.cs`: extrudes a line of text into a MeshBuilder (face proud of the board, sides in a second colour),
+  styles per shop kind (font, board, letters, glow chance: some letters in the lamp-bulb colour glow at night), names
+  per kind. Restaurants/cafes Pacifico, sweets/bakery Lilita One, hotels Cinzel Decorative, crafts Yatra One,
+  woollens Rozha One, clothes Bebas Neue, services Anton, the Capitol Limelight.
+- Used by: Mall Road units (a board + name each, `MallSign`; shut shops keep a board; kiosks have their name),
+  the other shop boards (`Details.cs`, style from the name's words), `Label()` (Capitol, Video Games, Zoom Land, Naina
+  Devi gate, police / help centres, road signs, the zoo arch), the welcome gate. Letters sit in 40 m chunks without
+  shadows, culled far off. Credits list the fonts.
+- Build (18 Nov 02:43): 700 bazaar boards with 3D names; Mall Road 169 units each with its own board (the open item
+  "per-unit signboards" is done), 22 kiosks with names. First look: the Mall boards hid behind the colonial verandah -
+  the step lifts the shop floor to the road, often ~0.5 m over the house floor, so a 2.75 m front ran into the
+  first-floor slab. Now each front stops under it (H = house floor + 2.9 - shop floor, 2.0..2.75; the house floor is
+  the shop-front point's y - 2.75). Checked: Shots/sign1540*.png, sign1080.png, mf1540_shop.png, mf1080_shop.png.

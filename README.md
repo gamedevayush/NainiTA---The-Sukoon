@@ -106,9 +106,35 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    - On the iPhone, allow the app in **Settings → General → VPN & Device Management**.
    - With a free Apple ID the app works for 7 days. Re-install it from Sideloadly to refresh.
 
-## Work in progress (last updated 17 Nov 2026)
+## Work in progress (last updated 18 Nov 2026)
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
+
+### Added on 17 Nov (night): rooms behind the glass, Mall Road shop fronts by kind
+
+The owner asked for a fake interior shader on every building and shop, ground floor only, "pehle check kro heavy to nahi"; then photos instead of painted rooms, the crowd inside the photos (Indian, eating in restaurants, standing in shops), Mall Road shops of different kinds as in the reference videos (restaurants, shops, road shops, rooftop cafes) with a random front look, and the low-poly goods taken off the Mall Road fronts.
+
+| # | Where (x, z) | What should be true now |
+|---|---|---|
+| 1 | Any ground-floor window or open shop front, e.g. Tallital (626, -1047) | A room photo behind the glass that slides behind the frame as you walk past; curtains, grills and frames stay in front. Upper floors unchanged |
+| 2 | Upper Mall, Gurdeep / Moonlight stretch (556, -245) | Fronts cut into ~4 m shops of different kinds: glass fronts with people eating (restaurants, cafes), open shops with people standing (gifts, woollens, bags), hotels with a canopy and two pots, some shutters down; no goods tables or hanging shawls outside |
+| 3 | Upper Mall, banks stretch (380, -58) and Nanak / Bata stretch (207, 52) | Bank, optician, books, mobiles; restaurant, footwear, sweets - the kinds video 02 shows there |
+| 4 | Roofs above (560, -240) | Rooftop cafes (8): deck, rail, tables and chairs under umbrellas, string lights that glow at night |
+| 5 | Mall Road at night | Shop interiors lit warm; dark windows stay dark |
+| 6 | Settings → Quality → Low | Rooms behind ordinary windows switch off (Mall Road shop glass stays) |
+| 7 | Frame rate | Unchanged. Measured on this PC (batch, GPU-bound 4K): rooms on vs off +0.00 to +0.06 ms (0.0-0.2 %) at five street views; rooms cover 0.1-3 % of the screen. Cost: one texture read + ~25 ALU per glass pixel, nothing per vertex, +1 draw call per Mall Road map cell (shop glass), +2.8 MB texture on the phone (ASTC 8x8) |
+
+Built (18 Nov, 01:00): Mall Road's 110 building fronts → 169 shop units (80 glass fronts, 56 open shops, 33 shut, 8 skipped where two houses of the data overlap), 19 kiosks on the steps of shut shops, 8 rooftop cafes. Checked in shots `Shots/mf*_shop*.png`, `mf1080_roof.png`, `19_mall_upper_south_day.png`.
+
+How it works and where:
+- Photos: 32 rooms made in Google Flow from `Tools/interiors/prompts.json` (the `naini-flow-rooms.js` script of the google-flow-automation skill), watermark painted out and packed by `Tools/interiors/pack_rooms.py` into `Assets/Nainital/Data/Interiors/RoomPhotos.png` (8 x 4 tiles; the order is the room index, `Atlas.Room*`). To change one: edit its prompt, delete `Tools/interiors/raw/NN_name.png`, run the script, then `pack_rooms.py`, then Build World.
+- Shaders: `Shaders/NainitalRooms.hlsl` (the photo on a plane ~2 m behind the glass: plane parallax), used by `AtlasForwardPass.hlsl` (ordinary ground-floor bays: `BuildingKit.FacadeWall` shifts their atlas UV by whole atlas widths, `Atlas.InteriorBay`, and the glass mask is the atlas alpha painted by `FacadeArt`) and by `ShopGlass.shader` (Mall Road shop glass; room index in the vertex colour, `MeshBuilder.QuadTagged`). The atlas textures now repeat (needed for the shifted UVs).
+- The look (photo size / zoom, height, side shift, depths, light) is the owner's to set: **Nainital → Fake Interior Look** (sliders, live in the Scene and Game views, play mode too; saved in `Assets/Resources/InteriorLook.asset`, which the game applies at start - `Runtime/World/InteriorLook.cs`).
+- Mall Road: `Editor/WorldBuilder.MallFronts.cs` (video 02 timeline → shop kind per unit, the fronts, kiosks), called from `MallShopDressing` in `WorldBuilder.Mall.cs`; rooftop cafes in `BuildingKit.RooftopCafe`, chosen in `WorldBuilder.cs`. `Editor/InteriorCost.cs` (bridge `call InteriorCost.Run`) measures the cost and saves on/off pictures `Shots/int_*.png`.
+
+### Added on 18 Nov: solid 3D shop names in a font by kind
+
+Every sign that had flat text now has solid 3D letters (owner: "tagda 3D name, different stylish font based on their category"): restaurants and cafes in a script (Pacifico), sweets and bakeries rounded (Lilita One), hotels in Roman capitals (Cinzel Decorative), crafts and gifts Indian-style (Yatra One), woollens a heavy serif (Rozha One), clothes tall (Bebas Neue), banks / chemists / opticians / police / road signs bold (Anton), the Capitol art deco (Limelight). Some letters glow at night. Each Mall Road shop has its own board and a name of its kind; kiosks too. Check at (207, 55) and (556, -240) on Upper Mall, the Capitol (0, -30), the welcome gate on the highway. Data: `Tools/fonts3d/make_fonts3d.py` → `Assets/Nainital/Data/Fonts3D/*.json`; letters: `Editor/Glyph3D.cs` (styles and names per kind).
 
 ### To test on the iPhone (IPA of 17 Nov, 15:19)
 
