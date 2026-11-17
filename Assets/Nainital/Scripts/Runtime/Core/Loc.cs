@@ -36,6 +36,7 @@ namespace Nainital
             ["Din / Raat badlo"] = "Toggle day / night", ["Game band karo"] = "Quit game", ["Mission chhodo"] = "Abandon mission",
             ["Graphics"] = "Graphics", ["PAUSE"] = "PAUSED", ["Paise"] = "Money", ["Missions"] = "Missions",
             ["Nainital mein swagat hai!  (H = controls, M = map)"] = "Welcome to Nainital!  (H = controls, M = map)",
+            ["Nainital mein swagat hai!"] = "Welcome to Nainital!", ["Map"] = "Map", ["Mausam"] = "Weather", ["Cheat"] = "Cheat", ["Bug"] = "Bug",
             ["NAINITAL  (M = band karo)"] = "NAINITAL  (M = close)",
             ["Pura hua"] = "Completed", ["Baaki"] = "Not done",
             // toasts

@@ -125,3 +125,23 @@ Done on PC "AYUSH" in Unity 6000.3.28f1 (repo stays 6000.4.1f1; 6000.3's import 
   ProjectVersion; without Git Bash it runs `ios_ipa_chain.ps1` (gh). Trap fixed there: PowerShell `$r` is `$R`.
 - Installed here: iTunes, iCloud, Apple Mobile Device Support, Sideloadly (winget hash stale -> sideloadly.io /S).
 - OPEN: owner to test the 15:19 IPA (README "To test on the iPhone").
+
+## 17 Nov 2026 (later) - front end: splash, loading, main menu, pause, settings, save, intro, haptics
+Owner: "map ka kaam stay, UI khatarnaak - splash, uttarakhandi loading with photos, main menu (resume, save, settings,
+credits khaali, exit), phone based, vibrations, black fade, GTA-style map-to-player in 3 s, Hindi + English".
+- `Scenes/Boot.unity` (build scene 0, made by `FrontEndSetup.MakeBootScene`; build scripts use `FrontEndSetup.BuildScenes()`):
+  `Boot.cs` = Aipan splash with temple bell, language on first start, loading screen (10 Uttarakhand photos from Wikimedia
+  Commons in `Assets/Resources/Loading`, CC BY-SA, photographer credited on screen; facts, tips, progress). Nainital
+  loads async behind it and the loading screen stays until `FrontEnd` says the world is warm.
+- `FrontEnd.cs` (made by GameManager): main menu over the live world (camera drifting up Naini Lake), Continue / New Game /
+  Settings / Credits (empty) / Quit; pause menu (Resume, Save, Missions, Settings, Abandon Mission, Main Menu, Quit + a
+  "where you are" card); confirm dialogs; intro = black, top-down 380 m -> 140 m -> 42 m, swing into the third-person
+  camera, 3 s, HUD fades in. Runs at execution order 200 to override the camera.
+- `GameSettings.cs` (master / ambience / effects volume, look speed, invert Y, vibration, quality, 30/60 fps, language),
+  `SaveGame.cs` (position, hour, weather, place; manual, every 90 s, on app pause), `Haptics.cs` +
+  `Plugins/iOS/NainitalHaptics.mm` (Taptic Engine; Android VibrationEffect), `Aipan.cs` (procedural Kumaoni art), `UiKit.cs`.
+- HUD: old pause panel gone; top right = Menu / Map / more (tray: Din-Raat, Help, Mausam, Cheat, Bug). Taps on buttons,
+  hits, crashes, mission pass/fail, money, last 10 s of a timer.
+- Editor: `PlayTest` / `HudCheck` set PlayerPrefs `nt_skip_menu` (straight into play). `FrontEndCheck.Run(folder)` plays
+  from Boot at 2316x1080 and screenshots every screen.
+- OPEN: test on the iPhone (haptics, the intro over Mallital boat stand roof, load time); no IPA built yet.

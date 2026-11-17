@@ -15,6 +15,7 @@ namespace Nainital.EditorTools
         public static void Desktop()
         {
             PlayerPrefs.SetInt(PlayTest.TouchPref, 0);
+            PlayerPrefs.SetInt(PlayTest.SkipMenuPref, 1);
             PlayerPrefs.Save();
             PlayerSettings.runInBackground = true;
             PlayModeWindow.SetViewType(PlayModeWindow.PlayModeViewTypes.GameView);
@@ -91,9 +92,7 @@ namespace Nainital.EditorTools
         {
             Need();
             CloseAll();
-            if (HUD.Instance) HUD.Instance.TogglePause();
-            var mp = GameObject.Find("Pause/MissionsBox") ?? FindInactive("MissionsBox");
-            if (mp) mp.SetActive(true);
+            if (HUD.Instance) HUD.Instance.TogglePause();   // FrontEnd's pause menu, with the "where you are" card
         }
 
         public static void BigMap() { Need(); CloseAll(); GameInput.TouchMap = true; }
@@ -105,8 +104,7 @@ namespace Nainital.EditorTools
             Need();
             if (HUD.Instance)
             {
-                var pause = FindInactive("Pause");
-                if (pause && pause.activeSelf) HUD.Instance.TogglePause();
+                if (FrontEnd.Instance && FrontEnd.Instance.Current == FrontEnd.State.Paused) HUD.Instance.TogglePause();
                 HUD.Instance.CloseDialog();
             }
             foreach (var n in new[] { "Help", "BigMap" }) { var g = FindInactive(n); if (g) g.SetActive(false); }

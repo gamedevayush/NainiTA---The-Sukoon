@@ -25,9 +25,14 @@ namespace Nainital
         Canvas canvas;
         Image vignette;
         Text placeText, clockText, promptText, promptKey, dialogTitle, dialogBody, helpText, moneyText, moneyDelta;
-        Text objTitle, objText, timerText, bannerTitle, bannerSub, missionList, qualityLabel, langHindi, langEnglish, revealText;
-        RectTransform promptPanel, objPanel, timerPill, bannerRt, revealLine, toastRoot, moneyDeltaRt, sideButtons;
-        GameObject dialogPanel, helpPanel, pausePanel, missionsPanel, promptKeyChip, areaInfo;
+        Text objTitle, objText, timerText, bannerTitle, bannerSub, revealText;
+        RectTransform promptPanel, objPanel, timerPill, bannerRt, revealLine, toastRoot, moneyDeltaRt, sideButtons, tray;
+        GameObject dialogPanel, helpPanel, promptKeyChip, areaInfo;
+        CanvasGroup hudGroup;
+        float trayOpenUntil;
+        int lastHits, lastTimerSec = -1;
+        float lastHurtSeen;
+        bool wasDead;
         CanvasGroup revealGroup, bannerGroup, moneyDeltaGroup;
         Image bannerLine;
         float revealTimer, flash, bannerTimer, moneyDeltaTimer;
@@ -37,7 +42,17 @@ namespace Nainital
         readonly List<(Text t, string src)> locTexts = new List<(Text, string)>();
         readonly List<Toast> toasts = new List<Toast>();
         bool showTouch;
-        int quality = 2;
+
+        /// <summary>The whole HUD faded (the front end hides it in the menus and brings it in at the end of the intro).</summary>
+        public void SetAlpha(float a)
+        {
+            if (!hudGroup) return;
+            hudGroup.alpha = a;
+            hudGroup.blocksRaycasts = a > 0.5f;
+            hudGroup.interactable = a > 0.5f;
+        }
+
+        public bool DialogOpen => dialogPanel && dialogPanel.activeSelf;
 
         class Toast { public RectTransform rt; public CanvasGroup g; public Text t; public string src; public float life, age; }
 
@@ -60,12 +75,12 @@ namespace Nainital
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.6f;
-            quality = PlayerPrefs.GetInt("nt_quality", Application.isMobilePlatform ? 1 : 2);
+            hudGroup = cgo.AddComponent<CanvasGroup>();
             Build();
             RefreshLanguage();
         }
 
-        void Start() => ApplyQuality(quality);
+        void Start() => GameSettings.ApplyGraphics();
 
         void OnEnable()
         {
@@ -153,7 +168,7 @@ namespace Nainital
             cb.selectedColor = Color.white;
             cb.fadeDuration = 0.08f;
             b.colors = cb;
-            b.onClick.AddListener(() => onClick());
+            b.onClick.AddListener(() => { Haptics.Selection(); if (AudioManager.Instance) AudioManager.Instance.Click(); onClick(); });
             var t = Txt("Label", img.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -1), size, fontSize, TextAnchor.MiddleCenter, HudStyle.Ink);
             LocTxt(t, label);
             return b;
@@ -204,12 +219,11 @@ namespace Nainital
             BuildSpeedometer(root);
             BuildDialog(root);
             BuildHelp(root);
-            BuildPause(root);
 
             if (showTouch) gameObject.AddComponent<TouchControls>().Build(this, root);
+            sideButtons.SetAsLastSibling();
             dialogPanel.transform.SetAsLastSibling();
             helpPanel.transform.SetAsLastSibling();
-            pausePanel.transform.SetAsLastSibling();
         }
 
         void BuildMoney(Transform root)
@@ -220,19 +234,53 @@ namespace Nainital
             moneyDeltaGroup.alpha = 0f;
             moneyDelta = TxtB("Text", moneyDeltaRt, new Vector2(1, 0.5f), new Vector2(1, 0.5f), Vector2.zero, new Vector2(460, 40), 34, TextAnchor.MiddleRight, HudStyle.Good);
 
-            // Din/Raat, Help, Menu: shown on a phone, or on a PC while the mouse is free (the keys do the same)
+            // under the money (user, 2026-11-17: "mst effective UI and HUD"): three round buttons - the menu (pause), the
+            // map and "more", which drops a short tray of the rest (Din/Raat, Help, and on a phone Mausam, Cheat, Bug).
+            // Shown on a phone, or on a PC while the mouse is free (the keys do the same).
             sideButtons = Rect("SideButtons", root, new Vector2(1, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero);
             Stretch(sideButtons);
-            Btn("Din / Raat", sideButtons, new Vector2(1, 1), new Vector2(-110, SideButtonY(0)), SideButtonSize, () => { if (DayNightCycle.Instance) DayNightCycle.Instance.ToggleDayNight(); }, SideButtonFont);
-            Btn("Help", sideButtons, new Vector2(1, 1), new Vector2(-110, SideButtonY(1)), SideButtonSize, () => helpPanel.SetActive(!helpPanel.activeSelf), SideButtonFont);
-            Btn("Menu", sideButtons, new Vector2(1, 1), new Vector2(-110, SideButtonY(2)), SideButtonSize, TogglePause, SideButtonFont);
+            float s = IconSize, y = -112f - s * 0.5f;
+            IconBtn("Menu", sideButtons, new Vector2(-40 - s * 0.5f, y), HudStyle.PauseIcon, TogglePause, HudStyle.Marigold);
+            IconBtn("Map", sideButtons, new Vector2(-40 - s * 1.5f - 14, y), HudStyle.MapIcon, () => GameInput.TouchMap = true, HudStyle.Ink);
+            IconBtn("More", sideButtons, new Vector2(-40 - s * 2.5f - 28, y), HudStyle.MoreIcon, () => { tray.gameObject.SetActive(!tray.gameObject.activeSelf); trayOpenUntil = Time.unscaledTime + 6f; }, HudStyle.Ink);
+            tray = Rect("Tray", sideButtons, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-40, y - s * 0.5f - 14), new Vector2(240, 400));
+            tray.gameObject.SetActive(false);
+            AddTrayButton("Din / Raat", () => { if (DayNightCycle.Instance) DayNightCycle.Instance.ToggleDayNight(); }, new Color(0.05f, 0.07f, 0.10f, 0.85f));
+            AddTrayButton("Help", () => helpPanel.SetActive(!helpPanel.activeSelf), new Color(0.05f, 0.07f, 0.10f, 0.85f));
         }
 
-        // the right-hand column of buttons (TouchControls adds Map, Cheat, Mausam and Bug under these three). On a phone
-        // the canvas is only about 1000 high, so the column is tighter and ends clear of the Use button.
-        public float SideButtonY(int i) => showTouch ? -120f - i * 50f : -140f - i * 62f;
-        public Vector2 SideButtonSize => showTouch ? new Vector2(170, 44) : new Vector2(180, 54);
-        public int SideButtonFont => showTouch ? 24 : 26;
+        float IconSize => showTouch ? 78f : 66f;
+        int trayCount;
+
+        /// <summary>A pill in the "more" tray under the round buttons (TouchControls adds Mausam, Cheat and Bug).</summary>
+        public Button AddTrayButton(string label, System.Action onClick, Color c)
+        {
+            var size = showTouch ? new Vector2(236, 56) : new Vector2(220, 52);
+            var b = Btn(label, tray, new Vector2(1, 1), new Vector2(-size.x * 0.5f, -size.y * 0.5f - trayCount * (size.y + 10)), size, () => { onClick(); tray.gameObject.SetActive(false); }, showTouch ? 26 : 24);
+            b.GetComponent<Image>().color = c;
+            trayCount++;
+            return b;
+        }
+
+        void IconBtn(string name, Transform parent, Vector2 pos, Sprite icon, System.Action onClick, Color iconColor)
+        {
+            float s = IconSize;
+            var img = Img("Icon_" + name, parent, new Vector2(1, 1), new Vector2(0.5f, 0.5f), pos, new Vector2(s, s), new Color(0.035f, 0.05f, 0.07f, 0.78f));
+            img.sprite = HudStyle.Disc;
+            var ring = Img("Ring", img.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(s, s), new Color(1, 1, 1, 0.28f));
+            ring.sprite = HudStyle.RingThin;
+            ring.raycastTarget = false;
+            var ic = Img("Glyph", img.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(s * 0.46f, s * 0.46f), iconColor);
+            ic.sprite = icon;
+            ic.raycastTarget = false;
+            var b = img.gameObject.AddComponent<Button>();
+            var cb = b.colors;
+            cb.highlightedColor = new Color(1.3f, 1.3f, 1.3f, 1f);
+            cb.pressedColor = new Color(0.75f, 0.75f, 0.75f, 1f);
+            cb.fadeDuration = 0.06f;
+            b.colors = cb;
+            b.onClick.AddListener(() => { Haptics.Selection(); if (AudioManager.Instance) AudioManager.Instance.Click(); onClick(); });
+        }
 
         void BuildMission(Transform root)
         {
@@ -382,85 +430,17 @@ namespace Nainital
             helpPanel.SetActive(false);
         }
 
-        void BuildPause(Transform root)
-        {
-            var pp = Img("Pause", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero, new Color(0.01f, 0.015f, 0.02f, 0.62f));
-            Stretch(pp.rectTransform);
-            pausePanel = pp.gameObject;
-            var box = Panel("PauseBox", pp.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-300, 0), new Vector2(480, 760), HudStyle.GlassDeep);
-            LocTxt(TxtB("PauseTitle", box.transform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -22), new Vector2(420, 64), 58, TextAnchor.MiddleCenter, HudStyle.Marigold), "PAUSE");
-            Img("Line", box.transform, new Vector2(0.5f, 1), new Vector2(0.5f, 0.5f), new Vector2(0, -96), new Vector2(120, 3), HudStyle.Teal).raycastTarget = false;
-            float y = -150;
-            void B(string label, System.Action a) { Btn(label, box.transform, new Vector2(0.5f, 1), new Vector2(0, y), new Vector2(400, 58), a, 28); y -= 70; }
-            B("Wapas khelo", TogglePause);
-            B("Missions", () => { missionsPanel.SetActive(!missionsPanel.activeSelf); RefreshMissionList(); });
-            B("Graphics", () => { quality = (quality + 1) % 3; PlayerPrefs.SetInt("nt_quality", quality); ApplyQuality(quality); });
-            qualityLabel = Txt("QualityLabel", box.transform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, y + 32), new Vector2(400, 28), 22, TextAnchor.MiddleCenter, HudStyle.Teal);
-            y -= 18;
-            B("Mausam badlo", () => { if (WeatherSystem.Instance) WeatherSystem.Instance.Next(); });
-            B("Din / Raat badlo", () => { if (DayNightCycle.Instance) DayNightCycle.Instance.ToggleDayNight(); });
-            B("Mission chhodo", () => { if (MissionManager.Instance) MissionManager.Instance.Abort(); });
-            B("Game band karo", () => { Application.Quit(); });
-            // language: a two-way switch at the foot of the menu
-            var lang = Panel("Language", box.transform, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 30), new Vector2(400, 56), new Color(1, 1, 1, 0.06f), true);
-            var bh = Btn("HINDI", lang.transform, new Vector2(0.25f, 0.5f), Vector2.zero, new Vector2(190, 46), () => Loc.SetEnglish(false), 24);
-            var be = Btn("ENGLISH", lang.transform, new Vector2(0.75f, 0.5f), Vector2.zero, new Vector2(190, 46), () => Loc.SetEnglish(true), 24);
-            langHindi = bh.GetComponentInChildren<Text>();
-            langEnglish = be.GetComponentInChildren<Text>();
-
-            var mp = Panel("MissionsBox", pp.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(300, 0), new Vector2(660, 760), HudStyle.GlassDeep);
-            missionsPanel = mp.gameObject;
-            missionList = Txt("MissionList", mp.transform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -28), new Vector2(600, 700), 28, TextAnchor.UpperLeft, HudStyle.Ink);
-            missionsPanel.SetActive(false);
-            pausePanel.SetActive(false);
-        }
-
-        // ------------------------------------------------------------------ pause / quality / language
+        // ------------------------------------------------------------------ pause (the front end's) / language
+        /// <summary>The pause menu (FrontEnd); the Menu button and the pause key come here.</summary>
         public void TogglePause()
         {
-            bool on = !pausePanel.activeSelf;
-            pausePanel.SetActive(on);
-            GameInput.Paused = on;
-            GameInput.UiBlocking = on || dialogPanel.activeSelf;
-            Time.timeScale = on ? 0f : 1f;
-            if (on) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; RefreshMissionList(); }
-        }
-
-        void ApplyQuality(int q)
-        {
-            string[] names = { "Graphics: LOW", "Graphics: MEDIUM", "Graphics: HIGH" };
-            if (qualityLabel) qualityLabel.text = names[q];
-            if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urp)
-            {
-                urp.renderScale = new[] { 0.7f, 0.85f, 1f }[q];
-                urp.shadowDistance = new[] { 50f, 100f, 160f }[q];
-                foreach (var rd in urp.rendererDataList)
-                {
-                    if (!rd) continue;
-                    foreach (var f in rd.rendererFeatures)
-                        if (f && f.GetType().Name.Contains("ScreenSpaceAmbientOcclusion") && !Application.isMobilePlatform) f.SetActive(q == 2);
-                }
-            }
-            foreach (var g in FindObjectsByType<GrassRenderer>(FindObjectsSortMode.None))
-            {
-                g.radius = new[] { 0.1f, 32f, 55f }[q];
-                g.enabled = q > 0;
-            }
-            foreach (var t in FindObjectsByType<TreeRenderer>(FindObjectsSortMode.None))
-            {
-                t.maxDistance = new[] { 700f, 1100f, 1500f }[q];
-                t.lod0Distance = new[] { 55f, 85f, 110f }[q];
-            }
-            foreach (var v in FindObjectsByType<Volume>(FindObjectsSortMode.None))
-                if (v.sharedProfile && v.sharedProfile.TryGet<DepthOfField>(out var dof)) dof.active = q == 2;
+            if (FrontEnd.Instance) FrontEnd.Instance.TogglePause();
         }
 
         void RefreshLanguage()
         {
             foreach (var (t, src) in locTexts) if (t) t.text = Loc.T(src);
             bool en = Loc.English;
-            if (langHindi) langHindi.color = en ? HudStyle.InkFaint : HudStyle.Marigold;
-            if (langEnglish) langEnglish.color = en ? HudStyle.Marigold : HudStyle.InkFaint;
             helpText.text = en ? HelpEn : HelpHi;
             revealText.text = Loc.T(revealSrc).ToUpperInvariant();
             placeText.text = Loc.T(placeSrc);
@@ -469,28 +449,6 @@ namespace Nainital
             bannerTitle.text = Loc.T(bannerTitleSrc).ToUpperInvariant();
             bannerSub.text = Loc.T(bannerSubSrc);
             foreach (var t in toasts) if (t.t) t.t.text = Loc.T(t.src);
-            if (pausePanel && pausePanel.activeSelf) RefreshMissionList();
-        }
-
-        void RefreshMissionList()
-        {
-            var mm = MissionManager.Instance;
-            if (!mm || !missionList) return;
-            var sb = new System.Text.StringBuilder();
-            sb.Append("<size=40><b>MISSIONS</b></size>\n\n");
-            int done = 0;
-            foreach (var m in mm.missions)
-            {
-                bool isDone = GameState.IsDone(m.id);
-                if (isDone) done++;
-                sb.Append(isDone ? "<color=#74EB8C>✓  " : "<color=#FFB829>◆  ").Append(Loc.T(m.title)).Append("</color>")
-                  .Append("   <color=#B8C2C9>").Append(HudStyle.Rupees(m.reward)).Append("</color>");
-                if (m.nightOnly) sb.Append(Loc.English ? "  <color=#33D1C2>(night)</color>" : "  <color=#33D1C2>(raat)</color>");
-                sb.Append('\n');
-            }
-            sb.Append("\n<color=#B8C2C9>").Append(done).Append(" / ").Append(mm.missions.Count).Append(Loc.English ? " done" : " poore").Append("</color>\n");
-            sb.Append(Loc.English ? "<color=#B8C2C9>Gold 'M' markers on the radar start missions.</color>" : "<color=#B8C2C9>Radar pe sunehre 'M' marker se mission shuru hota hai.</color>");
-            missionList.text = sb.ToString();
         }
 
         const string HelpHi =
@@ -551,12 +509,13 @@ namespace Nainital
             dialogBody.text = Loc.T(body);
             dialogPanel.SetActive(true);
             GameInput.UiBlocking = true;
+            Haptics.Light();
         }
 
         public void CloseDialog()
         {
             dialogPanel.SetActive(false);
-            GameInput.UiBlocking = pausePanel.activeSelf;
+            GameInput.UiBlocking = FrontEnd.MenuOpen;
         }
 
         void OnLocation(string name)
@@ -577,6 +536,9 @@ namespace Nainital
             bannerTitle.color = c;
             bannerLine.color = c;
             bannerTimer = 5f;
+            if (title.Contains("PASSED")) Haptics.Success();
+            else if (title.Contains("FAILED")) Haptics.Error();
+            else Haptics.Light();
         }
 
         static string WeatherName()
@@ -589,17 +551,21 @@ namespace Nainital
 
         void Update()
         {
-            if (GameInput.PausePressed && !dialogPanel.activeSelf) TogglePause();
             float dt = Time.unscaledDeltaTime, t = Time.unscaledTime;
             var p = PlayerController.Instance;
 
-            // hurt: a flash of red at the edges on every hit, a slow pulse under a third of the health
+            // hurt: a flash of red at the edges on every hit (and a tap on the phone), a slow pulse under a third of the
+            // health, a heavy thud when knocked out
             float low = 0f;
             if (p)
             {
                 var h = p.Health;
                 if (h.LastDamageTime > Time.time - 0.05f) flash = 0.55f;
+                if (h.LastDamageTime > lastHurtSeen && h.LastDamageTime > 0f) { lastHurtSeen = h.LastDamageTime; Haptics.Medium(); }
                 if (h.Fraction < 0.33f && p.CurrentMode != PlayerController.Mode.Dead) low = 0.15f + 0.09f * Mathf.Sin(t * 5f);
+                bool dead = p.CurrentMode == PlayerController.Mode.Dead;
+                if (dead && !wasDead) Haptics.Heavy();
+                wasDead = dead;
             }
             flash = Mathf.MoveTowards(flash, 0f, dt * 0.9f);
             vignette.color = new Color(0.75f, 0.04f, 0.03f, Mathf.Max(flash, low));
@@ -613,13 +579,15 @@ namespace Nainital
                 moneyDelta.text = (d > 0 ? "+" : "") + HudStyle.Rupees(d);
                 moneyDelta.color = d > 0 ? HudStyle.Good : HudStyle.Coral;
                 moneyDeltaTimer = 2.6f;
+                if (d > 0) Haptics.Light();
             }
             lastMoney = money;
             moneyDeltaTimer -= dt;
             moneyDeltaGroup.alpha = Mathf.Clamp01(moneyDeltaTimer * 1.5f) * Mathf.Clamp01((2.6f - moneyDeltaTimer) * 6f);
             moneyDeltaRt.anchoredPosition = new Vector2(-44, -80 + Mathf.Clamp01(2.6f - moneyDeltaTimer) * 6f);
 
-            sideButtons.gameObject.SetActive(showTouch || Cursor.visible || pausePanel.activeSelf);
+            sideButtons.gameObject.SetActive(showTouch || Cursor.visible);
+            if (tray.gameObject.activeSelf && Time.unscaledTime > trayOpenUntil) tray.gameObject.SetActive(false);
 
             // place, time and weather
             var dn = DayNightCycle.Instance;
@@ -647,7 +615,7 @@ namespace Nainital
             if (areaInfo.activeSelf == dialogPanel.activeSelf) areaInfo.SetActive(!dialogPanel.activeSelf);
 
             var cur = PlayerInteractor.Current;
-            bool showPrompt = cur && !dialogPanel.activeSelf && !pausePanel.activeSelf && !helpPanel.activeSelf && !Minimap.BigMapOpen;
+            bool showPrompt = cur && !dialogPanel.activeSelf && !FrontEnd.MenuOpen && !helpPanel.activeSelf && !Minimap.BigMapOpen;
             if (promptPanel.gameObject.activeSelf != showPrompt) promptPanel.gameObject.SetActive(showPrompt);
             if (showPrompt)
             {
@@ -679,6 +647,9 @@ namespace Nainital
                 float left = Mathf.Max(0f, mmgr.TimeLeft);
                 timerText.text = $"{Mathf.FloorToInt(left / 60f)}:{Mathf.FloorToInt(left % 60f):00}";
                 bool hurry = left < 20f;
+                int sec = Mathf.CeilToInt(left);
+                if (left < 10f && sec != lastTimerSec && sec > 0) Haptics.Selection();   // the last ten seconds tick in the hand
+                lastTimerSec = sec;
                 timerText.color = hurry ? HudStyle.Coral : HudStyle.Ink;
                 timerPill.localScale = Vector3.one * (hurry ? 1f + 0.05f * Mathf.Abs(Mathf.Sin(t * 4f)) : 1f);
             }
@@ -725,7 +696,7 @@ namespace Nainital
             var car = CarController.Driving;
             bool on = car != null && !dialogPanel.activeSelf && !Minimap.BigMapOpen;   // not showing through the dialog or the map
             if (speedRt.gameObject.activeSelf != on) speedRt.gameObject.SetActive(on);
-            if (!on) return;
+            if (!on) { lastHits = int.MaxValue; return; }
             float kmh = car.SpeedKmh, f = Mathf.Clamp01(kmh / 160f);
             speedNum.text = Mathf.RoundToInt(kmh).ToString();
             speedArc.fillAmount = Mathf.Lerp(speedArc.fillAmount, 0.75f * f, Mathf.Clamp01(Time.unscaledDeltaTime * 10f));
@@ -735,6 +706,8 @@ namespace Nainital
             speedGear.color = speedGear.text == "R" ? HudStyle.Coral : HudStyle.Ink;
             var dmg = car.GetComponent<VehicleDamage>();
             int hits = dmg ? dmg.hits : 0;
+            if (hits > lastHits) Haptics.Heavy();   // a crash in the hand
+            lastHits = hits;
             for (int i = 0; i < dmgPips.Length; i++)
                 dmgPips[i].color = i < hits ? (hits >= 7 ? HudStyle.Coral : hits >= 4 ? HudStyle.Marigold : new Color(1, 1, 1, 0.75f)) : new Color(1, 1, 1, 0.16f);
         }

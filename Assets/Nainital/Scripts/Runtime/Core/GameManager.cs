@@ -28,9 +28,9 @@ namespace Nainital
             Minimap.WorldSize = worldSize;
             Minimap.WorldCx = worldCx;
             Minimap.WorldCz = worldCz;
-            Application.targetFrameRate = 60;
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             QualitySettings.vSyncCount = 0;
+            GameSettings.ApplyAll();   // volume, 30/60 fps (the graphics again once the HUD and the world are up)
 
             bool mobile = Application.isMobilePlatform;
             RenderSettings.fogEndDistance = mobile ? mobileFogEnd : pcFogEnd;
@@ -48,6 +48,8 @@ namespace Nainital
 
             if (!FindAnyObjectByType<GameInput>()) new GameObject("GameInput").AddComponent<GameInput>();
             if (!FindAnyObjectByType<HUD>()) new GameObject("HUD").AddComponent<HUD>();
+            // the main menu, the pause menu, settings, saving and the intro (it greets the player when play starts)
+            if (!FindAnyObjectByType<FrontEnd>()) new GameObject("FrontEnd").AddComponent<FrontEnd>();
         }
 
         bool mobileTerrain;
@@ -60,7 +62,6 @@ namespace Nainital
                     t.drawInstanced = false;
                     t.heightmapPixelError = 1f;
                 }
-            GameEvents.ShowToast("Nainital mein swagat hai!  (H = controls, M = map)", 4f);
         }
     }
 }

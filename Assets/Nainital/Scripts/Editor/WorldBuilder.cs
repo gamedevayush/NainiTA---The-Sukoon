@@ -251,7 +251,7 @@ namespace Nainital.EditorTools
             AtlasCheck.Relink();   // the building atlas material keeps its textures on disk (they were lost on reload: white buildings)
             AssetDatabase.SaveAssets();
             EditorSceneManager.SaveScene(scene, ScenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+            FrontEndSetup.SetBuildScenes();   // the boot scene (splash, loading) first
             AssetDatabase.SaveAssets();
             var builtTd = AssetDatabase.LoadAssetAtPath<TerrainData>(Gen + "/NainitalTerrain.asset");
             if (builtTd) Debug.Log("[Nainital] terrain texture weights after save: " + TerrainWeights(builtTd));

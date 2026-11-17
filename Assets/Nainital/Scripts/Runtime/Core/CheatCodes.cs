@@ -25,6 +25,7 @@ namespace Nainital
 
         void Update()
         {
+            if (FrontEnd.MenuOpen && !open) return;   // the menus (and the stats chip in the top-right corner) are not cheat taps
             var kb = Keyboard.current;
             if (kb != null && (kb.backquoteKey.wasPressedThisFrame || kb.f1Key.wasPressedThisFrame)) Toggle();
             if (kb != null && kb.f2Key.wasPressedThisFrame && !open) TeleportMenu.Open();

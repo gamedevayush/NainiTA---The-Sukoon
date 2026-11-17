@@ -51,6 +51,56 @@ namespace Nainital
         /// <summary>Opaque on the left, clear on the right (a fading strip behind text).</summary>
         public static Sprite FadeRight => gradientH ? gradientH : gradientH = MakeFade(256);
 
+        static Sprite pauseIcon, mapIcon, moreIcon;
+        /// <summary>Two upright bars (the menu / pause button).</summary>
+        public static Sprite PauseIcon => pauseIcon ? pauseIcon : pauseIcon = MakeIcon(96, (x, y) =>
+            Mathf.Max(Box(x, y, 0.33f, 0.5f, 0.09f, 0.32f, 0.04f), Box(x, y, 0.67f, 0.5f, 0.09f, 0.32f, 0.04f)));
+        /// <summary>A folded map: three panels, zig-zag.</summary>
+        public static Sprite MapIcon => mapIcon ? mapIcon : mapIcon = MakeIcon(96, (x, y) =>
+        {
+            float a = 0f, w = 0.035f;
+            float[] xs = { 0.14f, 0.38f, 0.62f, 0.86f };
+            float[] top = { 0.80f, 0.88f, 0.80f, 0.88f }, bot = { 0.12f, 0.20f, 0.12f, 0.20f };
+            for (int i = 0; i < 4; i++) a = Mathf.Max(a, Seg(x, y, xs[i], bot[i], xs[i], top[i], w));
+            for (int i = 0; i < 3; i++)
+            {
+                a = Mathf.Max(a, Seg(x, y, xs[i], top[i], xs[i + 1], top[i + 1], w));
+                a = Mathf.Max(a, Seg(x, y, xs[i], bot[i], xs[i + 1], bot[i + 1], w));
+            }
+            return a;
+        });
+        /// <summary>Three dots.</summary>
+        public static Sprite MoreIcon => moreIcon ? moreIcon : moreIcon = MakeIcon(96, (x, y) =>
+            Mathf.Max(Mathf.Max(Circle(x, y, 0.2f, 0.5f, 0.1f), Circle(x, y, 0.5f, 0.5f, 0.1f)), Circle(x, y, 0.8f, 0.5f, 0.1f)));
+
+        // shapes in 0..1 units, anti-aliased over about one pixel of a 96 px icon
+        const float AA = 1f / 96f;
+        static float Circle(float x, float y, float cx, float cy, float r) => Mathf.Clamp01((r - Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy))) / AA + 0.5f);
+        static float Box(float x, float y, float cx, float cy, float hx, float hy, float round)
+        {
+            float qx = Mathf.Abs(x - cx) - hx + round, qy = Mathf.Abs(y - cy) - hy + round;
+            float d = new Vector2(Mathf.Max(qx, 0f), Mathf.Max(qy, 0f)).magnitude + Mathf.Min(Mathf.Max(qx, qy), 0f) - round;
+            return Mathf.Clamp01(-d / AA + 0.5f);
+        }
+        static float Seg(float x, float y, float ax, float ay, float bx, float by, float w)
+        {
+            Vector2 p = new Vector2(x - ax, y - ay), ba = new Vector2(bx - ax, by - ay);
+            float h = Mathf.Clamp01(Vector2.Dot(p, ba) / Vector2.Dot(ba, ba));
+            return Mathf.Clamp01((w - (p - ba * h).magnitude) / AA + 0.5f);
+        }
+
+        static Sprite MakeIcon(int n, System.Func<float, float, float> alpha)
+        {
+            var t = NewTex(n, n);
+            var px = new Color32[n * n];
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                    px[y * n + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(alpha((x + 0.5f) / n, (y + 0.5f) / n)) * 255f));
+            t.SetPixels32(px);
+            t.Apply(false, true);
+            return Sprite.Create(t, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f));
+        }
+
         static Sprite RoundedRect(int n, int radius)
         {
             var t = NewTex(n, n);

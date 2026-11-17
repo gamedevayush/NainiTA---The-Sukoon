@@ -20,7 +20,9 @@ namespace Nainital
     {
         public static AudioManager Instance { get; private set; }
         public Vector3 templePosition;
-        public float masterVolume = 0.8f;
+        [UnityEngine.Serialization.FormerlySerializedAs("masterVolume")] public float baseVolume = 0.8f;
+        /// <summary>One-shots and engines: the base level times the Effects setting (GameSettings).</summary>
+        public float masterVolume => baseVolume * GameSettings.Effects;
 
         public enum Zone { Market = 0, Street = 1, Cafe = 2, Kids = 3, BusStand = 4, Traffic = 5 }
         public int[] zoneKinds = new int[0];
@@ -259,7 +261,7 @@ namespace Nainital
 
             foreach (var b in beds.Values)
             {
-                float v = b.target * m;
+                float v = b.target * baseVolume * GameSettings.Ambience;
                 b.src.volume = Mathf.MoveTowards(b.src.volume, v, dt * 0.35f);
                 if (b.src.volume < 0.003f && v < 0.003f) { if (b.src.isPlaying) b.src.Pause(); }
                 else if (!b.src.isPlaying) { if (b.src.time > 0f) b.src.UnPause(); else b.src.Play(); }

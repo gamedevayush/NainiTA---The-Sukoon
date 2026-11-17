@@ -173,14 +173,10 @@ namespace Nainital
             interactButton.GetComponent<Image>().color = new Color(0.85f, 0.6f, 0.12f, 0.75f);
             useLabel = interactButton.GetComponentInChildren<Text>();
 
-            // under the HUD's Din/Raat, Help and Menu buttons (top right): the map and the cheats
-            hud.Btn("Map", root, new Vector2(1, 1), new Vector2(-110, hud.SideButtonY(3)), hud.SideButtonSize, () => GameInput.TouchMap = true, hud.SideButtonFont);
-            var cb = hud.Btn("Cheat", root, new Vector2(1, 1), new Vector2(-110, hud.SideButtonY(4)), hud.SideButtonSize, ToggleCheats, hud.SideButtonFont);
-            cb.GetComponent<Image>().color = new Color(0.45f, 0.18f, 0.5f, 0.75f);
-            var wb = hud.Btn("Mausam", root, new Vector2(1, 1), new Vector2(-110, hud.SideButtonY(5)), hud.SideButtonSize, ToggleMausam, hud.SideButtonFont);
-            wb.GetComponent<Image>().color = new Color(0.15f, 0.38f, 0.55f, 0.75f);
-            var bb = hud.Btn("Bug", root, new Vector2(1, 1), new Vector2(-110, hud.SideButtonY(6)), hud.SideButtonSize, BugReporter.Open, hud.SideButtonFont);
-            bb.GetComponent<Image>().color = new Color(0.55f, 0.2f, 0.15f, 0.75f);
+            // in the HUD's "more" tray (top right, under the menu / map / more buttons)
+            hud.AddTrayButton("Mausam", ToggleMausam, new Color(0.15f, 0.38f, 0.55f, 0.85f));
+            hud.AddTrayButton("Cheat", ToggleCheats, new Color(0.45f, 0.18f, 0.5f, 0.85f));
+            hud.AddTrayButton("Bug", BugReporter.Open, new Color(0.55f, 0.2f, 0.15f, 0.85f));
         }
 
         GameObject mausamPanel;
@@ -240,7 +236,7 @@ namespace Nainital
             t.fontStyle = FontStyle.Bold;
             t.text = label;
             var hb = img.gameObject.AddComponent<HoldButton>();
-            hb.onDown = down;
+            hb.onDown = () => { Haptics.Selection(); down?.Invoke(); };   // a tick under the thumb
             hb.onUp = up;
             return img.gameObject;
         }

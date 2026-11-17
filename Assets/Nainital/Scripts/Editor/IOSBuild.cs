@@ -53,7 +53,7 @@ namespace Nainital.EditorTools
             Directory.CreateDirectory(OutDir);
             var opts = new BuildPlayerOptions
             {
-                scenes = new[] { WorldBuilder.ScenePath },
+                scenes = FrontEndSetup.BuildScenes(),
                 locationPathName = OutDir,
                 target = BuildTarget.iOS,
                 targetGroup = BuildTargetGroup.iOS,

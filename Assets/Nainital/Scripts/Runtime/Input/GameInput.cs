@@ -118,6 +118,8 @@ namespace Nainital
             float dpiK = Screen.dpi > 0 ? Mathf.Clamp(420f / Screen.dpi, 0.5f, 1.5f) : 1f;   // the same swipe turns the same amount on any screen
             look += TouchLookPixels * touchSensitivity * dpiK;
             TouchLookPixels = Vector2.zero;
+            look *= GameSettings.LookSpeed;              // Settings: look speed, invert Y
+            if (GameSettings.InvertY) look.y = -look.y;
             Look = look;
             if (look.sqrMagnitude > 0.01f) LastLookTime = Time.unscaledTime;
 

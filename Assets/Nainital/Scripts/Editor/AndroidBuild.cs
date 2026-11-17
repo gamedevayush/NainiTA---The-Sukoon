@@ -69,7 +69,7 @@ namespace Nainital.EditorTools
             string apk = Path.Combine(OutDir, ApkName);
             var opts = new BuildPlayerOptions
             {
-                scenes = new[] { WorldBuilder.ScenePath },
+                scenes = FrontEndSetup.BuildScenes(),
                 locationPathName = apk,
                 target = BuildTarget.Android,
                 targetGroup = BuildTargetGroup.Android,

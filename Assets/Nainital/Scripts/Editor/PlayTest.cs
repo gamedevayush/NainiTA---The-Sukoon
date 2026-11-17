@@ -11,6 +11,7 @@ namespace Nainital.EditorTools
     public static class PlayTest
     {
         public const string TouchPref = "nt_touch";
+        public const string SkipMenuPref = "nt_skip_menu";
         static readonly string ErrPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../Bridge/play_errors.txt"));
 
         [InitializeOnLoadMethod]
@@ -31,6 +32,7 @@ namespace Nainital.EditorTools
         public static void Begin()
         {
             PlayerPrefs.SetInt(TouchPref, 1);
+            PlayerPrefs.SetInt(SkipMenuPref, 1);   // straight into the game, no main menu (FrontEnd)
             PlayerPrefs.Save();
             PlayerSettings.runInBackground = true;   // keep playing (and capturing) while the editor is not the window in front
             try { File.Delete(ErrPath); } catch { }
@@ -43,6 +45,7 @@ namespace Nainital.EditorTools
         {
             EditorApplication.isPlaying = false;
             PlayerPrefs.DeleteKey(TouchPref);
+            PlayerPrefs.DeleteKey(SkipMenuPref);
             PlayerPrefs.Save();
         }
 
