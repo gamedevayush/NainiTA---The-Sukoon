@@ -96,7 +96,7 @@ namespace Nainital.EditorTools
                 bool lake = false, allWalk = true;
                 foreach (var a in arms)
                 {
-                    if (IsLakeRoad(ctx, a.road)) lake = true;
+                    if (IsMainRoad(ctx, a.road)) lake = true;   // a main road through it: its black tarmac
                     if (a.road.kind != "pedestrian" && a.road.kind != "living_street") allWalk = false;
                 }
                 // painted into the ground like the roads (2026-11-16): one surface with them, no seam where they meet

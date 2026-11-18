@@ -90,6 +90,12 @@ namespace Nainital
         [System.NonSerialized] public float speed;
         [System.NonSerialized] public float verticalSpeed;
         [System.NonSerialized] public bool grounded = true, blocking, swimming, seated, rowing, dead;
+        /// <summary>Police and the 108 crew (2026-11-18): pistol held out in both hands (aimPitch degrees up), hands up when
+        /// arrested, astride a two-wheeler, both hands down on a stretcher's handles.</summary>
+        [System.NonSerialized] public bool aiming, handsUp, riding, carrying;
+        /// <summary>At a vehicle's wheel (the Driving clip); knocked down (the falling-down clip, then getting up).</summary>
+        [System.NonSerialized] public bool driving, knocked;
+        [System.NonSerialized] public float aimPitch;
 
         public enum Attack { Jab = 0, Cross = 1, Kick = 2, Haymaker = 3 }
 
@@ -138,6 +144,11 @@ namespace Nainital
 
         public Transform Model => model;
         public Transform Head => skinHead ? skinHead : joints[(int)J.Head];
+        /// <summary>The right hand (a skinned model's hand bone, else the code-built forearm: hand ~0.28 m down it).</summary>
+        public Transform RightHand => skinHand ? skinHand : joints[(int)J.ElR];
+        public bool HandIsBone => skinHand;
+        Transform skinHand;
+        float poseW;
         public bool IsSkinned => skinBones != null;
 
         // Built on enable in both edit mode (so characters show in the Scene view) and play mode.
@@ -152,11 +163,104 @@ namespace Nainital
             built = false;
         }
 
-        public void PlayAttack(Attack kind, float duration) { attackKind = kind; attackDur = Mathf.Max(0.1f, duration); attackT = 0f; }
-        public void PlayHit() { hitT = 0f; }
-        public void PlayRoll(float duration) { rollDur = Mathf.Max(0.1f, duration); rollT = 0f; }
+        public void PlayAttack(Attack kind, float duration)
+        {
+            attackKind = kind; attackDur = Mathf.Max(0.1f, duration); attackT = 0f;
+            if (Full) Act(kind == Attack.Jab ? "Jab" : kind == Attack.Cross ? "Cross" : kind == Attack.Kick ? "Kick" : "Hook", duration * 1.3f, duration * 1.15f);
+        }
+        public void PlayHit() { hitT = 0f; if (Full) Act("Hit", 0.55f, 0.6f); }
+        public void PlayRoll(float duration) { rollDur = Mathf.Max(0.1f, duration); rollT = 0f; if (Full) Act("Roll", duration * 1.25f, duration * 1.1f); }
+        /// <summary>A shout (the Yelling clip), a wave, talking, a nod, a head shake, an angry gesture (Mixamo, full body).</summary>
+        public void PlayGesture(string trigger, float seconds = 0f) { if (Full) Act(trigger, seconds, seconds > 0f ? seconds : ClipLen(trigger) * 0.95f); }
+        /// <summary>A pistol shot: the recoil over the arms (Upper layer).</summary>
+        public void PlayShoot() { if (Full) { anim.SetFloat(ActSpeedId, 1.6f); anim.SetTrigger("Shoot"); upT = 0.45f; } }
+
+        // ------------------------------------------------------------------ the Mixamo character animator (AnimKit)
+        static readonly int ActSpeedId = Animator.StringToHash("ActSpeed");
+        static readonly string[] Bools = { "Grounded", "Dead", "Knocked", "Rising", "Seated", "Driving", "Swim", "Aim", "Female" };
+        static readonly int[] BoolIds = System.Array.ConvertAll(Bools, Animator.StringToHash);
+        static Dictionary<string, float> clipLen;
+        bool full, wasKnocked;
+        float actT, actW, upT, upW, risingT;
+        Transform skinSpine, skinChest;
+
+        /// <summary>The character plays every move from the Mixamo clips (the procedural pose only adds arms: hands up,
+        /// the stretcher, the guard, and the seated poses on a bike or in a boat).</summary>
+        public bool Full => full && Mecanim;
+        bool IsFemale => female || bodyType == BodyType.Woman || bodyType == BodyType.OldWoman || bodyType == BodyType.Girl;
+
+        float ClipLen(string state)
+        {
+            if (clipLen == null && anim && anim.runtimeAnimatorController)
+            {
+                clipLen = new Dictionary<string, float>();
+                foreach (var c in anim.runtimeAnimatorController.animationClips) if (c) clipLen[c.name] = c.length;
+            }
+            string clip = state switch
+            {
+                "Jab" => "punch_jab", "Cross" => "punch_cross", "Hook" => "punch_hook", "Kick" => "kick_roundhouse", "Hit" => "hit_reaction",
+                "Roll" => "roll", "Yell" => "yelling", "Wave" => "waving", "Talk" => "talking", "Nod" => "gesture_head_nod_yes",
+                "Shake" => "gesture_shaking_head_no", "Angry" => "gesture_angry_gesture", "GetUp" => "getting_up", _ => state,
+            };
+            return clipLen != null && clipLen.TryGetValue(clip, out var l) ? l : 1f;
+        }
+
+        /// <summary>Play an action (layer 1) so that it lasts `playFor` seconds (0: its own length), the layer on for
+        /// `hold` seconds.</summary>
+        void Act(string trigger, float playFor, float hold)
+        {
+            float len = ClipLen(trigger);
+            anim.SetFloat(ActSpeedId, playFor > 0.05f ? Mathf.Clamp(len / playFor, 0.5f, 3.5f) : 1f);
+            anim.SetTrigger(trigger);
+            actT = Mathf.Max(actT, hold);
+        }
+
+        void DriveFull(float dt)
+        {
+            bool sittingProc = riding || rowing;   // these stay procedural
+            anim.SetBool(BoolIds[0], grounded || swimming || seated || sittingProc || driving);
+            anim.SetBool(BoolIds[1], dead && !knocked);
+            anim.SetBool(BoolIds[2], knocked);
+            if (wasKnocked && !knocked && !dead) risingT = ClipLen("GetUp") * 0.95f;
+            wasKnocked = knocked;
+            risingT -= dt;
+            anim.SetBool(BoolIds[3], risingT > 0f);
+            anim.SetBool(BoolIds[4], seated && !driving && !sittingProc);
+            anim.SetBool(BoolIds[5], driving);
+            anim.SetBool(BoolIds[6], swimming);
+            anim.SetBool(BoolIds[7], aiming && !seated && !driving);
+            anim.SetBool(BoolIds[8], IsFemale);
+            actT -= dt;
+            actW = Mathf.MoveTowards(actW, actT > 0f && !dead ? 1f : 0f, dt * (actT > 0f ? 14f : 5f));
+            anim.SetLayerWeight(1, actW);
+            upT -= dt;
+            upW = Mathf.MoveTowards(upW, upT > 0f ? 1f : 0f, dt * 12f);
+            anim.SetLayerWeight(2, upW);
+        }
+
+        /// <summary>Seated or at a wheel (the Sit / Driving clips): the hips onto the seat point, 0.51 m over the
+        /// character's root, whatever the character's size (VehicleSeats, benches).</summary>
+        void SeatLock()
+        {
+            if (!(seated || driving) || riding || rowing || dead || knocked || !anim) return;
+            var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
+            if (!hips) return;
+            Vector3 h = transform.InverseTransformPoint(hips.position);
+            Vector3 want = new Vector3(0f, VehicleSeats.HipAboveRoot, 0f);
+            model.localPosition += transform.InverseTransformVector(transform.TransformVector(want - h));
+        }
+
+        /// <summary>Aimed pistol: the chest tips up or down to the target on top of the clip.</summary>
+        void ApplyAimBend()
+        {
+            if (!aiming || !skinChest || Mathf.Abs(aimPitch) < 0.5f) return;
+            Vector3 right = model.right;
+            float p = Mathf.Clamp(aimPitch, -40f, 40f);
+            if (skinSpine) skinSpine.rotation = Quaternion.AngleAxis(-p * 0.45f, right) * skinSpine.rotation;
+            skinChest.rotation = Quaternion.AngleAxis(-p * 0.45f, right) * skinChest.rotation;
+        }
         public void CancelAttack() { attackT = -1f; }
-        public void Revive() { dead = false; deadT = 0f; }
+        public void Revive() { dead = false; deadT = 0f; knocked = false; }
 
         // ------------------------------------------------------------------ construction
         Transform Joint(J j, Transform parent, Vector3 local)
@@ -380,6 +484,7 @@ namespace Nainital
             }
             skinBones = list.Count > 0 ? list.ToArray() : null;
             skinHead = B("Head");
+            skinHand = B("RightHand");
             if (skinBones == null) Debug.LogWarning($"[Nainital] {name}: skin '{skinModel.name}' has no Humanoid-named bones; it will not animate.", this);
 
             // Humanoid avatar + the G.O.A.N. locomotion controller: mocap idle/walk/run in play mode
@@ -389,6 +494,10 @@ namespace Nainital
                 anim.runtimeAnimatorController = Locomotion;
                 anim.applyRootMotion = false;
                 anim.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+                full = false;
+                foreach (var prm in anim.parameters) if (prm.name == "Knocked") full = true;
+                skinSpine = B("Spine");
+                skinChest = B("Chest");
             }
             else anim = null;
         }
@@ -397,14 +506,21 @@ namespace Nainital
         static RuntimeAnimatorController locomotion;
         static bool lookedForLocomotion;
         static readonly int SpeedId = Animator.StringToHash("Speed");
-        const float WalkRef = 1.5f, RunRef = 4.4f;   // speeds (m/s) of the Walking / Fast Run clips in the blend tree
+        const float WalkRef = 1.5f;   // speed (m/s) of the walking clip in the blend tree
+        const float RunRef = 4.4f;   // and of the run (Mixamo running / G.O.A.N. fast run)
 
         /// <summary>Resources/NainitalLocomotion (idle / walk / run from G.O.A.N.), built by the editor.</summary>
         public static RuntimeAnimatorController Locomotion
         {
             get
             {
-                if (!lookedForLocomotion) { locomotion = Resources.Load<RuntimeAnimatorController>("NainitalLocomotion"); lookedForLocomotion = true; }
+                if (!lookedForLocomotion)
+                {
+                    // the Mixamo character animator (AnimKit) when it is built, else the old idle / walk / run one
+                    locomotion = Resources.Load<RuntimeAnimatorController>("NainitalCharacter");
+                    if (!locomotion) locomotion = Resources.Load<RuntimeAnimatorController>("NainitalLocomotion");
+                    lookedForLocomotion = true;
+                }
                 return locomotion;
             }
         }
@@ -431,6 +547,7 @@ namespace Nainital
         {
             if (!Mecanim || !Application.isPlaying) return;
             DriveAnimator(speed, Time.deltaTime);
+            if (full) DriveFull(Time.deltaTime);
         }
 
         /// <summary>Speed (m/s) to blend-tree parameter + playback rate, so slow walkers still take whole steps.</summary>
@@ -543,7 +660,7 @@ namespace Nainital
                     int every = d2 > 140f * 140f ? 6 : d2 > 55f * 55f ? 3 : 1;
                     if (every > 1 && (Time.frameCount + (GetInstanceID() & 0xFF)) % every != 0)
                     {
-                        if (skinBones != null && Mecanim) ApplySkin();   // the Animator rewrote the bones this frame
+                        if (skinBones != null && Mecanim) { ApplySkin(); if (Full) { ApplyAimBend(); SeatLock(); } }   // the Animator rewrote the bones this frame
                         return;
                     }
                 }
@@ -655,8 +772,19 @@ namespace Nainital
             }
 
             // ---- seated / rowing
-            seatW = Mathf.MoveTowards(seatW, seated || rowing ? 1f : 0f, dt * 5f);
-            if (seatW > 0f)
+            seatW = Mathf.MoveTowards(seatW, seated || rowing || riding ? 1f : 0f, dt * 5f);
+            if (seatW > 0f && riding)
+            {
+                // astride a bike: knees out round the tank, feet back on the pegs, hands forward on the bars
+                Blend(J.HipL, new Vector3(-62, 0, -14), seatW); Blend(J.HipR, new Vector3(-62, 0, 14), seatW);
+                Blend(J.KnL, new Vector3(96, 0, 0), seatW); Blend(J.KnR, new Vector3(96, 0, 0), seatW);
+                Blend(J.FtL, new Vector3(-12, 0, 0), seatW); Blend(J.FtR, new Vector3(-12, 0, 0), seatW);
+                Blend(J.ShL, new Vector3(-58, 0, 12), seatW); Blend(J.ShR, new Vector3(-58, 0, -12), seatW);
+                Blend(J.ElL, new Vector3(-28, 0, 0), seatW); Blend(J.ElR, new Vector3(-28, 0, 0), seatW);
+                Blend(J.Spine, new Vector3(12, 0, 0), seatW);
+                mPos.y = Mathf.Lerp(mPos.y, -0.44f, seatW);
+            }
+            else if (seatW > 0f)
             {
                 Blend(J.HipL, new Vector3(-86, 0, -4), seatW); Blend(J.HipR, new Vector3(-86, 0, 4), seatW);
                 Blend(J.KnL, new Vector3(86, 0, 0), seatW); Blend(J.KnR, new Vector3(86, 0, 0), seatW);
@@ -675,6 +803,30 @@ namespace Nainital
                     Blend(J.ElL, new Vector3(-35, 0, 0), seatW); Blend(J.ElR, new Vector3(-35, 0, 0), seatW);
                 }
                 mPos.y = Mathf.Lerp(mPos.y, -0.44f, seatW);
+            }
+
+            // ---- pistol out / hands up / stretcher (upper body over the walk)
+            bool posed = ((aiming && !Full) || handsUp || carrying) && !dead;   // Full: the pistol clips hold the gun
+            poseW = Mathf.MoveTowards(poseW, posed ? 1f : 0f, dt * 8f);
+            if (poseW > 0f)
+            {
+                if (handsUp)
+                {
+                    Blend(J.ShL, new Vector3(-162, 0, -16), poseW); Blend(J.ShR, new Vector3(-162, 0, 16), poseW);
+                    Blend(J.ElL, new Vector3(-22, 0, 0), poseW); Blend(J.ElR, new Vector3(-22, 0, 0), poseW);
+                }
+                else if (aiming)
+                {
+                    float p = Mathf.Clamp(aimPitch, -40f, 40f);
+                    Blend(J.ShR, new Vector3(-88 - p, 0, -4), poseW); Blend(J.ElR, new Vector3(-4, 0, 0), poseW);
+                    Blend(J.ShL, new Vector3(-80 - p, 0, 32), poseW); Blend(J.ElL, new Vector3(-24, 0, 0), poseW);
+                    Blend(J.Chest, new Vector3(2, 10, 0), poseW);
+                }
+                else
+                {
+                    Blend(J.ShL, new Vector3(-28, 0, 8), poseW); Blend(J.ShR, new Vector3(-28, 0, -8), poseW);
+                    Blend(J.ElL, new Vector3(-24, 0, 0), poseW); Blend(J.ElR, new Vector3(-24, 0, 0), poseW);
+                }
             }
 
             // ---- swimming
@@ -733,19 +885,31 @@ namespace Nainital
             // ---- how much of the procedural pose overrides the mocap pose (mecanim mode)
             float fullT = Mathf.Max(Mathf.Max(seatW, swimW), Mathf.Max(airW, dead ? Smooth(deadT / 0.3f) : 0f));
             if (rolling) fullT = 1f;
-            float upperT = Mathf.Max(blockW, attacking ? 1f : 0f);
+            float upperT = Mathf.Max(Mathf.Max(blockW, poseW), attacking ? 1f : 0f);
             if (hitT >= 0f) upperT = Mathf.Max(upperT, 1f - Smooth(hitT / 0.4f));
+            bool fullClips = Full;
+            if (fullClips)
+            {
+                // the clips do the legs, falls, swims, sitting, driving, fights, hits, rolls and deaths: the procedural pose
+                // only for the arms (hands up, the stretcher, the guard) and the seated poses on a bike or in a boat
+                fullT = riding || rowing ? seatW : 0f;
+                upperT = Mathf.Max(blockW, poseW);
+                rolling = false;
+                mRot = Vector3.zero;
+                mPos = riding || rowing ? new Vector3(0f, mPos.y, 0f) : Vector3.zero;
+            }
             fullW = Mathf.MoveTowards(fullW, fullT, dt * 10f);
             upperW = Mathf.MoveTowards(upperW, upperT, dt * 9f);
-            kickW = attacking && attackKind == Attack.Kick ? upperW : Mathf.MoveTowards(kickW, 0f, dt * 9f);
+            kickW = attacking && attackKind == Attack.Kick && !Full ? upperW : Mathf.MoveTowards(kickW, 0f, dt * 9f);
 
             // ---- apply
             mPos *= motionScale;   // a child's hips sit lower than the code-built body's: scale the drops
             float sharp = attacking ? 32f : 15f;
             float k01 = 1f - Mathf.Exp(-sharp * dt);
             for (int i = 0; i < JC; i++)
-                joints[i].localRotation = Quaternion.Slerp(joints[i].localRotation, Quaternion.Euler(tgt[i]), k01);
-            if (skinBones != null) ApplySkin();
+                if (joints[i]) joints[i].localRotation = Quaternion.Slerp(joints[i].localRotation, Quaternion.Euler(tgt[i]), k01);   // a bone can be gone while the editor rebuilds the world
+            if (skinBones != null) { ApplySkin(); if (fullClips) ApplyAimBend(); }
+            if (fullClips && (seated || driving) && !riding && !rowing) { SeatLock(); return; }
             if (rolling)
             {
                 model.localRotation = rollRot;

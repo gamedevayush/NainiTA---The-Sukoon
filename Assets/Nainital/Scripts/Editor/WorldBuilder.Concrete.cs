@@ -92,6 +92,27 @@ namespace Nainital.EditorTools
 
         static readonly HashSet<string> NotRoads = new HashSet<string> { "footway", "steps", "path", "track", "bridleway" };
 
+        /// <summary>
+        /// The main roads - the ones Google's map draws yellow: the highways (trunk: Haldwani and Bhawali roads), the
+        /// primary roads (Kaladhungi road, the Mall roads), the Nainital Bypass (secondary), their links, and any road along
+        /// the lake. Black tarmac with white edge lines and a dashed centre line; every other road is the normal grey (owner,
+        /// 2026-11-19: "all yellow roads are hard black concrete with white striped roads, all grey are normal grey roads").
+        /// </summary>
+        internal static bool IsMainRoad(WorldCtx ctx, RoadData r)
+        {
+            string k = r.kind ?? "";
+            if (k.EndsWith("_link")) k = k.Substring(0, k.Length - 5);
+            return k == "trunk" || k == "primary" || k == "secondary" || IsLakeRoad(ctx, r);
+        }
+
+        static Material mainRoadMat;
+        /// <summary>The main roads' black tarmac for the parts that are meshes (the Mall decks).</summary>
+        static Material MainRoadMaterial()
+        {
+            if (!mainRoadMat) mainRoadMat = PhotoMaterial("asphalt_02", "M_MainRoadTarmac", new Color(0.62f, 0.62f, 0.64f), 0.22f);
+            return mainRoadMat;
+        }
+
         /// <summary>Mall Road, and any road that runs mostly along the lake edge.</summary>
         static bool IsLakeRoad(WorldCtx ctx, RoadData r)
         {

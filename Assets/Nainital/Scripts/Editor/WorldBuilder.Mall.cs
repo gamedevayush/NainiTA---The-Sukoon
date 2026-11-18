@@ -518,7 +518,7 @@ namespace Nainital.EditorTools
         {
             // painted into the ground (2026-11-16: no road a separate mesh): flat across, so the heightfield takes it; the step
             // up to Upper Mall is behind the divider wall
-            var road = new MallChunks(ctx, parent, "Lower Mall road", ConcreteMaterial(ctx), false) { paintChannel = ChConcrete };
+            var road = new MallChunks(ctx, parent, "Lower Mall road", MainRoadMaterial() ?? ConcreteMaterial(ctx), false) { paintChannel = ChConcrete };   // black tarmac (19 Nov)
             float v = 0f;
             for (int i = 0; i + 1 < L.Count; i++)
             {

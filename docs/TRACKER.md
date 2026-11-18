@@ -214,3 +214,126 @@ category". All world text was TextMesh in the built-in font (~700 shop signs = ~
   the shop-front point's y - 2.75). Checked: Shots/sign1540*.png, sign1080.png, mf1540_shop.png, mf1080_shop.png.
 - 18 Nov 03:29: IPA built from ee07842 (Unity iOS build 3.8 min, GitHub Mac workflow ~15 min), `IPA frameworks ok: 2`,
   Builds/NainiTA-unsigned.ipa + the ios-build release. README "To test on the iPhone (IPA of 18 Nov)" lists what to try.
+
+## 18 Nov 2026 (evening) - police (3 levels), the 108 ambulance, bikes and scooties in the traffic
+Owner: "police or ambulance system tayyar kro proper... koi marta hai to police aayegi phir ambulance, traffic ruk
+jaayega, ambulance gaadi me daal ke le jaayegi... police ke 3 levels: basic maarne pe 1 star (bike se ya run karte
+huye, guns focus karke fade out), poora maar diya to 2 (car, saamne to arrest), 3 = 3 log ya 2 police... basic
+pistol, car / bike / running se bhi shoot... health usi base pe jaayegi"; then "normal traffic me bhi bikes or scooty,
+police aur ambulance me siren aur top lights"; then (after seeing it) "ruke hain to andar se goli kyun? bahar aake
+maare... bhaag raha hoon to baith ke chase kare".
+- Assets: police_1 / police_2 from the kit's PoliceGuys (206k tris each) -> `Tools/decimate_rigged_fbx.py` (Mixamo rig
+  kept, 18k + 6k LOD); Ambulance108 from the kit's Sultanpur AmbulanceFinal (Force Traveller, 13.7k); Splendor
+  (EtahMinorCar splendor_dec, front +y) and Scooty (KochiMiniCooper scooter_dec, front -y) via make_vehicle_lods.py.
+  Sounds from Mixkit (ids paired with titles from the listing page's HTML: the id comes before its title):
+  1641 police siren (fast hi-lo), 1642 ambulance wail, 1662 gun shot; one exact siren cycle each, short cross-fade.
+- Code: Runtime/Police (see README). Townspeople got Health 60, so punches and car hits now hurt and kill them.
+- Bugs found in play tests and fixed: a killing blow was not blamed on the player (Health is already 0 when Damaged
+  fires; the attacker is now recorded before the dead check) -> kills gave 0 stars; the 2-star clock ran while the
+  police were still on the way (now it starts once they have seen you; never seen: 2 min); a car stuck behind traffic
+  never let its men out (now: blocked 3 s or no progress 6 s within 75 m -> deploy); the ambulance and the held traffic
+  faced each other and both waited (RouteDriver now goes round on the right if there is room and asks a TrafficCar to
+  back off, TrafficCar.MakeWay); spawned police / ambulance faced away from their route (now face along it); a bike
+  standing still could not turn (it walks round now); 4 constables at 3 stars took 90 health in 6 s (now a shot at
+  most every 0.35 s from all police together, 7 a hit, lower accuracy: one constable ~30 s); a deployed car pulled its
+  men out again each time they sat back in; a scene guard stayed on guard after the chase.
+- Not done / open: police are slow through dense Mall Road crowds (they stop short and walk); the player cannot ride a
+  bike; bikes' wheels do not spin; no door animations on the ambulance; night look of the light bars not checked on a
+  phone; frame rate with 2 police cars + ambulance + 8 bikes not measured on the iPhone yet.
+
+## 18 Nov 2026 (night) - Mixamo animations, vehicle physics, traffic AI, seats, tyres
+Owner: "player ke aur characters ke legs theek nahi (avatar problem maybe); gun shoot, run, walk, shout, punch, kick
+aur jitne animation use ho rahe hain vo Mixamo se uthaao; AI traffic dumb, wall check nahi; running vehicle chhoone pe
+heavily move; doosri gaadi takraye to light balloon; khaali gaadi physics pe react nahi; vehicles pe player aur NPC
+position theek nahi; tyres theek se cut nahi"; then "iska ek basic pack aata hai" (Mixamo packs); then "bhai kuch theek
+nahi hua, saare animations kharab, bahut kharab bhaag raha hai, tumne kya check kiya?".
+- Mixamo in Brave Profile 1 (signed in through Google, CDP 9333). The pack zip export fails through the API ("The job
+  failed"), so each motion of a pack is exported as a single Motion from its gms_hash. 57 clips, X Bot, no skin, 30 fps.
+- What I checked first was not enough: a pose sheet (one frame per clip, editor) and one photo from behind. The run in
+  play was broken. Films (`AnimFilm`) and the legs' muscle ranges (`AnimKit.SwingReport`) found it: the Jogging clip is
+  2.6 s of several strides; in the blend tree with the 0.7 s run cycle the legs stopped. Jogging is out; walk (1.5 m/s)
+  to run (4.4 m/s); faster plays the run faster. Avatars were never the problem (Animator-only film of an NPC walks right).
+- Physics: Unity's default max depenetration velocity is unlimited - interpenetrating cars were thrown apart ("balloon").
+  Now 2.5 m/s, max angular 7 rad/s, 12/4 solver iterations, a body material (friction 0.35-0.45, bounce 0.02). Parked
+  cars were kinematic (a wall): now dynamic and asleep. People: a CharacterController is immovable to physics, so a car
+  touching one stopped dead; the car now keeps its pre-step velocity, ignores that person 1.5 s and knocks them aside.
+  Crash test: WagonR 950 kg at 14 m/s into a parked Bolero 1700 kg -> Bolero peak 4.5 m/s (momentum says 4.9), moved
+  1.5 m, no rise, spin 1.4 rad/s.
+- Traffic: first feelers stopped cars at every walled bend (9 of 10 standing after 95 s); now only a wall straight ahead
+  brakes, side walls nudge the wheel (max a third of lock), and a car pressing on without moving backs out. 2 min sample:
+  mean 2.4-3.1 m/s, 3-7 of 10 standing (queues), 5 knocks.
+- Tyres: `Tools/recut_wheels.py` (lower-half tread fit with an air gap outside, one size per car / per axle for buses,
+  measured width). Applied to Ambulance108, TouristBus, TouristCoach, HondaAmaze, Tata407 (renders in the scratchpad).
+- Seats: `VehicleSeats` from the front axle and the body; drivers' heads were through the roof of small cars -> hip height
+  capped at H - 1.1 m. HumanoidRig.SeatLock puts any sitter's hips at the seat point.
+- Open: police pistol pose only seen from a distance; bus / truck driver heights and the player's view inside not checked
+  close up; NPC flee speed blends walk/run (fine in films so far); the traffic still queues on narrow bends.
+
+## 19 Nov 2026 - Eco Cave Garden and Lover's Point / Suicide Point from the owner's photos
+Owner: "nainital eco cave park bnna hai theek se, abhi to khraab sa hai, iske andr ka map dhundho, bahut badi cave hain,
+4-5 hain, texture and sample maine dediya" (9 photos + the park's guide map), "krdo"; then Street View of Lover's Point
+and a sketch on the satellite ("orange means stairs to down, green in plain part, baaki buildings sattelite view mein").
+- Eco Cave: the guide map (not to scale) fitted to the Esri satellite and OSM (scratchpad ecocave/eco_layout.jpg). Park
+  frame u along Kaladhungi road (NE), v up the slope (SE), origin at the gate (-937, 182). The frame is a mirror image
+  (U x V = -1): bends written in u/v flip in world space - the first build put Apes Cave's rock 3.3 m from the NE walk;
+  bends negated, rechecked in world space (check_world.py: no walk within 3.6 m of a cave body).
+- Caves: a Catmull-Rom axis every 0.35 m, the floor = ground smoothed over 5 m and pinned at both mouths; inner passage
+  (superellipse arch, Perlin roughness, smooth normals, darker tint), flat floor, an outer rock mass with a skirt into
+  the ground, thinning to a lip at each mouth; boulders round the mouths, on the back and round the foot. First look was
+  a smooth brown dome (every rock scan on disk is brown): rock_grey made from rock_face (desaturated, lifted) and the
+  rock made lumpier. Boulders on the back hung into the passage (centre at 0.55-0.85 of the rock height): now kept above
+  the roof. Inside it was near black (the sun's shadow, ambient only): lighter tint and a 5.5 m point light per bulb.
+- Walks: nodes every 2.5 m at the smoothed ground (+0.12), steps where steeper than 12 %, slabs walled down to below the
+  ground; the ground is cut under walks and caves, never raised. Spurs join each cave mouth to the nearest walk at the
+  cave floor's level. 60 trees added on the open slope (the hillside fill skips slopes under 14 degrees).
+- The old 13 m pad at the Eco Cave POI is gone (it flattened the bottom of the park).
+- Lover's Point: the walk from the sketch (green = level, orange = steps down; 11.2 m down in all), the buildings from
+  the satellite shifted +12 m east onto the game road. The DEM falls ~33 degrees west of the hairpin, so the verge, the
+  walk and the sheds stand on a shaped shelf (fill up to ~25 m at the ledge, blend band growing with the height, rock
+  painted on the steep faces). First shaped before LevelRoads from the raw road height (1.5 m low) - now shaped in
+  BuildLoversPoint from the levelled road. A mistake of mine on the way: a height grid script overwrote the map centre
+  variables and showed the west rising; the real grid falls.
+- Verge first read black (tint 0.72 on worn concrete): lightened; the sheds' tin roofs were dark: tin_light made from
+  corrugated_iron_02. The walk's railings ran onto the ledge: they stop at the last flight.
+- Open: no horses (no model); the caves' passages checked from two inside shots only (Tiger, Apes), not walked through
+  in play; Lover's terrace seen from the road only at a distance.
+- Khurpatal Lake View Point (owner: Street View of the hairpin, 2 photos of the clearing, a sketch - "green in plain, red
+  in rocky stairs or just kinda rock trek, whole place is full of trees"). The sketch's map was turned 90 degrees (its
+  down is west: the hairpin's tip points right, the bare slopes are top-right, SE in the imagery); scale from the gap
+  between the two arms (~17 m = 160 px). The data hut at (-1862, -1124) is the stall by the path's head in the sketch,
+  which fixed the orientation. As at Lover's Point the imagery lies ~12 m west of the game road, so the walk hangs off
+  the game road's west arm: 17 m level-ish dirt (-2.5 m), 12 m of rock steps (-4.9 m), a 5.5 m clearing. The DEM falls
+  ~20 m there: the spur is shaped from the levelled road (crest at the walk's level, flanks at ~35 degrees down to the
+  hillside), cypress / oak / deodar added along it (the crest is too gentle for the hillside fill).
+- The editor was opened at the owner's word ("pehle unity kholo tbhi krna"); later he said it loaded too long ("band krke krlo"),
+  so the rest went back to batch builds (~9.5 min each against ~14 in the editor).
+- Owner on a screenshot: "khurpatal view point is not red, its at green" - it is at the hairpin's TIP, not on its west arm
+  (I had read the turned sketch as the west arm). Moved: pull-off round the tip, the walk straight out and bending to
+  Khurpatal (bearing ~222). For a while I also moved it to the road above Khurpatal lake after his map of the lake - wrong;
+  the map was for the temple and the lake. Mansa Devi Mandir ("just above it on road"): on the knoll inside the hairpin.
+- Khurpatal lake: its own water material (turquoise, M_WaterKhurpatal) from his photos.
+- The spur's crest ran on past the walk's end as a causeway into the valley (Project clamps at the end): past the end the
+  distance to the end node is used now.
+- Sariyatal: the water polygon reached the road at the north end, where the park is: clipped at z -1168 (ClipSouth in
+  BuildPonds), the park's ground set just above the water. West road raised to the lake (the DEM had it 12 m under the
+  water) in the levelling step, stopping at the south tip so the falls' ravine keeps its own ground.
+- Woodland Waterfall from his sketch (north-up, 5.3 px/m, anchored on the OSM "Sariyatal Falls" point = the gate). First
+  build set the stream's levels from the top down: it floated up to 19 m over the ravine. Now from the ravine floor, with
+  each pool's lip lifted 3.5 m on a rock ledge.
+- Main roads black (owner: "all yellow roads are hard black concrete with white striped roads, all grey are normal grey"):
+  the mask's second channel (was cement concrete for the lake roads) is the main roads' black tarmac (asphalt_02 unlifted,
+  its normal map), white lines on every main road; the shader already put that channel over the grey at junctions.
+- Top 10 (owner: "saare points photorealistic, top 10 places ke photos uthaao ... saare banao ... check, push, PC
+  shutdown"): photos from Wikimedia Commons (Google Street View needs a browser session; Commons rate-limited a few). Raj
+  Bhavan rebuilt on its OSM footprint (the generic extrusion of that footprint is skipped now), the zoo gate and two pens,
+  a photo pass on Naina Peak, Tiffin Top and Land's End. Naini lake, Naina Devi, Mall Road, Snow View, Eco Cave were
+  already built from photos.
+- Land's End: its view shot looked at an upside-down forest with no ground - the ledge and its camera were under the
+  hillside (the OSM point is up the bank and the lookout took the point's side of the road). Lookouts now always take the
+  road's lower side (the valley), and when the given bearing points back over the road they face away from it. Himalaya
+  Darshan and the Khurpatal View Point moved to their valley sides with it (both checked: the snow range, the lake).
+- Checked in the last build (shots): Eco Cave inside / mouths, Lover's verge / walk / ledge, Khurpatal tip / temple /
+  clearing, Sariyatal park / shore, Woodland gate / stairs / falls, the black main roads (Kaladhungi, Mall Road, Tallital
+  grey), Raj Bhavan, the zoo gate, Naina Peak, Tiffin Top, Land's End, Himalaya Darshan, Khurpatal View Point.
+  Not walked in play: the caves' passages, the Woodland stairs, Raj Bhavan's porch.
+

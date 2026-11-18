@@ -313,7 +313,7 @@ namespace Nainital
             if (cheatPanel && cheatPanel.activeSelf) { Close(cheatPanel); return; }
             if (!cheatPanel)
             {
-                var box = Panel("CheatPanel", new Vector2(640, 776), "Cheats");
+                var box = Panel("CheatPanel", new Vector2(640, 950), "Cheats");
                 cheatPanel = box.parent.gameObject;
                 float y = -110;
                 void B(string label, string code)
@@ -328,6 +328,8 @@ namespace Nainital
                 B("AMAR  -  Chot nahi lagegi", "AMAR");
                 B("GAADI  -  Car paas aayegi", "GAADI");
                 B("JEEP  -  Bolero / Scorpio", "JEEP");
+                B("POLICE  -  Ek star aur", "POLICE");
+                B("SHANTI  -  Police hatao", "SHANTI");
                 hud.Btn("Band karo", box, new Vector2(0.5f, 0), new Vector2(0, 60), new Vector2(300, 66), () => Close(cheatPanel), 28);
             }
             Open(cheatPanel);

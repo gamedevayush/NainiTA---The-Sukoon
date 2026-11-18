@@ -42,6 +42,8 @@ namespace Nainital
         readonly List<(Text t, string src)> locTexts = new List<(Text, string)>();
         readonly List<Toast> toasts = new List<Toast>();
         bool showTouch;
+        /// <summary>The mission timer pill is showing (the wanted stars move down under it).</summary>
+        public bool TimerShown => timerPill && timerPill.gameObject.activeSelf;
 
         /// <summary>The whole HUD faded (the front end hides it in the menus and brings it in at the end of the intro).</summary>
         public void SetAlpha(float a)
@@ -201,6 +203,7 @@ namespace Nainital
 
             BuildMoney(root);
             BuildMission(root);
+            gameObject.AddComponent<WantedHud>().Build(this, root);   // police stars (WantedSystem), top centre
             BuildReveal(root);
             BuildBanner(root);
             BuildPrompt(root);

@@ -59,6 +59,21 @@ namespace Nainital.EditorTools
                     id = c.id, displayName = c.name, prefab = prefab, bodyType = c.type, height = c.height, weight = c.weight,
                 });
             }
+            // Uttarakhand Police (2026-11-18): the kit's PoliceGuys (Tripo + Mixamo rig), decimated by
+            // Tools/decimate_rigged_fbx.py, 1 m tall as imported; never in the crowd (weight 0), PoliceManager picks them
+            foreach (var c in PoliceCast)
+            {
+                string fbx = $"{Dir}/Models/{c.id}.fbx", tex = $"{Dir}/Textures/{c.id}.jpg";
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbx);
+                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(tex);
+                if (!model || !texture) { Debug.LogWarning($"[Nainital] character {c.id}: missing {(model ? tex : fbx)}, skipped"); continue; }
+                var prefab = MakePrefab(c.id, model, new[] { MakeMaterial(c.id, texture) }, c.height);
+                if (!prefab) continue;
+                entries.Add(new CharacterLibrary.Entry
+                {
+                    id = c.id, displayName = c.name, prefab = prefab, bodyType = HumanoidRig.BodyType.Man, height = c.height, weight = 0f,
+                });
+            }
             // G.O.A.N. villagers: Tripo meshes with Mixamo rigs, 1 m tall as imported, own embedded materials
             foreach (var c in GoanCast)
             {
@@ -80,8 +95,15 @@ namespace Nainital.EditorTools
             lib.entries = entries.ToArray();
             EditorUtility.SetDirty(lib);
             AssetDatabase.SaveAssets();
-            Debug.Log($"[Nainital] character library: {entries.Count}/{Cast.Length + GoanCast.Length} rigged characters -> {LibraryPath}");
+            Debug.Log($"[Nainital] character library: {entries.Count}/{Cast.Length + GoanCast.Length + PoliceCast.Length} rigged characters -> {LibraryPath}");
         }
+
+        // id, name, height (m): police_1 (constable), police_2 (the bearded havaldar)
+        static readonly (string id, string name, float height)[] PoliceCast =
+        {
+            ("police_1", "Constable", 1.76f),
+            ("police_2", "Havaldar", 1.74f),
+        };
 
         // id, FBX, body type, name, height (m), crowd weight
         static readonly (string id, string fbx, HumanoidRig.BodyType type, string name, float height, float weight)[] GoanCast =
@@ -206,7 +228,7 @@ namespace Nainital.EditorTools
                 smr.quality = SkinQuality.Bone4;
                 smr.shadowCastingMode = ShadowCastingMode.On;
                 smr.updateWhenOffscreen = false;
-                if (smr.name.EndsWith("_Low")) { lod1 = smr; smr.skinnedMotionVectors = false; }
+                if (smr.name.EndsWith("_Low") || smr.name.EndsWith("_LOD1")) { lod1 = smr; smr.skinnedMotionVectors = false; }
                 else lod0 = smr;
             }
             if (!lod0)

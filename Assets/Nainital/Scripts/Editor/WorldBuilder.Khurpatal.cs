@@ -19,6 +19,7 @@ namespace Nainital.EditorTools
             {
                 if (p.level <= 0f) continue;
                 var poly = Geo.ToPoints(p.pts);
+                if (p.name == "Sariyatal") poly = LandmarkBuilder.ClipSouth(poly, LandmarkBuilder.SyCutZ);   // its north end is the park (19 Nov)
                 if (poly.Length < 3) continue;
                 if (Geo.SignedArea(poly) < 0) System.Array.Reverse(poly);
                 float y = p.level - ctx.world.meta.hMin;
@@ -30,7 +31,21 @@ namespace Nainital.EditorTools
                     Vector2 a = water[tris[i]], b = water[tris[i + 1]], c = water[tris[i + 2]];
                     wmb.Tri(new Vector3(a.x, y, a.y), new Vector3(b.x, y, b.y), new Vector3(c.x, y, c.y), Vector2.zero, Vector3.up);
                 }
-                var go = ctx.MeshObject(string.IsNullOrEmpty(p.name) ? "Pond" : p.name, parent, wmb, ctx.mats.water, null, false);
+                var mat = ctx.mats.water;
+                if (p.name == "Kurpa Tal")
+                {
+                    // Khurpatal reads turquoise in the owner's photos (19 Nov): greener and clearer than Naini lake
+                    string path = Gen + "/M_WaterKhurpatal.mat";
+                    var km = AssetDatabase.LoadAssetAtPath<Material>(path);
+                    if (!km) { km = new Material(ctx.mats.water); AssetDatabase.CreateAsset(km, path); }
+                    else km.CopyPropertiesFromMaterial(ctx.mats.water);
+                    km.SetColor("_ShallowColor", new Color(0.5f, 0.88f, 0.82f));
+                    km.SetColor("_DeepColor", new Color(0.05f, 0.42f, 0.4f));
+                    km.SetVector("_Absorption", new Vector4(0.45f, 0.1f, 0.12f, 0f));
+                    EditorUtility.SetDirty(km);
+                    mat = km;
+                }
+                var go = ctx.MeshObject(string.IsNullOrEmpty(p.name) ? "Pond" : p.name, parent, wmb, mat, null, false);
                 go.layer = 4;
                 n++;
             }
@@ -38,7 +53,7 @@ namespace Nainital.EditorTools
         }
 
         /// <summary>Downward white streaks with soft edges, for the falling water (alpha-blended).</summary>
-        static Material WaterfallMaterial()
+        internal static Material WaterfallMaterial()
         {
             string texPath = Gen + "/T_Waterfall.png", matPath = Gen + "/M_Waterfall.mat";
             const int W = 128, H = 256;

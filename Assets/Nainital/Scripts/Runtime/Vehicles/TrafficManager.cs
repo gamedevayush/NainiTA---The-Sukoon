@@ -9,14 +9,16 @@ namespace Nainital
         public RoadNetwork network;
         public Material material;
         public int maxCars = 16;
+        public int maxBikes = 8;   // Splendor / scooty riders (TrafficBike), on top of the cars
         public float spawnMin = 70f, spawnMax = 240f, despawn = 320f;
 
         readonly List<TrafficCar> active = new List<TrafficCar>();
+        readonly List<TrafficBike> bikes = new List<TrafficBike>();
         float timer;
 
         void Start()
         {
-            if (Application.isMobilePlatform) maxCars = Mathf.Min(maxCars, 8);
+            if (Application.isMobilePlatform) { maxCars = Mathf.Min(maxCars, 8); maxBikes = Mathf.Min(maxBikes, 4); }
         }
 
         void Update()
@@ -52,6 +54,55 @@ namespace Nainital
                 }
             }
             if (active.Count < target) TrySpawn(c, cam);
+
+            // two-wheelers, by the same hour curve
+            int bikeTarget = Mathf.RoundToInt(maxBikes * TownClock.Traffic(TownClock.Hour));
+            for (int i = bikes.Count - 1; i >= 0; i--)
+            {
+                var b = bikes[i];
+                if (!b) { bikes.RemoveAt(i); continue; }
+                float d2 = (b.transform.position - c).sqrMagnitude;
+                bool far = d2 > despawn * despawn;
+                if (!far && bikes.Count > bikeTarget && d2 > 50f * 50f)
+                {
+                    Vector3 vp = cam.WorldToViewportPoint(b.transform.position);
+                    far = vp.z < 0 || vp.x < -0.1f || vp.x > 1.1f || vp.y < -0.1f || vp.y > 1.1f;
+                }
+                if (b.Down && d2 > 120f * 120f) far = true;   // a fallen bike far behind
+                if (far) { Destroy(b.gameObject); bikes.RemoveAt(i); }
+            }
+            if (bikes.Count < bikeTarget) TrySpawnBike(c, cam);
+        }
+
+        void TrySpawnBike(Vector3 c, Camera cam)
+        {
+            var lib = VehicleLibrary.Instance;
+            if (!lib || lib.bikes == null || lib.bikes.Length == 0) return;
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                int r = Random.Range(0, network.roads.Length);
+                var pts = network.roads[r].pts;
+                if (pts.Length < 6) continue;
+                int i = Random.Range(2, pts.Length - 2);
+                Vector3 pos = pts[i];
+                float d = Vector3.Distance(pos, c);
+                if (d < spawnMin * 0.8f || d > spawnMax) continue;
+                Vector3 vp = cam.WorldToViewportPoint(pos);
+                if (d < 140f && vp.z > 0 && vp.x > -0.1f && vp.x < 1.1f && vp.y > -0.1f && vp.y < 1.1f) continue;
+                bool clear = true;
+                foreach (var a in active) if (a && (a.transform.position - pos).sqrMagnitude < 144f) { clear = false; break; }
+                if (clear) foreach (var a in bikes) if (a && (a.transform.position - pos).sqrMagnitude < 100f) { clear = false; break; }
+                if (!clear) continue;
+                var e = lib.PickBike(Random.value);
+                if (e == null) return;
+                var go = BikeRide.Create(e, "Traffic " + e.name);
+                go.transform.SetParent(transform, true);
+                var t = go.AddComponent<TrafficBike>();
+                t.cruise = Random.Range(8f, 12f);
+                t.Begin(network, r, i, Random.value < 0.5f ? 1 : -1);
+                bikes.Add(t);
+                return;
+            }
         }
 
         void TrySpawn(Vector3 c, Camera cam)

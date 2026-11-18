@@ -340,6 +340,10 @@ namespace Nainital
             info.length = L;
             info.width = W;
             info.height = H;
+            info.model = e.name;
+            info.frontAxleZ = (wheels[0].localPosition.z + wheels[1].localPosition.z) * 0.5f;
+            info.rearAxleZ = (wheels[2].localPosition.z + wheels[3].localPosition.z) * 0.5f;
+            info.bodyWidth = Mathf.Abs(wheels[0].localPosition.x - wheels[1].localPosition.x) + 0.4f;
             var lampTf = body.transform.Find("Lamps");
             if (lampTf)
             {
@@ -398,6 +402,7 @@ namespace Nainital
                 }
                 root.AddComponent<CarController>().Setup(type, wheels, seat, lights);
                 root.AddComponent<VehicleDamage>();   // knocks: smoke, fire, blast
+                seat.localPosition = VehicleSeats.Root(root);   // the driver's seat of this model (needs the car's kind)
             }
             return root;
         }

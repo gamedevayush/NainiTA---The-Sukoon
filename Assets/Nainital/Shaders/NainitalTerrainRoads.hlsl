@@ -78,8 +78,9 @@ void NtGround(float3 positionWS, inout half3 albedo, inout half smoothness, inou
         half3 road = (cA * w.r + cC * w.g + cG * _NtGreyTint.rgb * w.b + cP * _NtRedTint.rgb * w.a) * inv;
         half3 nA = UnpackNormal(SAMPLE_TEXTURE2D_GRAD(_NtAsphaltN, sampler_NtAsphalt, uvA, dAx, dAy));
         half3 nP = UnpackNormal(SAMPLE_TEXTURE2D_GRAD(_NtPaverN, sampler_NtAsphalt, uvP, dPx, dPy));
-        half3 nRoad = normalize(nA * w.r + half3(0, 0, 1) * w.g + nP * (w.b + w.a) + half3(0, 0, 1e-3));
-        half sRoad = (0.22h * w.r + 0.16h * w.g + 0.28h * (w.b + w.a)) * inv;
+        // the second channel is the main roads' black tarmac (19 Nov): the asphalt's grain too
+        half3 nRoad = normalize(nA * (w.r + w.g) + nP * (w.b + w.a) + half3(0, 0, 1e-3));
+        half sRoad = (0.22h * w.r + 0.2h * w.g + 0.28h * (w.b + w.a)) * inv;
         albedo = lerp(albedo, road, total);
         smoothness = lerp(smoothness, sRoad, total);
         normalTS = normalize(lerp(normalTS, nRoad, total));

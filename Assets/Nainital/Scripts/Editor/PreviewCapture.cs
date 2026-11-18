@@ -216,7 +216,8 @@ namespace Nainital.EditorTools
                                                   ("Lover's Point", "80_lovers_point"), ("Barapathar (pony stand)", "81_barapathar"), ("Sariyatal", "82_sariyatal"),
                                                   ("Sariyatal Falls", "83_sariyatal_falls"), ("Khurpatal Lake View Point", "84_khurpatal_lake_view"),
                                                   ("Khurpatal View Point", "85_khurpatal_view"), ("Khurpatal", "86_khurpatal"),
-                                                  ("Bada Bazar", "87_bada_bazar"), ("St. Francis Church", "88_st_francis") })
+                                                  ("Bada Bazar", "87_bada_bazar"), ("St. Francis Church", "88_st_francis"),
+                                                  ("Raj Bhavan", "89_raj_bhavan"), ("Nainital Zoo", "90_zoo") })
             {
                 var vm = GameObject.Find("ViewShot " + title);
                 if (!vm) { Debug.LogWarning("[Nainital] no ViewShot " + title); continue; }

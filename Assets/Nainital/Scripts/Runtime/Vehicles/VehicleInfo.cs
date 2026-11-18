@@ -7,5 +7,9 @@ namespace Nainital
     public class VehicleInfo : MonoBehaviour
     {
         public float wheelRadius = 0.35f, length = 4.4f, width = 1.8f, height = 1.8f;
+        /// <summary>The library model's name, where its axles are (vehicle space z) and the body's width without the
+        /// mirrors (from the tyres' track): VehicleSeats places the driver from these.</summary>
+        public string model;
+        public float frontAxleZ, rearAxleZ, bodyWidth;
     }
 }

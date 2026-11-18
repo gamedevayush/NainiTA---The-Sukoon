@@ -10,6 +10,8 @@ namespace Nainital
     public class VehicleLamps : MonoBehaviour
     {
         public Renderer lamps;
+        /// <summary>Driven by the game itself (police, ambulance): lamps after dusk like traffic.</summary>
+        public bool always;
         TrafficCar traffic;
         CarController car;
         float timer;
@@ -37,7 +39,7 @@ namespace Nainital
             var dn = DayNightCycle.Instance;
             float night = dn ? dn.NightFactor : 0f;
             float rain = WeatherSystem.Instance ? WeatherSystem.Instance.Rain : 0f;
-            bool moving = traffic || (car && CarController.Driving == car);
+            bool moving = traffic || always || (car && CarController.Driving == car);
             bool on = moving && (night > 0.3f || rain > 0.5f);
             if (lamps.enabled != on) lamps.enabled = on;
         }

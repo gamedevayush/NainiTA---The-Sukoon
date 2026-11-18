@@ -47,6 +47,31 @@ namespace Nainital
             return w;
         }
 
+        /// <summary>A townsperson astride a two-wheeler (TrafficBike); not part of the crowd count.</summary>
+        public NpcWalker MakeRider(Transform bike, Vector3 seatLocal)
+        {
+            NpcWalker w = null;
+            while (pool.Count > 0 && !w) w = pool.Dequeue();
+            if (!w) w = Create();
+            w.ResetState();
+            w.gameObject.SetActive(true);
+            w.EnterBike(bike, seatLocal);
+            return w;
+        }
+
+        /// <summary>A walker's body was taken away (IncidentManager): back into the pool, alive again.</summary>
+        public void Release(NpcWalker w)
+        {
+            if (!w) return;
+            active.Remove(w);
+            browsers.Remove(w);
+            w.transform.SetParent(transform, true);
+            w.idle = false;
+            w.ResetState();
+            w.gameObject.SetActive(false);
+            if (!pool.Contains(w)) pool.Enqueue(w);
+        }
+
         /// <summary>The house door nearest p (where a driver whose car was taken walks off to).</summary>
         public Vector3 NearestDoor(Vector3 p) => NearestHome(p);
 
@@ -165,7 +190,10 @@ namespace Nainital
             var look = lib ? lib.Pick(female, child ? true : (bool?)false, child ? (bool?)null : Random.value < 0.22f) : null;
             if (look != null) CharacterLibrary.Apply(look, rig, cc);
             rigGo.SetActive(true);
+            var hp = go.AddComponent<Health>();   // before the walker, which looks for it
+            hp.max = hp.current = 60f;
             var w = go.AddComponent<NpcWalker>();
+            w.pooled = true;
             w.npcName = look != null ? look.displayName : Names[Random.Range(0, Names.Length)];
             w.speed = HumanoidRig.WalkSpeedFor(rig.bodyType) * Random.Range(0.85f, 1.15f);
             return w;

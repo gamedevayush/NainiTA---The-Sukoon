@@ -13,6 +13,14 @@ MonoBehaviour:
   m_Name: VehicleLibrary
   m_EditorClassIdentifier: Assembly-CSharp::Nainital.VehicleLibrary
   entries:
+  - name: Ambulance108
+    prefab: {fileID: 8596742939496404640, guid: ca6da1962d550584c991f72909bd2aac, type: 3}
+    size: {x: 2.492, y: 2.975, z: 5.2}
+    type: 2
+    taxi: 0
+    weight: 0
+    tint: 0
+    wheelRadius: 0.4199999
   - name: Bolero
     prefab: {fileID: 7974166065782702545, guid: e8fa878fcb580ce4aa46adf79748cab9, type: 3}
     size: {x: 1.961, y: 1.869, z: 4}
@@ -44,7 +52,7 @@ MonoBehaviour:
     taxi: 0
     weight: 1
     tint: 1
-    wheelRadius: 0
+    wheelRadius: 0.366716
   - name: InnovaCrysta
     prefab: {fileID: 1558810125259211223, guid: 30d531cd7cbd0d24db6bbc1ade8aa5b2, type: 3}
     size: {x: 2.393, y: 1.949, z: 4.73}
@@ -68,7 +76,7 @@ MonoBehaviour:
     taxi: 0
     weight: 0.6
     tint: 0
-    wheelRadius: 0.5
+    wheelRadius: 0.56768906
   - name: TouristBus
     prefab: {fileID: 4046686028727454352, guid: f02c1608a5654204d8e6fe80170307a4, type: 3}
     size: {x: 3.928, y: 4.5, z: 11.5}
@@ -76,7 +84,7 @@ MonoBehaviour:
     taxi: 0
     weight: 0.45
     tint: 0
-    wheelRadius: 0.64
+    wheelRadius: 0.695
   - name: TouristCoach
     prefab: {fileID: 8555703559706441499, guid: 9df48221312e98c4ea6725ca620170f4, type: 3}
     size: {x: 2.927, y: 3.565, z: 7.2}
@@ -84,7 +92,7 @@ MonoBehaviour:
     taxi: 0
     weight: 1
     tint: 0
-    wheelRadius: 0.42
+    wheelRadius: 0.47999987
   - name: WagonR
     prefab: {fileID: 6335510144766462804, guid: 8407c9404ee3a9349a93eb439cdfc28e, type: 3}
     size: {x: 1.802, y: 1.725, z: 3.66}
@@ -92,4 +100,21 @@ MonoBehaviour:
     taxi: 0
     weight: 1
     tint: 1
+    wheelRadius: 0.3
+  bikes:
+  - name: Scooty
+    prefab: {fileID: 8888243286284188664, guid: 565440383da2f36448ce293abd621c35, type: 3}
+    size: {x: 0.92, y: 1.412, z: 1.83}
+    type: 0
+    taxi: 0
+    weight: 1
+    tint: 0
+    wheelRadius: 0.3
+  - name: Splendor
+    prefab: {fileID: 3859483630652687925, guid: cb491220fc88dc8499599a7efd5c883b, type: 3}
+    size: {x: 1.037, y: 1.345, z: 2}
+    type: 0
+    taxi: 0
+    weight: 1.2
+    tint: 0
     wheelRadius: 0.3

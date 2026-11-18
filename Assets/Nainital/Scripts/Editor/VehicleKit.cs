@@ -35,7 +35,11 @@ namespace Nainital.EditorTools
             { "Tata407", (CarType.Pickup, false, 0.6f, false) },
             { "TouristCoach", (CarType.Bus, false, 1f, false) },
             { "TouristBus", (CarType.Bus, false, 0.45f, false) },
+            { "Ambulance108", (CarType.Suv, false, 0f, false) },   // the 108 ambulance: never in the traffic (PoliceManager)
         };
+
+        /// <summary>Two-wheelers (Vehicles/Bikes): how often each turns up in the traffic (TrafficBike).</summary>
+        static readonly Dictionary<string, float> BikeWeights = new Dictionary<string, float> { { "Splendor", 1.2f }, { "Scooty", 1f } };
 
         [MenuItem("Nainital/7. Import vehicles", priority = 7)]
         public static void Build()
@@ -123,9 +127,57 @@ namespace Nainital.EditorTools
             var lib = AssetDatabase.LoadAssetAtPath<VehicleLibrary>(LibraryPath);
             if (!lib) { lib = ScriptableObject.CreateInstance<VehicleLibrary>(); AssetDatabase.CreateAsset(lib, LibraryPath); }
             lib.entries = entries.ToArray();
+            lib.bikes = BuildBikes().ToArray();
             EditorUtility.SetDirty(lib);
             AssetDatabase.SaveAssets();
-            Debug.Log($"[Nainital] vehicles: {entries.Count} prefabs -> {Dir}/Prefabs, library {LibraryPath}");
+            Debug.Log($"[Nainital] vehicles: {entries.Count} prefabs + {lib.bikes.Length} two-wheelers -> {Dir}/Prefabs, library {LibraryPath}");
+        }
+
+        /// <summary>The two-wheelers in Vehicles/Bikes (make_vehicle_lods.py output, no separate wheels): a prefab each with
+        /// the three LODs, its pivot at the bottom centre, front +Z. BikeRide moves them; nothing spins.</summary>
+        static List<VehicleLibrary.Entry> BuildBikes()
+        {
+            var list = new List<VehicleLibrary.Entry>();
+            string models = Dir + "/Bikes/Models";
+            if (!Directory.Exists(models)) return list;
+            foreach (var json in Directory.GetFiles(models, "*.json"))
+            {
+                var sc = JsonUtility.FromJson<Sidecar>(File.ReadAllText(json));
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{models}/{sc.name}.fbx");
+                if (!model) { Debug.LogWarning($"[Nainital] bike {sc.name}: FBX missing"); continue; }
+                var mats = new Material[Mathf.Max(1, sc.materials?.Length ?? 0)];
+                for (int i = 0; i < mats.Length; i++)
+                    mats[i] = MakeMaterial($"{sc.name}_m{i}", sc.materials != null && i < sc.materials.Length ? sc.materials[i] : null, Dir + "/Bikes/Textures");
+                var root = new GameObject(sc.name);
+                var inst = Object.Instantiate(model, root.transform, false);
+                inst.name = "Model";
+                var lods = new Renderer[3];
+                foreach (var mr in inst.GetComponentsInChildren<MeshRenderer>(true))
+                {
+                    var mf = mr.GetComponent<MeshFilter>();
+                    int n = mf && mf.sharedMesh ? mf.sharedMesh.subMeshCount : 1;
+                    var arr = new Material[n];
+                    for (int k = 0; k < n; k++) arr[k] = mats[Mathf.Min(k, mats.Length - 1)];
+                    mr.sharedMaterials = arr;
+                    mr.shadowCastingMode = mr.name.EndsWith("L2") ? ShadowCastingMode.Off : ShadowCastingMode.On;
+                    for (int l = 0; l < 3; l++) if (mr.name.EndsWith("L" + l)) lods[l] = mr;
+                }
+                var lodList = new List<LOD>();
+                float[] h = { 0.05f, 0.012f, 0.003f };   // a 2 m bike: full detail to ~35 m
+                for (int l = 0; l < 3; l++) if (lods[l]) lodList.Add(new LOD(h[l], new Renderer[] { lods[l] }));
+                if (lodList.Count == 0) { Object.DestroyImmediate(root); continue; }
+                var lg = root.AddComponent<LODGroup>();
+                lg.SetLODs(lodList.ToArray());
+                lg.RecalculateBounds();
+                var prefab = PrefabUtility.SaveAsPrefabAsset(root, $"{Dir}/Prefabs/{sc.name}.prefab");
+                Object.DestroyImmediate(root);
+                list.Add(new VehicleLibrary.Entry
+                {
+                    name = sc.name, prefab = prefab, size = new Vector3(sc.size[0], sc.size[2], sc.size[1]), type = CarType.Hatchback,
+                    weight = BikeWeights.TryGetValue(sc.name, out var w) ? w : 1f, tint = false, wheelRadius = 0.3f,
+                });
+            }
+            return list;
         }
 
         /// <summary>Two head lamps (warm white) and two tail lamps (red) as glowing quads where the model's lamps are
@@ -259,8 +311,9 @@ namespace Nainital.EditorTools
             return mat;
         }
 
-        static Material MakeMaterial(string id, Mat m)
+        static Material MakeMaterial(string id, Mat m, string texDir = null)
         {
+            texDir ??= Dir + "/Textures";
             string path = $"{Dir}/Materials/{id}.mat";
             var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (!mat)
@@ -268,7 +321,7 @@ namespace Nainital.EditorTools
                 mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = id };
                 AssetDatabase.CreateAsset(mat, path);
             }
-            Texture2D T(string f) => !string.IsNullOrEmpty(f) ? AssetDatabase.LoadAssetAtPath<Texture2D>($"{Dir}/Textures/{f}") : null;
+            Texture2D T(string f) => !string.IsNullOrEmpty(f) ? AssetDatabase.LoadAssetAtPath<Texture2D>($"{texDir}/{f}") : null;
             var col = T(m?.color);
             var nrm = T(m?.normal);
             var ms = T(m?.ms);
@@ -313,7 +366,7 @@ namespace Nainital.EditorTools
     {
         void OnPreprocessModel()
         {
-            if (!assetPath.StartsWith(VehicleKit.Dir + "/Models/")) return;
+            if (!assetPath.StartsWith(VehicleKit.Dir + "/Models/") && !assetPath.StartsWith(VehicleKit.Dir + "/Bikes/Models/")) return;
             var mi = (ModelImporter)assetImporter;
             mi.globalScale = 1f;
             mi.useFileScale = true;
@@ -332,7 +385,7 @@ namespace Nainital.EditorTools
 
         void OnPreprocessTexture()
         {
-            if (!assetPath.StartsWith(VehicleKit.Dir + "/Textures/")) return;
+            if (!assetPath.StartsWith(VehicleKit.Dir + "/Textures/") && !assetPath.StartsWith(VehicleKit.Dir + "/Bikes/Textures/")) return;
             var ti = (TextureImporter)assetImporter;
             bool normal = assetPath.Contains("_normal");
             bool mask = assetPath.Contains("_ms");

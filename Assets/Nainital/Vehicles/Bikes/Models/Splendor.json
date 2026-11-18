@@ -1,0 +1,63 @@
+{
+ "name": "Splendor",
+ "size": [
+  1.037,
+  2.0,
+  1.345
+ ],
+ "tris": [
+  8000,
+  2500,
+  700
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_66b00912-661e-436c-bcf4-0c9b27f8b589",
+   "color": "Splendor_m0_color.jpg",
+   "normal": "Splendor_m0_normal.png",
+   "orm": "Splendor_m0_orm.jpg",
+   "rgba": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "ms": "Splendor_m0_ms.png"
+  }
+ ],
+ "wheel_tris": 0,
+ "wheels": [],
+ "lamps": {
+  "front": [],
+  "rear": []
+ },
+ "objects": [
+  {
+   "name": "Mesh_L0",
+   "mats": [
+    0
+   ],
+   "tris": [
+    8000
+   ]
+  },
+  {
+   "name": "Mesh_L1",
+   "mats": [
+    0
+   ],
+   "tris": [
+    2500
+   ]
+  },
+  {
+   "name": "Mesh_L2",
+   "mats": [
+    0
+   ],
+   "tris": [
+    700
+   ]
+  }
+ ]
+}

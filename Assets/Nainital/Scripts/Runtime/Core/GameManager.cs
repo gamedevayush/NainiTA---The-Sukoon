@@ -50,6 +50,7 @@ namespace Nainital
             if (!FindAnyObjectByType<HUD>()) new GameObject("HUD").AddComponent<HUD>();
             // the main menu, the pause menu, settings, saving and the intro (it greets the player when play starts)
             if (!FindAnyObjectByType<FrontEnd>()) new GameObject("FrontEnd").AddComponent<FrontEnd>();
+            WantedSystem.Ensure();   // the police, accidents and the 108 ambulance (Runtime/Police)
         }
 
         bool mobileTerrain;

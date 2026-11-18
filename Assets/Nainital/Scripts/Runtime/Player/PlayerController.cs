@@ -26,6 +26,9 @@ namespace Nainital
         public HumanoidRig Rig => rig;
         public Health Health => health;
         public Vector3 RespawnPoint { get; set; }
+        /// <summary>Where the next revive puts the player instead of RespawnPoint (the hospital, the police station).</summary>
+        [System.NonSerialized] public Vector3? NextRespawn;
+        public bool Arrested { get; private set; }
 
         CharacterMotor motor;
         Combatant combat;
@@ -46,6 +49,7 @@ namespace Nainital
             transform.localPosition = Vector3.zero;
             transform.localRotation = Quaternion.identity;
             rig.seated = true;
+            rig.driving = true;
             rig.speed = 0;
             if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SetOverride(c.transform, c.type == CarType.Bus ? 13f : 7.5f);
         }
@@ -78,6 +82,7 @@ namespace Nainital
             transform.SetParent(null, true);
             transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized + Vector3.forward * 1e-4f, Vector3.up);
             rig.seated = false;
+            rig.driving = false;
             CurrentMode = Mode.Normal;
             motor.Controller.enabled = true;
             motor.Teleport(at);
@@ -319,7 +324,26 @@ namespace Nainital
             CurrentMode = Mode.Dead;
             rig.dead = true;
             deadTimer = 3.5f;
-            GameEvents.ShowToast("Aap behosh ho gaye... thodi der mein Mall Road pe hosh aayega.", 3.2f);
+            var ws = WantedSystem.Instance;
+            if (!(ws && ws.PlayerDied(this)))   // wanted: the hospital and its bill (WantedSystem)
+                GameEvents.ShowToast("Aap behosh ho gaye... thodi der mein Mall Road pe hosh aayega.", 3.2f);
+        }
+
+        /// <summary>Caught by the police (WantedSystem.Busted): out of any vehicle, hands up, then the police station.</summary>
+        public void Arrest(Vector3 at)
+        {
+            if (CurrentMode == Mode.Dead) return;
+            if (CurrentMode == Mode.Boat && boat) boat.ForceExit();
+            if (CurrentMode == Mode.Vehicle && car) car.ForceExit();
+            if (CurrentMode == Mode.Mount && Pony.Ridden) Pony.Ridden.Interact(this);
+            if (CurrentMode == Mode.Seated) { rig.seated = false; motor.Controller.enabled = true; }
+            if (Jetpack.Flying) Jetpack.Toggle(this);
+            CurrentMode = Mode.Dead;
+            Arrested = true;
+            health.invulnerable = true;
+            rig.handsUp = true;
+            deadTimer = 4f;
+            NextRespawn = at;
         }
 
         void UpdateDead(float dt)
@@ -331,8 +355,12 @@ namespace Nainital
             health.Revive();
             combat.ResetState();
             rig.Revive();
-            motor.Teleport(RespawnPoint);
-            fallPeakY = RespawnPoint.y;
+            rig.handsUp = false;
+            if (Arrested) { Arrested = false; health.invulnerable = false; }
+            Vector3 at = NextRespawn ?? RespawnPoint;
+            NextRespawn = null;
+            motor.Teleport(at);
+            fallPeakY = at.y;
             CurrentMode = Mode.Normal;
         }
     }

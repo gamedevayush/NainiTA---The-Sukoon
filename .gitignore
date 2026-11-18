@@ -45,3 +45,7 @@ Tools/interiors/flow_run.log
 Tools/interiors/rooms_sheet.jpg
 # made by the Performance Testing package during player builds
 Assets/Resources/PerformanceTestRun*
+
+# processed models (Tools/make_vehicle_lods.py output before install_vehicles.py)
+Tools/processed/
+Tools/anims/

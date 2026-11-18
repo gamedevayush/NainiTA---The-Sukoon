@@ -106,9 +106,104 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    - On the iPhone, allow the app in **Settings → General → VPN & Device Management**.
    - With a free Apple ID the app works for 7 days. Re-install it from Sideloadly to refresh.
 
-## Work in progress (last updated 18 Nov 2026)
+## Work in progress (last updated 19 Nov 2026)
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
+
+### Added on 19 Nov: Eco Cave Garden, Lover's Point, Suicide Point, Khurpatal Lake View Point, Mansa Devi, Sariyatal, Woodland Waterfall, black main roads, Raj Bhavan, the zoo gate
+
+The owner: "nainital eco cave park bnna hai theek se, abhi to khraab sa hai, iske andr ka map dhundho, bahut badi cave
+hain, 4-5 hain" (photos + the park's guide map); then Street View photos of Lover's Point with a sketch on the satellite
+("orange means stairs to down, green is plain part, baaki buildings satellite view mein").
+
+| # | What | What should be true now |
+|---|---|---|
+| 1 | Eco Cave Garden gate (Kaladhungi road) | Stone pillars, a green iron arch with the "ECO CAVE PARK / K.M.V.N. NAINITAL" board, a stone wall along the road, the ticket counter and the price board (adult Rs 100, child Rs 60) |
+| 2 | The six caves | Apes, Flying Fox, Bats, Porcupine, Tiger and Panther caves: winding walk-through tunnels (~1.7 m wide, ~2.3 m high, 15-20 m) inside piles of grey boulders on the upper ridge, a green ENTRY / EXIT board at each mouth, two bulbs (with light) inside each |
+| 3 | Walks | Stone steps with green chain railings up from the gate; flagstone walks and steps with rusty red railings to the fountain, three summer houses, cafeteria, photography kiosk (Kumaoni dresses), manager's hut, bull ride, toilets, generator room; a ridge walk past the cave exits |
+| 4 | Dressing | A Kumaoni villager statue with a blue drum by the junction, a bamboo hut with a lantern, bamboo stands, oaks / deodars / pines among the walks (60 added), the direction board |
+| 5 | Lover's Point (the hairpin on Kaladhungi road) | A wide verge with the Ghora Chaalak Seva Samiti hut ("WELCOMES YOU LOVERS POINT"), the green shade net, blue pipe railings, benches on a low stone wall, the horse-ride boards (6 point tour Rs 760); across the road a stone-walled horse terrace with tarp shelters, steps up and signs |
+| 6 | Suicide Point | A walk from the verge's south corner along the tin-roofed tea sheds (Subhan Khan tea stall): level, steps down, level, steps, a landing with a lamp, a last flight to a railed round ledge over the valley, 11 m below the road |
+| 7 | Khurpatal Lake View Point (the hairpin's tip between Lover's Point and Sariyatal) | A gravel pull-off round the tip with snack stalls under blue tarps, a big tarp over benches, concrete bench blocks, a green board; a dirt path straight out along a spur, bending towards Khurpatal, then rough rock steps down to a bare earth clearing among Himalayan cypresses, with the many-trunked cypress of the photos; trees all along (no railing, as in the photos) |
+| 8 | Mansa Devi Mandir | On the knoll inside that hairpin, just above the view point: white shrine, white pyramid shikhara with a painted sun, "JAI MATA DI" in red, red collapsible gate and window grille, marigold garlands, red flag, a lamp |
+| 9 | Sariyatal | The north end is the park (the water was cut back): lawn, tables and plastic chairs, umbrellas, a green-roofed cafe, a Pepsi shed, slide, swings, seesaw, flags, two fenced settling basins, a stepped weir, a crash barrier on the road above; a paved west shore walk with a blue railing, snack stalls (Laxmi Fast Food Centre) and chairs between it and the road; zorb balls and paddle boats; a small dam at the south tip. The DEM had sunk the west road up to 12 m under the water: the shore and road are raised to the lake before the roads are levelled |
+| 10 | Woodland Waterfall | Gate on the lower road (stone walls, green ticket counter "RS 50", a log arch "WOODLAND WATERFALL", a red bench, a solar lamp, NO PARKING), stone steps with green railings and red flower pots up the ravine to the lower and the upper bathing pools (concrete, wire fence), a loop through the cypresses back down; the stream from the lake's south end, a cascade, two ~3.5 m falls from rock ledges, runs over stones to the road; ~110 trees; restaurant boards (Uttaranchal, Shubham) across the road |
+| 11 | Main roads | The roads Google draws yellow (Kaladhungi road, Mall roads, Haldwani / Bhawali highways, the Nainital Bypass) are black tarmac with white edge lines and a dashed centre line; every other road stays the normal grey (the DSA road and the Tallital patch moved to the grey channel) |
+| 12 | Raj Bhavan | Rebuilt on its real footprint from photos: dark grey rubble stone, cream string courses and Gothic windows, battlements, four towers with corner turrets (the tricolour on one), green roofs, a three-arched porch with a red railing towards the town, lawns, a gravel drive, hydrangeas, palms |
+| 13 | Nainital Zoo | The gate from the photo: a concrete portal with "BHARAT RATNA PT. GOVIND BALLABH PANT / HIGH ALTITUDE ZOO, NAINITAL", green iron gates, grilles, a ticket counter; behind it a bear pit with a stone den and a deer paddock in chain-link (no animals yet: no animal models) |
+| 14 | Naina Peak, Tiffin Top, Land's End | Photo pass: flagstone ground walled down to the slope, grey rock outcrops, timber railings, benches, Dorothy's Seat in dressed stone (the flat-coloured boulders and fences are gone) |
+
+How it was laid out: the guide map fitted to the satellite (park frame along the road, origin at the gate; the six caves on
+the ridge where the satellite shows the rock); Lover's Point from the owner's photos and sketch, the satellite's buildings
+shifted onto the game road (the mapped road runs ~12 m east of the one in the imagery). The terrain there is a 33 degree
+slope, so the ground under the verge, the walk and the sheds is shaped into the shelf the real place stands on - after
+the roads are levelled. No horses or zoo animals yet (no models). Teleport: "Eco Cave Garden", "Lover's Point", "Suicide Point", "Khurpatal Lake View Point", "Mansa Devi Mandir", "Sariyatal", "Woodland Waterfall", "Raj Bhavan".
+
+Where: `Editor/LandmarkBuilder.EcoCave.cs` (plan, caves, walks, huts, trees), `Editor/LandmarkBuilder.LoversPoint.cs`
+(verge, terrace, walk, sheds, ledge, ground shaping), `Editor/LandmarkBuilder.KhurpatalLake.cs` (pull-off, spur walk, clearing,
+the many-trunked cypress, Mansa Devi), `Editor/LandmarkBuilder.Sariyatal.cs` (park, shore, Woodland Waterfall),
+`Editor/LandmarkBuilder.Top10.cs` (Raj Bhavan, zoo gate, peaks), `WorldBuilder.Concrete.cs` IsMainRoad (black roads), `Editor/LandmarkBuilder.SiteKit.cs` (photo-material meshes in metres,
+walkways and steps, pipe and chain railings, boards in 3D letters, tin huts, terrain shaping / painting, the grey rock and
+light tin scans made from the brown ones: `Data/PBR/rock_grey_*`, `tin_light_*`). Shots: `Shots/eco_*.png`, `Shots/lp_*.png`.
+
+### Changed on 18 Nov (night): Mixamo animations, vehicle physics, smarter traffic, seats, tyres
+
+The owner: legs not right on the player and the people ("avatar problem?"), take every animation from Mixamo; AI traffic
+dumb (does not see walls); a moving vehicle jolts when touched, cars hit each other like balloons, an empty car does not
+react to a hit; drivers sit in the wrong place; tyres badly cut on all vehicles.
+
+| # | What | What should be true now |
+|---|---|---|
+| 1 | Walk, run, jump, fall, swim, sit, drive, die, get knocked down and up | Real Mixamo clips on every rigged character. The run cycles properly (it froze before) |
+| 2 | Punch / kick / hit / dodge roll | Mixamo jab, cross, hook, roundhouse kick, hit reaction, roll (Combatant's timing kept) |
+| 3 | Police | Aimed-pistol idle / walk / run, a shot recoil; the stretcher, hands up and the guard stay as arm poses |
+| 4 | Women | Their own walk and run (Female Locomotion pack) |
+| 5 | Crash a car into another or into a parked one | They push each other by their masses (WagonR 950 kg into a parked Bolero 1700 kg at ~14 m/s: the Bolero moves 4.5 m/s, no flying, no wild spin); a parked / empty car is a real body that wakes when hit |
+| 6 | Walk into a moving car | The car is not jolted; you are moved aside (slow) or knocked over (fast) |
+| 7 | Traffic | Slows for the sharpest bend ahead in time, keeps ~2 s from the car in front, brakes for a wall in its path, eases off walls at the sides, moves left for an oncoming car on a narrow road, backs out when it noses into something |
+| 8 | Drivers (townspeople, police, the player) | Seated at the wheel (right-hand drive) by each model's front axle, head under the roof, with the Driving clip; the player is seen in the car now |
+| 9 | Tyres | Cut again on the Ambulance, Tourist Bus, Tourist Coach, Honda Amaze (had none) and Tata 407; the others were right and are unchanged |
+
+Why the legs were wrong: the avatars are fine (Shots/pose_*.png: every character walks right with only the Animator).
+Two things in our code: the procedural pose (falling, sitting, kick legs) overrode the clips, and the run was a blend of
+a 0.7 s run cycle with the 2.6 s multi-stride Jogging clip, which froze the legs (Shots/film_player_run.png).
+
+Where: clips in `Assets/Nainital/Characters/Anims` (57 Mixamo FBX: Locomotion, Female Locomotion, Pistol/Handgun
+Locomotion, Action Adventure, Gestures Basic packs one motion at a time, plus single motions; fetched with the
+google-flow-automation skill's Mixamo scripts in Brave), `Editor/AnimKit.cs` (import settings, builds
+`Resources/NainitalCharacter.controller`: Base / Action / Upper layers), `HumanoidRig` (Full mode, SeatLock),
+`CarController` (physics), `TrafficCar` (BendSpeed, Feel, Oncoming, MakeWay, backing out), `Vehicles/VehicleSeats.cs`,
+`Tools/recut_wheels.py`. Checks: `Editor/CharacterPoseSheet.cs`, `Editor/AnimFilm.cs` (frames of a character moving in
+play), `Editor/VehicleTest.cs` (Crash, Seat, TrafficStats, AttackShot).
+
+### Added on 18 Nov (evening): police, the 108 ambulance, bikes and scooties in the traffic
+
+The owner asked for a proper police and ambulance system: when someone dies the police come, then the ambulance; the traffic stops; the ambulance takes the body away. Three police levels only. Then: bikes and scooties in the normal traffic too, and a siren and roof lights on the police and the ambulance. And (after the first test): stopped next to the police in a car, they get out and shoot from outside; driving off, they get back in and chase.
+
+| # | What you do | What should happen |
+|---|---|---|
+| 1 | Hit someone (punch, or knock them with a car) | 1 star. One constable comes on a bike (6 in 10) or running, stops ~9 m off, points his pistol: "Ruk ja! Haath upar!". He does not shoot. Stay calm ~12 s: "Chal nikal! Agli baar seedha andar." and he leaves |
+| 2 | Kill someone | 2 stars. A police Bolero with two men (white, "UTTARAKHAND POLICE" in 3D letters, red-blue light bar, siren) |
+| 3 | 2 stars, on foot, stand still when they reach you | Arrested: hands up, then the Mallital police (fine Rs 300; 1 star Rs 100, 3 stars Rs 600) |
+| 4 | 2 stars, run, fight back, or hit a policeman | They shoot (pistol, ~7 health a hit) |
+| 5 | 2 stars, sitting in a stopped car | They get out, guns on you: "Gaadi se bahar niklo!". Step out and stand: arrested. Stay in ~4 s: they shoot from outside (you can die) |
+| 6 | Wanted and driving off | They run back, get in and chase; the passenger fires from the window while both are moving |
+| 7 | Kill 3 people, or 2 policemen | 3 stars: two Bolero and a bike, shoot on sight |
+| 8 | Die while wanted | "BEHOSH!": BD Pandey District Hospital, bill Rs 200 |
+| 9 | Out of their sight 30 s (2 stars) / 45 s (3 stars), once they have seen you | "Police ne peecha chhod diya". Stars blink at the top while they have lost you |
+| 10 | Anyone dies (any cause) | Traffic stops ~10 m short of the body; people stop and stare; a police Bolero comes with its siren and one constable guards the body; then the 108 ambulance comes, two of its crew carry the body to it on an orange stretcher, it drives off with its siren; the traffic goes on |
+| 11 | Normal traffic | Splendors and scooties with riders keep to the left edge; cars and bikes pull over for a siren. Hit one with a car: the bike tumbles, the rider is thrown (may die) |
+| 12 | HUD | Three stars at the top centre; police on the radar flashing red/blue (pinned to the edge while wanted), the ambulance white |
+| 13 | Cheats (phone: Cheats panel) | POLICE = one more star, SHANTI = no stars |
+
+Checked in play mode on 18 Nov (bridge `call PoliceTest.*`, reports in `Bridge/police_report.txt`): accident → police scene car from 220 m, ambulance from 210 m, body carried and taken, traffic held then released; 1 star → bike constable aimed and left; 2 stars → car deployed 65 m off (stuck behind traffic), both men walked up, arrest, respawn at the Mallital police; 3 stars → standing still you last ~30 s against one constable; driving into a scooty knocked it over and killed the rider (2 stars, an incident). No errors logged. Pictures: `Shots/play_acc*.png`, `play_shoot*.png`, `play_bike*.png`, `play_box*.png`.
+
+How it works and where (`Assets/Nainital/Scripts/Runtime/Police/`):
+- `WantedSystem` (stars, crimes, arrest, hospital), `PoliceManager` (sends units, makes people and vehicles), `PoliceOfficer` (foot AI + pistol shots), `PoliceCar` / `PoliceBike` (`PoliceRide`), `RouteDriver` (drives a CarController to a goal along the roads, goes round cars, asks traffic to make way), `RoadRoute` (A* over the road points), `IncidentManager` + `Casualty` (bodies, traffic hold, crowd), `Ambulance` + `Medic` (stretcher), `EmergencyLights` (light bar + siren), `Pistol`.
+- Traffic two-wheelers: `Runtime/Vehicles/BikeRide.cs` (moves a bike on the ground, leans, crashes) and `TrafficBike.cs`; `TrafficManager.maxBikes` (8 PC, 4 phone). Townspeople now have 60 health (`NpcWalker`).
+- Models: police_1 / police_2 (the kit's PoliceGuys, cut to 18k / 6k triangles by `Tools/decimate_rigged_fbx.py`, `Characters/Models`), Ambulance108 (`Vehicles/Models`, weight 0 = never in traffic), Splendor and Scooty (`Vehicles/Bikes`, `Tools/make_vehicle_lods.py`). After changing any of them: Nainital → 4. Import rigged characters, 7. Import vehicles, then **7b. Police and ambulance kit** (`Editor/PoliceKitBuilder.cs`: lamp materials, lettering measured on the models → `Assets/Resources/PoliceKit.asset`).
+- Sounds: Mixkit siren (police: "Police siren", ambulance: "Ambulance siren US") and "Game gun shot", fetched by `Tools/fetch_sounds.py` (`ONLY=siren_police,siren_ambulance,gun_pistol`).
+- Known limits: police cars can be slow to get through Mall Road crowds (they then stop short and come on foot); bikes have no separate wheels (they do not spin); the player cannot ride a bike yet.
 
 ### Added on 17 Nov (night): rooms behind the glass, Mall Road shop fronts by kind
 

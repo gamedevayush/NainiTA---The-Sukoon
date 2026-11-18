@@ -21,6 +21,35 @@ namespace Nainital
         }
 
         public Entry[] entries = new Entry[0];
+        /// <summary>Two-wheelers (2026-11-18: Hero Splendor, the scooty): the town's traffic riders and the police bike
+        /// (BikeRide). Built by VehicleKit from Vehicles/Bikes.</summary>
+        public Entry[] bikes = new Entry[0];
+
+        public Entry Bike(string name)
+        {
+            if (bikes == null) return null;
+            foreach (var b in bikes) if (b != null && b.prefab && b.name == name) return b;
+            return null;
+        }
+
+        /// <summary>A traffic two-wheeler, weighted (r in 0..1); null if there is none.</summary>
+        public Entry PickBike(float r)
+        {
+            if (bikes == null) return null;
+            float total = 0f;
+            foreach (var b in bikes) if (b != null && b.prefab && b.weight > 0f) total += b.weight;
+            if (total <= 0f) return null;
+            float x = r * total;
+            Entry last = null;
+            foreach (var b in bikes)
+            {
+                if (b == null || !b.prefab || b.weight <= 0f) continue;
+                last = b;
+                x -= b.weight;
+                if (x <= 0f) return b;
+            }
+            return last;
+        }
 
         static VehicleLibrary cached;
         static bool loaded;
@@ -53,6 +82,6 @@ namespace Nainital
             return -1;
         }
 
-        static bool Fits(Entry e, CarType t) => e != null && e.prefab && (t == CarType.Taxi ? e.taxi : e.type == t);
+        static bool Fits(Entry e, CarType t) => e != null && e.prefab && e.weight > 0f && (t == CarType.Taxi ? e.taxi : e.type == t);   // weight 0: never in traffic (the ambulance)
     }
 }

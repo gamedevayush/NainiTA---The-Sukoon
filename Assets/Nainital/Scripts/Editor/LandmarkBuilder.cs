@@ -23,10 +23,13 @@ namespace Nainital.EditorTools
             ["Naini Peak (China Peak)"] = "Nainital ki sabse oonchi choti, lagbhag 2,615 m. Upar se poora shehar, jheel aur door Himalaya dikhte hain.",
             ["Tiffin Top (Dorothy's Seat)"] = "Ayarpatta pahadi par. Angrez painter Dorothy Kellett ki yaad mein unke pati ne yahan seat banwayi thi. Picnic ke liye mashhoor.",
             ["Land's End"] = "Yahan se Khurpatal jheel aur gehri ghaati ka shaandaar nazara milta hai.",
-            ["Lover's Point"] = "Barapathar ke paas ek khula kinara - neeche gehri ghaati aur door Khurpatal ki taraf ka nazara.",
+            ["Lover's Point"] = "Kaladhungi road ke mod par - Ghora Chaalak Seva Samiti ka adda. Yahin se ghode View Point, Tiger Top, Land's End, Forest Point, Tiffin Top aur Dorothy Seat ke 6 point tour par jaate hain (Rs 760). Chai ki dukaanon ke saath seedhiyan neeche Suicide Point tak.",
+            ["Suicide Point"] = "Lover's Point se seedhiyan utarkar ek khula kinara - neeche gehri khaai aur saamne door tak ghaati. Railing ke peeche hi rahein.",
             ["Barapathar (pony stand)"] = "Yahan se ghode Tiffin Top aur Land's End tak le jaate hain. Kaladhungi road par, Nainital se lagbhag 3 km.",
-            ["Khurpatal Lake View Point"] = "Kaladhungi road se neeche Khurpatal jheel aur uske kheton ka nazara.",
+            ["Khurpatal Lake View Point"] = "Kaladhungi road ke hairpin ki nok par chai-maggi ke thele; wahan se ek kachcha raasta aur pathreeli seedhiyan cypress ke pedon ke beech ek khule kinare tak - neeche gehri ghaati aur door Khurpatal jheel.",
+            ["Mansa Devi Mandir"] = "Khurpatal View Point ke theek upar, hairpin ke andar sadak kinare Maa Mansa Devi ka chhota sa mandir - safed shikhar, laal darwaza aur gende ki maalaayein. Raahgir rukkar maatha tekte hain.",
             ["Khurpatal View Point"] = "Khurpatal jheel ke theek upar ka view point - hare paani ki chhoti jheel aur seedhidaar khet.",
+            ["Woodland Waterfall"] = "Sariyatal ke neeche, Kaladhungi road par gate (ticket Rs 50). Pathar ki seedhiyan cypress ke jungle mein do jharnon tak jaati hain - neeche ke kund mein log nahaate hain.",
             ["Sariyatal"] = "Nainital se ~5 km, Kaladhungi road par ek chhoti si jheel. Paas mein Woodland jharna aur chai-maggi ki dukaanein.",
             ["Khurpatal"] = "Kaladhungi road par Nainital se ~10 km, 1,635 m par ek hari jheel, khet aur chhote homestays se ghiri hui.",
             ["Himalaya Darshan"] = "Kilbury road par Nainital ka mashhoor view point. Saaf mausam mein yahan se Himalaya ki barfeeli chotiyan - Nanda Devi, Trishul aur Nanda Kot - dikhti hain.",
@@ -91,7 +94,12 @@ namespace Nainital.EditorTools
                 // map point is often out on the drop or on a knife ridge, where the ledge stood on a rock pillar (15 Nov)
                 Vector2 off = p - road;
                 off = off.sqrMagnitude > 0.01f ? off.normalized : (faceTowards - road).normalized;
+                // always the valley side: Land's End's map point is up the bank, and its ledge stood on the hillside facing
+                // into the forest (19 Nov)
+                if (ctx.H(road + off * 8f) > ctx.H(road - off * 8f)) off = -off;
                 p = road + off * (4.5f + radius * 0.5f);
+                // facing the drop: when the bearing points back over the road (Land's End, 244 deg), face away from it (19 Nov)
+                if (Vector2.Dot((faceTowards - p).normalized, off) < 0.2f) faceTowards = p + off * 100f;
             }
             if (name != null && !lookout)
             {
@@ -261,18 +269,6 @@ namespace Nainital.EditorTools
             mb.Box(new Vector3(-4f, 6.6f, 0.1f), new Vector3(5f, 0.9f, 0.15f), S(Pal.Saffron));      // "ROPEWAY" board
             mb.Limb(new Vector3(5f, 0, 3f), new Vector3(5f, 1.3f, 3f), 0.06f, 0.05f, 5, S(Pal.IronBlack));   // telescope
             mb.Limb(new Vector3(4.7f, 1.35f, 2.7f), new Vector3(5.4f, 1.6f, 3.6f), 0.09f, 0.06f, 6, S(Pal.IronBlack));
-        }
-
-        static void EcoCaves(MeshBuilder mb, float depth, System.Random rng)
-        {
-            Plinth(mb, new Vector3(24, 0, 18), Mathf.Min(depth, 2f), M(Atlas.MatDarkStone));
-            for (int i = 0; i < 7; i++)
-            {
-                float x = -9f + i * 3f + (float)rng.NextDouble(), z = (float)(rng.NextDouble() - 0.5) * 8f;
-                mb.Sphere(new Vector3(x, 0.4f, z), new Vector3(2.8f, 2.2f, 2.4f) * (0.8f + (float)rng.NextDouble() * 0.5f), 7, 4, M(Atlas.MatDarkStone), 0f, 90f);
-                mb.Quad(new Vector3(x - 0.6f, 0.2f, z + 2.05f), new Vector3(x + 0.6f, 0.2f, z + 2.05f), new Vector3(x + 0.6f, 1.6f, z + 2.05f), new Vector3(x - 0.6f, 1.6f, z + 2.05f),
-                        S(Pal.IronBlack), Vector3.forward);
-            }
         }
 
         static void ZooGate(MeshBuilder mb, float depth)
@@ -473,12 +469,6 @@ namespace Nainital.EditorTools
         /// the lake. A short fence, a tarp tea stall, boulders - nothing built.</summary>
         static void NainaPeakTop(MeshBuilder mb, Site s, System.Random rng)
         {
-            for (int k = 0; k < 9; k++)
-            {
-                float a = (k / 9f) * Mathf.PI * 2f + (float)rng.NextDouble() * 0.4f, r = 5f + (float)rng.NextDouble() * 3f;
-                Boulder(mb, new Vector3(Mathf.Sin(a) * r, -0.1f, Mathf.Cos(a) * r), 0.5f + (float)rng.NextDouble() * 0.6f, rng);
-            }
-            WoodFence(mb, new Vector3(-4f, 0f, 6.2f), new Vector3(3.5f, 0f, 6.6f));
             TarpStall(mb, new Vector3(-1f, 0f, -5.5f), 0f, Pal.BoatBlue, rng);
             PlasticChair(mb, new Vector3(1.5f, 0f, -3.2f), 10f, Pal.JacketRed);
             PlasticChair(mb, new Vector3(2.3f, 0f, -3.4f), -15f, Pal.JacketRed);
@@ -488,13 +478,7 @@ namespace Nainital.EditorTools
         /// umbrella at the edge, brown wooden railings, and Dorothy's Seat - a stone bench with a plaque - looking over the lake.</summary>
         static void TiffinTop(MeshBuilder mb, Site s, System.Random rng)
         {
-            // Dorothy's Seat at the front
-            mb.Box(new Vector3(0f, 0.25f, 3.2f), new Vector3(3f, 0.5f, 0.9f), M(Atlas.MatStone));
-            mb.Box(new Vector3(0f, 0.8f, 2.75f), new Vector3(3.2f, 1.1f, 0.3f), M(Atlas.MatStone));
-            mb.Box(new Vector3(0f, 0.95f, 2.92f), new Vector3(0.9f, 0.5f, 0.05f), S(Pal.Gold));
-            WoodFence(mb, new Vector3(-6f, 0f, 5.4f), new Vector3(6f, 0f, 5.4f));
-            WoodFence(mb, new Vector3(6f, 0f, 5.4f), new Vector3(6.5f, 0f, 0f));
-            WoodFence(mb, new Vector3(-6f, 0f, 5.4f), new Vector3(-6.5f, 0f, 0f));
+            // (Dorothy's Seat, the railing and the ground: PeakDressing, in photo stone and timber)
             // the dhaba
             Vector2 tin = S(Pal.Concrete), post = WoodBrown;
             foreach (float x in new[] { -3f, 3f })
@@ -509,18 +493,13 @@ namespace Nainital.EditorTools
             CafeTable(mb, new Vector3(4f, 0f, 3f), Pal.JacketRed, rng);
             mb.Cylinder(new Vector3(4f, 0.74f, 3f), 0.03f, 0.03f, 1.6f, 5, S(Pal.Concrete), true);
             mb.Pyramid(new Vector3(4f, 2.1f, 3f), 2.4f, 2.4f, 0.45f, S(Pal.BoatYellow));
-            for (int k = 0; k < 4; k++) Boulder(mb, new Vector3(-5f + k * 3.2f, -0.1f, 1f + (float)rng.NextDouble() * 2f), 0.5f + (float)rng.NextDouble() * 0.4f, rng);
         }
 
         /// <summary>Land's End (2025 video): the forest trail opens on a cliff edge fenced with brown wooden rails, a bench and a
         /// tea stall, Khurpatal's valley below.</summary>
         static void LandsEnd(MeshBuilder mb, Site s, System.Random rng)
         {
-            WoodFence(mb, new Vector3(-5.5f, 0f, 4.6f), new Vector3(5.5f, 0f, 4.6f));
-            WoodFence(mb, new Vector3(5.5f, 0f, 4.6f), new Vector3(6.2f, 0f, -1.5f));
-            WoodFence(mb, new Vector3(-5.5f, 0f, 4.6f), new Vector3(-6.2f, 0f, -1.5f));
-            TarpStall(mb, new Vector3(2.5f, 0f, -4.2f), -10f, Pal.JacketGreen, rng);
-            for (int k = 0; k < 5; k++) Boulder(mb, new Vector3(-6f + k * 3f, -0.1f, -1f - (float)rng.NextDouble() * 3f), 0.45f + (float)rng.NextDouble() * 0.5f, rng);
+            TarpStall(mb, new Vector3(2.5f, 0f, -8.2f), -10f, Pal.JacketGreen, rng);   // behind the paved ring (PeakDressing)
         }
 
         /// <summary>Himalaya Darshan (on the Kilbury road): a concrete lookout off the road with a green iron railing, coin
@@ -636,18 +615,6 @@ namespace Nainital.EditorTools
 
 
         // ------------------------------------------------------------------ the Khurpatal road (2026-11-11)
-        /// <summary>Lover's Point: a railed ledge over the valley towards Khurpatal, with a bench and a tea stall.</summary>
-        static void LoversPoint(MeshBuilder mb, Site s, System.Random rng)
-        {
-            WoodFence(mb, new Vector3(-5f, 0f, 4.5f), new Vector3(5f, 0f, 4.5f));
-            WoodFence(mb, new Vector3(5f, 0f, 4.5f), new Vector3(5.6f, 0f, -0.5f));
-            WoodFence(mb, new Vector3(-5f, 0f, 4.5f), new Vector3(-5.6f, 0f, -0.5f));
-            mb.Box(new Vector3(-1.2f, 0.42f, 3.2f), new Vector3(2.2f, 0.08f, 0.5f), WoodBrown);   // a plank bench at the rail
-            foreach (float x in new[] { -2.1f, -0.3f }) mb.Box(new Vector3(x, 0.2f, 3.2f), new Vector3(0.12f, 0.4f, 0.4f), WoodBrown);
-            TarpStall(mb, new Vector3(2.5f, 0f, -3.8f), 0f, Pal.BoatRed, rng);
-            for (int k = 0; k < 4; k++) Boulder(mb, new Vector3(-5f + k * 3.2f, -0.1f, -1.5f - (float)rng.NextDouble() * 2f), 0.4f + (float)rng.NextDouble() * 0.4f, rng);
-        }
-
         /// <summary>A lookout over Khurpatal: concrete edge with an iron railing, binoculars, stalls under tarps.</summary>
         static void KhurpatalLookout(MeshBuilder mb, Site s, System.Random rng)
         {
@@ -786,27 +753,33 @@ namespace Nainital.EditorTools
                 ctx.landmarkSites["Jama Masjid"] = s.origin;
                 Shot("WorshipShot Jama Masjid", s, new Vector3(-12f, 3f, 42f), new Vector3(2f, 8f, 0f));
             }
-            Make("Raj Bhavan", "Raj Bhavan", 30f, (mb, s) => RajBhavan(mb, s.depth, rng), 120f, null, new Vector3(10f, 0, 15f));
+            BuildRajBhavan(ctx, parent);   // LandmarkBuilder.Top10.cs: the Governor's House on its real footprint, from photos (19 Nov)
             Make("Bada Bazar", "Bada Bazar", 14f, (mb, s) => Bazaar(mb, s.depth, rng), 70f, null, new Vector3(0, 0, 14f));
             BuildSnowView(ctx, parent, rng);   // LandmarkBuilder.SnowView.cs: the whole hilltop as Google Maps and the videos show it
-            Make("Naina Peak summit", "Naini Peak (China Peak)", 8f, (mb, s) => NainaPeakTop(mb, s, rng), 80f, null, new Vector3(-4f, 0, 3f));
-            Make("Tiffin Top", "Tiffin Top (Dorothy's Seat)", 7f, (mb, s) => TiffinTop(mb, s, rng), 60f, null, new Vector3(3f, 0, 2f));
-            Make("Land's End", "Land's End", 7f, (mb, s) => LandsEnd(mb, s, rng), 60f, null, new Vector3(-3f, 0, 2f), 244f);
+            Make("Naina Peak summit", "Naini Peak (China Peak)", 8f, (mb, s) => { NainaPeakTop(mb, s, rng); PeakDressing(ctx, parent, s, 0, rng); }, 80f, null, new Vector3(-4f, 0, 3f));
+            Make("Tiffin Top", "Tiffin Top (Dorothy's Seat)", 7f, (mb, s) => { TiffinTop(mb, s, rng); PeakDressing(ctx, parent, s, 1, rng); }, 60f, null, new Vector3(3f, 0, 2f));
+            Make("Land's End", "Land's End", 7f, (mb, s) => { LandsEnd(mb, s, rng); PeakDressing(ctx, parent, s, 2, rng); }, 60f, null, new Vector3(-3f, 0, 2f), 244f);
+            {
+                // its preview camera on the raised ring, not under the hillside (19 Nov)
+                var le = GameObject.Find("ViewShot Land's End");
+                if (le) le.transform.position += Vector3.up * peakLift + le.transform.forward * 2.6f;
+                if (ctx.landmarkSites.TryGetValue("Land's End", out var lp)) ctx.landmarkSites["Land's End"] = lp + Vector3.up * peakLift;
+            }
             Make("Himalaya Darshan", "Himalaya Darshan", 9f, (mb, s) => HimalayaDarshan(mb, s, rng), 60f, null, new Vector3(-6.5f, 0, 2.5f), 25f);
-            Make("Eco Cave Garden", "Eco Cave Garden", 13f, (mb, s) => EcoCaves(mb, s.depth, rng), 60f, null, new Vector3(0, 0, 9f));
-            Make("Nainital Zoo", "Nainital Zoo", 7f, (mb, s) => ZooGate(mb, s.depth), 130f, null, new Vector3(5f, 0, 2f));
+            BuildEcoCaveGarden(ctx, parent);   // LandmarkBuilder.EcoCave.cs: the six caves, steps, walks and huts from the guide map (19 Nov)
+            Make("Nainital Zoo", "Nainital Zoo", 7f, (mb, s) => ZooPhoto(ctx, parent, s, rng), 130f, null, new Vector3(-6.5f, 0, 2.5f));
             Make("Nainital Stadium", "The Flats", 16f, (mb, s) => { }, 110f, null, new Vector3(0, 0, 6f));   // the ground itself: WorldBuilder.Flats.cs
 
             // Boat House Club sits on the Mallital shore beside the boat stand.
             BoatHouseClub(ctx, parent);   // on its OSM footprint, from photos: LandmarkBuilder.BoatClub.cs
 
             // the Khurpatal road
-            Make("Lovers Point", "Lover's Point", 7f, (mb, s) => LoversPoint(mb, s, rng), 50f, null, new Vector3(-3f, 0, 2f), 225f);
+            BuildLoversPoint(ctx, parent);     // LandmarkBuilder.LoversPoint.cs: the hairpin verge, horse terrace and the walk to Suicide Point (19 Nov)
             Make("Barapathar", "Barapathar (pony stand)", 11f, (mb, s) => PonyStand(mb, s, rng), 60f, null, new Vector3(-6f, 0, 6f));
-            Make("Khurpatal Lake View Point", "Khurpatal Lake View Point", 8f, (mb, s) => KhurpatalLookout(mb, s, rng), 50f, null, new Vector3(-6f, 0, 2.5f), 222f);
+            BuildKhurpatalLakeView(ctx, parent);   // LandmarkBuilder.KhurpatalLake.cs: the hairpin pull-off, the walk and the cypress clearing (19 Nov)
             Make("Khurpatal View Point", "Khurpatal View Point", 8f, (mb, s) => KhurpatalLookout(mb, s, rng), 50f, null, new Vector3(-6f, 0, 2.5f), 205f);
-            var sariya = ctx.Poi("Sariyatal");
-            if (sariya.HasValue) LakeMarket(ctx, parent, "Sariyatal", sariya.Value, 5, rng);
+            BuildSariyatal(ctx, parent);        // LandmarkBuilder.Sariyatal.cs: the park, the shore walk and stalls, boats (19 Nov)
+            BuildWoodlandFalls(ctx, parent);    // the ravine below: gate, stairs, two falls and bathing pools
             var khurpa = ctx.Poi("Khurpatal");
             if (khurpa.HasValue) LakeMarket(ctx, parent, "Khurpatal", khurpa.Value, 6, rng);
             var t360 = ctx.Poi("Tower 360");
@@ -908,7 +881,7 @@ namespace Nainital.EditorTools
             // (Tallital bus stand: see WorldBuilder.Tallital.cs)
             // prayer flags at viewpoints
             var flagMb = new MeshBuilder();
-            foreach (var key in new[] { "Snow View", "Naini Peak (China Peak)", "Tiffin Top (Dorothy's Seat)", "Land's End", "Himalaya Darshan", "Lover's Point", "Khurpatal View Point" })
+            foreach (var key in new[] { "Snow View", "Naini Peak (China Peak)", "Tiffin Top (Dorothy's Seat)", "Land's End", "Himalaya Darshan", "Khurpatal View Point" })
             {
                 if (!ctx.landmarkSites.TryGetValue(key, out var c)) continue;
                 Vector3 a = c + new Vector3(-6f, 0, -5f), b = c + new Vector3(7f, 0, -4f);

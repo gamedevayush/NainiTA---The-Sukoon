@@ -59,6 +59,15 @@ ONESHOTS = {
 }
 STEPS = {"road": [1274], "stone": [1270], "grass": [1921], "forest": [1214], "gravel": [535]}
 STEP_SINGLES = {"grass": [1920, 1922]}
+# sirens: one exact cycle of the recording (cut where the tone pattern repeats), a short cross-fade, looped in game
+# name: (mixkit id, start s, end s, target RMS dBFS). Checked on mixkit.co/free-sound-effects/siren 2026-11-18:
+# 1641 "Police siren" (fast hi-lo, Indian police style), 1642 "Ambulance siren US" (slow wail, like a 108 ambulance).
+CYCLES = {
+    "siren_police": (1641, 0.42, 8.42, -20),
+    "siren_ambulance": (1642, 0.28, 6.32, -20),
+}
+# police pistol (2026-11-18, mixkit.co/free-sound-effects/gun: 1662 "Game gun shot")
+ONESHOTS["gun_pistol"] = 1662
 LOCAL = {"temple_bell": "sfx__lib__temple_bell.mp3", "scooter_pass": "sfx__lib__scooter_pass.mp3"}
 
 
@@ -120,6 +129,21 @@ def trim(x, thr_db=-45, pad=0.02):
     return y
 
 
+def cycle(name, i, a, b, target):
+    x = decode(fetch(i), False)
+    x = x[int(a * SR):int(b * SR)].copy()
+    F = int(0.08 * SR)
+    t = np.linspace(0, 1, F, dtype=np.float32)[:, None]
+    x[:F] = x[:F] * np.sin(t * np.pi / 2) + x[len(x) - F:] * np.cos(t * np.pi / 2)
+    y = x[:len(x) - F]
+    y *= 10 ** ((target - rms_db(y)) / 20)
+    peak = np.abs(y).max()
+    if peak > 0.97:
+        y *= 0.97 / peak
+    encode(y, name, 4)
+    print(f"cycle {name:17s} {len(y) / SR:5.1f}s rms {rms_db(y):6.1f}", flush=True)
+
+
 def oneshot(name, src, peak_db=-1.5):
     x = trim(decode(src, False))
     x *= 10 ** (peak_db / 20) / max(1e-6, np.abs(x).max())
@@ -166,13 +190,21 @@ def steps(surface, ids, singles):
     print(f"steps {surface:10s} {len(cuts)} cut, kept {min(6, len(cuts))}", flush=True)
 
 
+ONLY = set(filter(None, os.environ.get("ONLY", "").split(",")))   # e.g. ONLY=siren_police,gun_pistol: just these
+want = lambda n: not ONLY or n in ONLY
 for n, (i, s, m, t, st) in LOOPS.items():
-    loop(n, i, s, m, t, st)
+    if want(n):
+        loop(n, i, s, m, t, st)
+for n, (i, a, b, t) in CYCLES.items():
+    if want(n):
+        cycle(n, i, a, b, t)
 for n, i in ONESHOTS.items():
-    oneshot(n, fetch(i))
+    if want(n):
+        oneshot(n, fetch(i))
 for n, f in LOCAL.items():
-    if EXTRA and os.path.exists(os.path.join(EXTRA, f)):
+    if want(n) and EXTRA and os.path.exists(os.path.join(EXTRA, f)):
         oneshot(n, os.path.join(EXTRA, f))
 for s, ids in STEPS.items():
-    steps(s, ids, STEP_SINGLES.get(s, []))
+    if want("step_" + s):
+        steps(s, ids, STEP_SINGLES.get(s, []))
 print("done ->", OUT)

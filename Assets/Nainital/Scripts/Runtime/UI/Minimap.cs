@@ -81,6 +81,48 @@ namespace Nainital
             }
         }
 
+        // ------------------------------------------------------------------ police and the 108 ambulance
+        readonly List<Image> copBlips = new List<Image>();
+        int copCount;
+
+        /// <summary>Police vehicles flash red / blue (pinned to the edge while the player is wanted, so you know where they
+        /// come from), constables on foot are small dots, the ambulance is white.</summary>
+        void UpdatePoliceBlips(Vector3 pp, float rpx)
+        {
+            copCount = 0;
+            var pm = PoliceManager.Instance;
+            bool flash = Mathf.Repeat(Time.unscaledTime * 2.2f, 1f) < 0.5f;
+            Color red = new Color(0.98f, 0.25f, 0.22f), blue = new Color(0.25f, 0.5f, 1f);
+            var ws = WantedSystem.Instance;
+            bool wanted = ws && ws.Stars > 0;
+            if (pm)
+            {
+                foreach (var c in pm.Cars) if (c) CopBlip(c.transform.position, pp, rpx, flash ? red : blue, 17f, wanted && c.Current == PoliceCar.Mode.Chase);
+                foreach (var b in pm.Bikes) if (b) CopBlip(b.transform.position, pp, rpx, flash ? blue : red, 13f, wanted && b.Current == PoliceBike.Mode.Ride);
+                foreach (var a in pm.Ambulances) if (a) CopBlip(a.transform.position, pp, rpx, Color.white, 15f, false);
+            }
+            foreach (var o in PoliceOfficer.All) if (o && !o.Dead && !o.Seated) CopBlip(o.transform.position, pp, rpx, flash ? red : blue, 10f, false);
+            for (int i = copCount; i < copBlips.Count; i++) if (copBlips[i].gameObject.activeSelf) copBlips[i].gameObject.SetActive(false);
+        }
+
+        void CopBlip(Vector3 w, Vector3 pp, float rpx, Color c, float size, bool pin)
+        {
+            Vector2 d = new Vector2(w.x - pp.x, w.z - pp.z) / viewRadius * (sizePx * 0.5f);
+            if (d.magnitude > rpx) { if (!pin) return; d = d.normalized * rpx; }
+            if (copCount >= copBlips.Count)
+            {
+                var b = hud.Img("CopBlip", rotator, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size, size), c);
+                b.sprite = HudStyle.Disc;
+                b.raycastTarget = false;
+                copBlips.Add(b);
+            }
+            var img = copBlips[copCount++];
+            if (!img.gameObject.activeSelf) img.gameObject.SetActive(true);
+            img.color = c;
+            img.rectTransform.sizeDelta = new Vector2(size, size);
+            img.rectTransform.anchoredPosition = d;
+        }
+
         static Sprite TriangleSprite(int n)
         {
             // an arrowhead with a notch at its back, anti-aliased
@@ -266,6 +308,7 @@ namespace Nainital
                 if (rt.gameObject.activeSelf != show) rt.gameObject.SetActive(show);
             }
             UpdateMissionBlips(pp, rpx);
+            UpdatePoliceBlips(pp, rpx);
             if (bigMap.activeSelf)
             {
                 bigMarker.anchoredPosition = (uv - new Vector2(0.5f, 0.5f)) * 910f;

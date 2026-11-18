@@ -294,7 +294,7 @@ namespace Nainital.EditorTools
             foreach (var a2 in ctx.world.areas)
                 if (a2.kind == "stadium" || a2.kind == "park" || a2.kind == "playground" || a2.kind == "pitch") keepOut.Add(Geo.ToPoints(a2.pts));
             bool Out(Vector2 p) { foreach (var poly in keepOut) if (Geo.PointInPolygon(poly, p)) return true; return false; }
-            var chunks = new MallChunks(ctx, parent, name, TownGroundMaterial(ctx), false) { paintChannel = ChConcrete, paintStrength = 0.7f };   // worn: the earth shows through in patches
+            var chunks = new MallChunks(ctx, parent, name, TownGroundMaterial(ctx), false) { paintChannel = ChAsphalt, paintStrength = 0.7f };   // worn: the earth shows through in patches
             const float step = 2.5f;
             for (float x = -radius; x < radius; x += step)
                 for (float z = -radius; z < radius; z += step)

@@ -1,0 +1,63 @@
+{
+ "name": "Scooty",
+ "size": [
+  0.92,
+  1.83,
+  1.412
+ ],
+ "tris": [
+  7000,
+  2200,
+  600
+ ],
+ "materials": [
+  {
+   "name": "tripo_material_e0c330c9-306b-4bcd-a48a-85449e717ee7",
+   "color": "Scooty_m0_color.jpg",
+   "normal": "Scooty_m0_normal.png",
+   "orm": "Scooty_m0_orm.jpg",
+   "rgba": [
+    0.8,
+    0.8,
+    0.8,
+    1.0
+   ],
+   "ms": "Scooty_m0_ms.png"
+  }
+ ],
+ "wheel_tris": 0,
+ "wheels": [],
+ "lamps": {
+  "front": [],
+  "rear": []
+ },
+ "objects": [
+  {
+   "name": "Mesh_L0",
+   "mats": [
+    0
+   ],
+   "tris": [
+    7000
+   ]
+  },
+  {
+   "name": "Mesh_L1",
+   "mats": [
+    0
+   ],
+   "tris": [
+    2200
+   ]
+  },
+  {
+   "name": "Mesh_L2",
+   "mats": [
+    0
+   ],
+   "tris": [
+    600
+   ]
+  }
+ ]
+}

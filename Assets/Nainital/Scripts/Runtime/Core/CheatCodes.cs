@@ -6,7 +6,7 @@ namespace Nainital
     /// <summary>
     /// Cheat box: ` (backquote) or F1 on a keyboard, or three quick taps in the top-right corner on a phone.
     /// Codes: JEEVAN full health, AMAR god mode on/off, GAADI a car, TAXI a taxi, BUS a bus, JEEP an SUV,
-    /// UDAAN a jetpack on/off, SAFAR a list of places to teleport to (also F2).
+    /// UDAAN a jetpack on/off, SAFAR a list of places to teleport to (also F2), POLICE one more wanted star, SHANTI no stars.
     /// </summary>
     public class CheatCodes : MonoBehaviour
     {
@@ -123,6 +123,17 @@ namespace Nainital
                 case "BUS": Spawn(p, CarType.Bus); break;
                 case "UDAAN": Jetpack.Toggle(p); break;
                 case "SAFAR": TeleportMenu.Open(); break;
+                case "POLICE":   // one more star (testing the police)
+                {
+                    var ws = WantedSystem.Ensure();
+                    if (ws.Stars == 0) ws.Assault(p.transform.position, false);
+                    else ws.Kill(p.transform.position, ws.Stars >= 2);
+                    GameEvents.ShowToast("Cheat: wanted " + ws.Stars + " star", 2f);
+                    break;
+                }
+                case "SHANTI":   // the police lose interest
+                    if (WantedSystem.Instance) WantedSystem.Instance.Clear("Cheat: SHANTI - police ne chhod diya");
+                    break;
                 default:
                     if (c.Length > 0) GameEvents.ShowToast("Galat code: " + c, 2f);
                     break;

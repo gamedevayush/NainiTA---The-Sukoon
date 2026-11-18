@@ -45,6 +45,20 @@ namespace Nainital
         public override Vector3 Point => transform.TransformPoint(new Vector3(spec.width * 0.5f + 0.3f, 0.5f, 0f));
 
         bool initialised;
+        float parkedSettle;          // just placed: let the springs settle before it sleeps
+        Vector3 preVel, preAng;      // the velocity before this physics step (a person does not shove a car)
+        static PhysicsMaterial bodyMat;
+
+        /// <summary>Car bodies: some friction (they scrape and slide), almost no bounce.</summary>
+        static PhysicsMaterial BodyMaterial
+        {
+            get
+            {
+                if (!bodyMat) bodyMat = new PhysicsMaterial("CarBody") { dynamicFriction = 0.35f, staticFriction = 0.45f, bounciness = 0.02f,
+                    frictionCombine = PhysicsMaterialCombine.Average, bounceCombine = PhysicsMaterialCombine.Minimum };
+                return bodyMat;
+            }
+        }
 
         public void Setup(CarType t, Transform[] w, Transform s, Light[] lights)
         {
@@ -72,7 +86,18 @@ namespace Nainital
             rb.angularDamping = 0.6f;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            rb.isKinematic = true;   // parked
+            // crashes like real cars: overlapping bodies are pushed apart slowly (Unity's default is unlimited, which
+            // threw cars off like balloons), no wild spinning, a steadier solver, steel on steel slides rather than bounces
+            rb.maxDepenetrationVelocity = 2.5f;
+            rb.maxAngularVelocity = 7f;
+            rb.solverIterations = 12;
+            rb.solverVelocityIterations = 4;
+            foreach (var col in GetComponents<Collider>()) col.sharedMaterial = BodyMaterial;
+            // parked: a real body that sleeps (nothing to simulate) and wakes when something hits it; not kinematic, which
+            // made a parked car a wall
+            rb.isKinematic = false;
+            rb.Sleep();
+            parkedSettle = 2f;
             rest = new Vector3[4];
             wheelOffset = new float[4];
             spin = new float[4];
@@ -92,7 +117,7 @@ namespace Nainital
                 rb.WakeUp();
                 p.EnterVehicle(this);
                 if (AudioManager.Instance) AudioManager.Instance.CarEnter(transform.position);
-                if (GetComponent<VehicleInfo>() && p.Rig) p.Rig.gameObject.SetActive(false);   // library models: the driver is inside, unseen
+                // the player sits at the wheel, seen through the windows (VehicleSeats, the Driving clip)
                 GameEvents.ShowToast("W/S: race-brake, A/D: steering, Space: handbrake, E: utro", 3.5f);
                 return;
             }
@@ -148,7 +173,12 @@ namespace Nainital
         void FixedUpdate()
         {
             if (!initialised || rb.isKinematic) return;
+            // nobody in it and nothing moving it: asleep, no forces (they would wake it)
+            if (!driver && !ai && parkedSettle <= 0f && rb.IsSleeping()) return;
             float dt = Time.fixedDeltaTime;
+            if (parkedSettle > 0f) parkedSettle -= dt;
+            preVel = rb.linearVelocity;
+            preAng = rb.angularVelocity;
             Rescue();
             bool player = driver != null && !GameInput.UiBlocking && !wrecked;
             bool driving = player || (ai && !wrecked);
@@ -232,7 +262,7 @@ namespace Nainital
             if (!driver && !ai)
             {
                 sleepTimer = rb.linearVelocity.magnitude < 0.25f ? sleepTimer + dt : 0f;
-                if (sleepTimer > 1.5f) rb.isKinematic = true;
+                if (sleepTimer > 1.5f && parkedSettle <= 0f) { rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero; rb.Sleep(); }
             }
         }
 
@@ -255,21 +285,41 @@ namespace Nainital
         }
 
         // ------------------------------------------------------------------ hitting people
-        void OnCollisionEnter(Collision c)
+        void OnCollisionEnter(Collision c) => People(c);
+        void OnCollisionStay(Collision c) => People(c);
+
+        /// <summary>A person against the car. A CharacterController is an immovable body to the physics: a car touching
+        /// one stopped dead and jumped (user: "touching a running vehicle - it moves heavily"). So the car keeps the
+        /// velocity it had before the step and passes the person by; a person in its way at speed is knocked over (hurt
+        /// by the player's car as before, less by the town's), a slow touch just moves them aside.</summary>
+        void People(Collision c)
         {
-            if (!driver) return;
-            float rel = c.relativeVelocity.magnitude;
             int layer = c.collider.gameObject.layer;
-            if (rel < 4.5f || (layer != 9)) return;
+            if (layer != 9 && layer != 8) return;
+            if (!c.collider.GetComponent<CharacterController>()) return;
+            if (driver && c.collider.transform.IsChildOf(driver.transform)) return;
+            rb.linearVelocity = preVel;
+            rb.angularVelocity = preAng;
+            Vector3 v = preVel;
+            v.y = 0f;
+            float rel = v.magnitude;
             Physics.IgnoreCollision(GetComponent<Collider>(), c.collider, true);
             StartCoroutine(Restore(c.collider));
-            Vector3 push = rb.linearVelocity * 0.8f + Vector3.up * 4f;
+            var m = c.collider.GetComponent<CharacterMotor>();
+            Vector3 side = c.collider.transform.position - transform.position;
+            side.y = 0f;
+            side = Vector3.ProjectOnPlane(side, transform.forward).normalized;
+            if (rel < 3f)   // a nudge: out of the way, nobody hurt
+            {
+                if (m) m.impulse += side * 2.5f + v * 0.6f;
+                return;
+            }
+            Vector3 push = v * 0.8f + side * 1.5f + Vector3.up * Mathf.Min(4f, rel * 0.4f);
             var npc = c.collider.GetComponent<NpcWalker>();
             if (npc) npc.Knock(push);
+            else if (m) m.impulse += push;
             var h = c.collider.GetComponent<Health>();
-            if (h) h.Damage(rel * 4f, transform.position, gameObject);
-            var m = c.collider.GetComponent<CharacterMotor>();
-            if (m && !npc) m.impulse += push;
+            if (h && rel > 4.5f) h.Damage(rel * (driver ? 4f : 2.5f), transform.position, gameObject);
         }
 
         System.Collections.IEnumerator Restore(Collider other)

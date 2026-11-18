@@ -85,6 +85,18 @@ MonoBehaviour:
     bodyType: 3
     height: 1.12
     weight: 1
+  - id: police_1
+    displayName: Constable
+    prefab: {fileID: 4543015569569619807, guid: 970662ace6d7f4f4fb4448bdf1038a18, type: 3}
+    bodyType: 0
+    height: 1.76
+    weight: 0
+  - id: police_2
+    displayName: Havaldar
+    prefab: {fileID: 1902490064511901367, guid: a62bc4762707adb4abc5372b10565182, type: 3}
+    bodyType: 0
+    height: 1.74
+    weight: 0
   - id: goan_kisaan
     displayName: Kisaan bhaiya
     prefab: {fileID: 554002436444749529, guid: 82f04caef3098c34e879b0578d95fbf3, type: 3}

@@ -338,7 +338,8 @@ namespace Nainital.EditorTools
 
             // the surfaces, with no joints or lines in them (planar over the ground, any direction)
             var asphalt = GroundTexture(dir + "/T_GroundAsphalt.png", "Assets/Nainital/Data/PBR/asphalt_02_albedo.png", (c, x, y) => new Color(c.r * 1.5f, c.g * 1.45f, c.b * 1.36f));
-            var concrete = GroundTexture(dir + "/T_GroundConcrete.png", "Assets/Nainital/Data/PBR/concrete_floor_worn_001_albedo.png", (c, x, y) => { float g = 0.36f + 0.55f * c.grayscale; return new Color(g * 1.01f, g, g * 0.97f); });
+            // the second channel: the main roads' black tarmac (owner, 19 Nov) - the same scan as the grey roads, not lifted
+            var concrete = GroundTexture(dir + "/T_GroundTarmacBlack.png", "Assets/Nainital/Data/PBR/asphalt_02_albedo.png", (c, x, y) => new Color(c.r * 0.82f, c.g * 0.82f, c.b * 0.85f));
             var paver = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Nainital/Data/PBR/rectangular_paving_albedo.png");
             var asphaltN = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Nainital/Data/PBR/asphalt_02_normal.png");
             var paverN = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Nainital/Data/PBR/rectangular_paving_normal.png");
@@ -349,6 +350,7 @@ namespace Nainital.EditorTools
             var tr = ctx.terrain.GetComponent<TerrainRoads>() ?? ctx.terrain.gameObject.AddComponent<TerrainRoads>();
             tr.mask = mask; tr.asphalt = asphalt; tr.asphaltNormal = asphaltN; tr.concrete = concrete; tr.paver = paver; tr.paverNormal = paverN; tr.dirt = dirt;
             tr.rect = new Vector4(roadMaskOrigin.x, roadMaskOrigin.y, roadMaskSize, roadMaskSize);
+            tr.tiles.y = tr.tiles.x;   // the black tarmac repeats like the grey
             tr.sdfRange = RoadSdfRange;
             tr.Apply();
             EditorUtility.SetDirty(tr);

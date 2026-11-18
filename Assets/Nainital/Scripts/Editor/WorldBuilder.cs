@@ -594,7 +594,7 @@ namespace Nainital.EditorTools
                 bool dirtTrack = r.kind == "path" || r.kind == "track" || r.kind == "bridleway";   // trodden earth: level with the ground
                 float lift = (dirtTrack ? 0.05f : minor ? 0.10f : RoadLift) + (idx % 7) * 0.004f;
                 bool mallDeck = IsMallDeck(r.name);   // flat across, at its own level: the step between the two roads is built in
-                bool lakeRoad = IsLakeRoad(ctx, r);   // cement concrete with white lines
+                bool lakeRoad = IsMainRoad(ctx, r);   // a main road: black tarmac with white lines (owner, 19 Nov)
                 float run = 0f;
                 var mb = new MeshBuilder();
                 Vector3 prevL = default, prevR = default;
@@ -670,7 +670,7 @@ namespace Nainital.EditorTools
                 bool walk = r.kind == "pedestrian" || r.kind == "footway" || r.kind == "steps";
                 bool redTiles = walk && path.Count > 1 && InMallitalFront(ctx, path[path.Count / 2]) && ctx.LakeDistance(path[path.Count / 2]) < 45f;   // Mallital lakefront (2025 videos)
                 if (redTiles && !redTileMat) redTileMat = RedTileMaterial();
-                Material mat = lakeRoad ? ConcreteMaterial(ctx) : redTiles ? redTileMat : walk ? (PhotoMaterial("cobblestone_floor_08", "M_MallCobblePhoto", new Color(0.92f, 0.92f, 0.9f), 0.45f) ?? ctx.mats.paver)
+                Material mat = lakeRoad ? (MainRoadMaterial() ?? ConcreteMaterial(ctx)) : redTiles ? redTileMat : walk ? (PhotoMaterial("cobblestone_floor_08", "M_MallCobblePhoto", new Color(0.92f, 0.92f, 0.9f), 0.45f) ?? ctx.mats.paver)
                              : (r.kind == "path" || r.kind == "track" || r.kind == "bridleway") ? ctx.mats.dirtPath : ctx.mats.asphalt;
                 string nm = string.IsNullOrEmpty(r.name) ? r.kind : r.name;
                 if (painted)
@@ -683,7 +683,7 @@ namespace Nainital.EditorTools
                     {
                         // the DSA road is grey cement concrete from Mall Road down to the Flats (iPhone bug 2026-11-16: "DSA
                         // road will not be grass, its all grey concrete path"); the walk on past the Flats keeps its pavers
-                        PaintRoadSurface(mb, ChConcrete, 1f, 0, dsaEndTri);
+                        PaintRoadSurface(mb, ChAsphalt, 1f, 0, dsaEndTri);   // grey (the main roads' channel is black tarmac now)
                         PaintRoadSurface(mb, ch, 1f, dsaEndTri);
                     }
                     else PaintRoadSurface(mb, ch);
@@ -808,7 +808,8 @@ namespace Nainital.EditorTools
                 if (ctx.InLake(c)) continue;
                 if (string.IsNullOrEmpty(b.name) && ctx.InKeepClear(c, 3f)) continue;
                 if (!string.IsNullOrEmpty(b.name) && b.name.IndexOf("Capitol", StringComparison.OrdinalIgnoreCase) >= 0) continue;
-                if (!string.IsNullOrEmpty(b.name) && b.name.IndexOf("Boat House", StringComparison.OrdinalIgnoreCase) >= 0) continue;   // LandmarkBuilder.BoatClub.cs   // built in WorldBuilder.Mallital.cs   // unnamed buildings give way to built places (Tallital, civic sites)
+                if (!string.IsNullOrEmpty(b.name) && b.name.IndexOf("Boat House", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                if (b.name == "Raj Bhavan") continue;   // LandmarkBuilder.Top10.cs builds it on this footprint (19 Nov)   // LandmarkBuilder.BoatClub.cs   // built in WorldBuilder.Mallital.cs   // unnamed buildings give way to built places (Tallital, civic sites)
                 int osmLevels = b.levels > 0 ? Mathf.Clamp(b.levels, 1, 8) : 3;
                 if (string.IsNullOrEmpty(b.name) && !WalkHouse(ctx, c, ref osmLevels, out _)) continue;
                 bool hostel = b.kind == "hostel" || b.kind == "university" || b.kind == "school" || b.kind == "college";

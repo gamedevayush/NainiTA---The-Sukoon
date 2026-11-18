@@ -24,7 +24,9 @@ namespace Nainital
 
         int road, idx, dir;
         Mode mode;
-        float stuck, hornCooldown, blocked, turnTimer, shaken, pullTimer;
+        float stuck, hornCooldown, blocked, turnTimer, shaken, pullTimer, pull, wayT, waySign, oncoming, feelSteer, backT, stillT;
+        float frontWall = float.MaxValue;
+        static int wallMask = -1;
         int turnSteps;
         Vector3 turnHeading;
         bool passed;
@@ -40,6 +42,18 @@ namespace Nainital
         public bool PullingUp => mode == Mode.PullUp;
         public string State => mode + (driver ? ", driver in" : ", no driver") + $", road {road} idx {idx} dir {dir} t {turnTimer:F1} steps {turnSteps} thr {(car ? car.aiThrottle : 0f):F2} steer {(car ? car.aiSteer : 0f):F0} hb {(car ? car.aiHandbrake : 0f):F0} stuck {stuck:F0}";
         public bool HasDriver => driver;
+        /// <summary>An ambulance or police car is stuck against this one (RouteDriver): back off out of its way if it is
+        /// in front, else pull on and over to the left.</summary>
+        public void MakeWay(Vector3 from)
+        {
+            if (mode != Mode.Drive) return;
+            Vector3 rel = from - transform.position;
+            rel.y = 0f;
+            waySign = Vector3.Dot(rel, transform.forward) > 0f ? -1f : 1f;
+            wayT = 2.6f;
+            stuck = 0f;
+        }
+
         /// <summary>Test hook (PlayTest.UTurn): turn round here.</summary>
         public void ForceTurnRound() { if (mode == Mode.Drive && net.roads[road].oneWay == 0) TurnRound(); }
 
@@ -68,7 +82,9 @@ namespace Nainital
         }
 
         /// <summary>Where the driver sits: right-hand drive, low in the seat (the walker's root; hips 0.51 m above it).</summary>
-        public Vector3 DriverSeatLocal()
+        public Vector3 DriverSeatLocal() => VehicleSeats.Root(gameObject);
+
+        Vector3 OldDriverSeatLocal()
         {
             var info = GetComponent<VehicleInfo>();
             float W = info ? info.width : spec.width, L = info ? info.length : spec.length, H = info ? info.height : spec.height;
@@ -91,7 +107,7 @@ namespace Nainital
             if (d.sqrMagnitude < 1e-4f) return pts[i];
             Vector3 left = Vector3.Cross(d.normalized, Vector3.up);   // Unity: forward x up = left
             float off = net.roads[road].oneWay != 0 ? 0f : Mathf.Max(1.1f, net.roads[road].width * 0.25f);   // one-way: down the middle
-            return pts[i] + left * off;
+            return pts[i] + left * (off + pull * 1.3f);   // pull: over to the left for a siren (EmergencyLights)
         }
 
         static readonly int groundMask = ~((1 << VehicleFactory.VehicleLayer) | (1 << 8) | (1 << 9) | (1 << 2) | (1 << 4));
@@ -321,6 +337,27 @@ namespace Nainital
                 return;
             }
 
+            if (backT > 0f)   // nosed into a wall: back off on the other lock, then try again
+            {
+                backT -= dt;
+                car.aiHandbrake = 0f;
+                car.aiSteer = -Mathf.Sign(feelSteer == 0f ? car.aiSteer : feelSteer) * spec.steer * 0.8f;
+                car.aiThrottle = fwd > 0.3f ? -1f : -0.6f;
+                if (backT <= 0f) { Relocate(); stillT = 0f; }
+                return;
+            }
+
+            if (wayT > 0f)   // making way for a siren: back away (it is in front) or on and over to the left
+            {
+                wayT -= dt;
+                pull = 1f;
+                car.aiHandbrake = 0f;
+                car.aiSteer = waySign < 0f ? spec.steer * 0.5f : -spec.steer * 0.35f;
+                car.aiThrottle = waySign < 0f ? (fwd > 0.3f ? -1f : -0.6f) : Mathf.Clamp((3f - fwd) * 0.4f, -1f, 0.6f);
+                if (wayT <= 0f) Relocate();
+                return;
+            }
+
             // keep to the lane: the next point is passed once it is close, or behind
             for (int guard = 0; guard < 4; guard++)
             {
@@ -333,19 +370,39 @@ namespace Nainital
             float speed = Mathf.Abs(fwd);
             car.aiSteer = SteerTo(Aim(Mathf.Clamp(speed * 0.9f, 4.5f, 13f)));
 
-            // bends ahead set the speed
+            // bends ahead set the speed: the sharpest turn of the lane over the next ~30 m, and how soon it comes
+            float targetSpeed = BendSpeed(pos);
             Vector3 ahead = Lane(idx + dir * 4) - pos;
             ahead.y = 0;
-            float bend = Vector3.Angle(transform.forward, ahead);
-            float targetSpeed = Mathf.Lerp(cruise, 3.5f, Mathf.Clamp01(bend / 70f));
+            float bend = Vector3.Angle(transform.forward, ahead);   // (the horn before a blind bend: Manners)
             if (shaken > 0f) { shaken -= dt; targetSpeed = 0f; }
 
-            // something in front? (cars, people, the player)
-            float look = 5f + speed * 1.2f;
+            // walls, railings, parked cars, the hillside, a drop at the road's edge: feelers ahead steer it off and slow it
+            targetSpeed = Mathf.Min(targetSpeed, Feel(pos, speed));
+
+            // something in front? (cars, people, the player): keep a gap of about two seconds, match a car's speed
+            float look = 6f + speed * 2f;
             Vector3 from = pos + Vector3.up * 1f + transform.forward * (spec.length * 0.5f + 0.3f);
             if (Physics.SphereCast(from, 0.9f, transform.forward, out var hit, look, obstacleMask, QueryTriggerInteraction.Ignore) &&
                 !hit.collider.transform.IsChildOf(transform))
-                targetSpeed = hit.distance < 4f ? 0f : Mathf.Min(targetSpeed, (hit.distance - 3f) * 0.7f);
+            {
+                float lead = 0f;
+                if (hit.rigidbody && !hit.rigidbody.isKinematic) lead = Mathf.Max(0f, Vector3.Dot(hit.rigidbody.linearVelocity, transform.forward));
+                bool person = hit.collider.gameObject.layer == 8 || hit.collider.gameObject.layer == 9;
+                float gap = hit.distance - (person ? 3.5f : 2.5f);
+                targetSpeed = gap < 1f ? 0f : Mathf.Min(targetSpeed, lead + gap * 0.45f);
+            }
+
+            // a narrow road and a car coming the other way: over to the left and slow, like on a hill road
+            oncoming = Mathf.MoveTowards(oncoming, Oncoming(pos) ? 1f : 0f, dt * 1.5f);
+            if (oncoming > 0.5f) targetSpeed = Mathf.Min(targetSpeed, 5f);
+
+            // an accident ahead (IncidentManager): stop short of it and wait; a siren behind or coming: over to the left
+            bool held = IncidentManager.HoldAhead(pos, transform.forward, out float hd);
+            if (held) targetSpeed = Mathf.Min(targetSpeed, Mathf.Max(0f, (hd - 10f) * 0.6f));
+            bool siren = TrafficBike.SirenNear(pos, transform.forward);
+            pull = Mathf.MoveTowards(pull, siren ? 1f : oncoming * 0.5f, dt * 0.7f);
+            if (siren) targetSpeed = Mathf.Min(targetSpeed, 3f);
 
             float err = targetSpeed - fwd;
             car.aiThrottle = Mathf.Clamp(err * 0.35f, -1f, 1f);
@@ -355,7 +412,10 @@ namespace Nainital
             Manners(dt, pos, targetSpeed, bend);
 
             // stuck (blocked for long, or wedged against something): turn round where the road allows
-            if (speed < 0.3f) stuck += dt; else stuck = 0f;
+            if (speed < 0.3f && !held && !siren) stuck += dt; else stuck = 0f;   // waiting at an accident is not being stuck
+            // nosed into something (a wall the ray missed, a kerb, another car's corner): pressing on and not moving
+            stillT = speed < 0.4f && (frontWall < 3.5f || car.aiThrottle > 0.5f) ? stillT + dt : 0f;
+            if (stillT > 2.5f) { backT = 1.6f; stillT = 0f; }
             if (stuck > 20f && stuck - dt <= 20f && net.roads[road].oneWay == 0) TurnRound();   // held up for long: turn round
             if (stuck > 40f)   // wedged for good: gone once nobody is looking
             {
@@ -412,6 +472,86 @@ namespace Nainital
             turnSteps++;
             phaseStart = pos;
         }
+
+        /// <summary>Speed for the road ahead: the sharpest turn within ~30 m of lane (a hairpin wants ~4 m/s, a gentle bend
+        /// little less than cruise), braked for in time: v = sqrt(v_turn^2 + 2 a d) with a = 3 m/s^2.</summary>
+        float BendSpeed(Vector3 pos)
+        {
+            float best = cruise;
+            Vector3 prev = pos, prevDir = transform.forward;
+            prevDir.y = 0f;
+            float along = 0f;
+            for (int k = 1; k < 10 && along < 34f; k++)
+            {
+                int i = idx + dir * k;
+                if (i < 0 || i >= Pts.Length) break;
+                Vector3 q = Lane(i);
+                Vector3 d = q - prev;
+                d.y = 0f;
+                float len = d.magnitude;
+                if (len < 0.5f) continue;
+                d /= len;
+                float turn = Vector3.Angle(prevDir, d) / Mathf.Max(len, 2f);   // degrees per metre
+                float vTurn = Mathf.Lerp(cruise, 3.5f, Mathf.Clamp01(turn / 9f));   // ~9 deg/m is a hairpin
+                best = Mathf.Min(best, Mathf.Sqrt(vTurn * vTurn + 2f * 3f * along));
+                along += len;
+                prev = q;
+                prevDir = d;
+            }
+            return best;
+        }
+
+        /// <summary>Feelers. Straight ahead from the bumper: a wall, railing or pole in the path sets a speed it can stop
+        /// in (4 m/s^2). Two short rays from the front corners, angled out: a wall close at one side nudges the wheel
+        /// away (never more than a third of full lock, never a stop: on a hill road's bends the walls are always near,
+        /// the lane steers it round them).</summary>
+        float Feel(Vector3 pos, float speed)
+        {
+            if (wallMask < 0) wallMask = ~((1 << VehicleFactory.VehicleLayer) | (1 << 8) | (1 << 9) | (1 << 2) | (1 << 4));
+            Vector3 fwd = transform.forward, right = transform.right;
+            float hw = spec.width * 0.5f, hl = spec.length * 0.5f;
+            float limit = cruise;
+            float reach = 3f + speed * speed / 8f;
+            Vector3 o = pos + Vector3.up * 0.6f + fwd * (hl * 0.9f);
+            if (Physics.Raycast(o, fwd, out var h, reach, wallMask, QueryTriggerInteraction.Ignore) && h.normal.y < 0.6f)
+            {
+                frontWall = h.distance;
+                limit = Mathf.Sqrt(2f * 4f * Mathf.Max(0f, h.distance - 1.8f));
+            }
+            else frontWall = float.MaxValue;
+            float push = 0f;
+            float len = Mathf.Clamp(2.5f + speed * 0.35f, 3f, 7f);
+            for (int s = -1; s <= 1; s += 2)
+            {
+                Vector3 c = pos + Vector3.up * 0.6f + fwd * (hl * 0.8f) + right * (s * hw * 0.85f);
+                Vector3 d = Quaternion.AngleAxis(s * 25f, Vector3.up) * fwd;
+                if (Physics.Raycast(c, d, out var w, len, wallMask, QueryTriggerInteraction.Ignore) && w.normal.y < 0.6f)
+                    push -= s * (1f - w.distance / len);
+            }
+            feelSteer = Mathf.MoveTowards(feelSteer, Mathf.Clamp(push, -1f, 1f), Time.fixedDeltaTime * 4f);
+            car.aiSteer = Mathf.Clamp(car.aiSteer + feelSteer * spec.steer * 0.33f, -spec.steer, spec.steer);
+            return limit;
+        }
+
+        /// <summary>A car coming the other way close ahead on a narrow road.</summary>
+        bool Oncoming(Vector3 pos)
+        {
+            if (net.roads[road].width > 7f) return false;
+            int n = Physics.OverlapSphereNonAlloc(pos + transform.forward * 18f, 14f, near, 1 << VehicleFactory.VehicleLayer, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var rb2 = near[i].attachedRigidbody;
+                if (!rb2 || rb2.transform == transform) continue;
+                Vector3 rel = rb2.position - pos;
+                if (Vector3.Dot(rel, transform.forward) < 2f) continue;
+                if (Vector3.Dot(rb2.transform.forward, transform.forward) > -0.5f) continue;   // not coming at us
+                if (Mathf.Abs(Vector3.Dot(rel, transform.right)) > 5f) continue;
+                return true;
+            }
+            return false;
+        }
+
+        static readonly Collider[] near = new Collider[12];
 
         /// <summary>Hill-road manners: the horn when held up and before a blind bend; the swish when going past.</summary>
         void Manners(float dt, Vector3 pos, float targetSpeed, float bend)

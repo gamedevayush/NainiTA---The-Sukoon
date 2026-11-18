@@ -81,6 +81,10 @@ namespace Nainital.EditorTools
             foreach (var spot in PlacedSpots(ctx)) ctx.keepClear.Add((spot, 11f));   // the Shaktipeeth gate and anything else placed by hand
             if (MasjidSite(ctx, out var masjid, out _)) ctx.keepClear.Add((masjid, 20f));
             foreach (var spot in LandmarkBuilder.SnowViewSpots()) ctx.keepClear.Add(spot);   // the Snow View hilltop
+            foreach (var spot in LandmarkBuilder.EcoCaveSpots()) ctx.keepClear.Add(spot);   // Eco Cave Garden's walks, caves and huts
+            foreach (var spot in LandmarkBuilder.LoversPointSpots(ctx)) ctx.keepClear.Add(spot);   // Lover's Point verge, terrace, walk, sheds
+            foreach (var spot in LandmarkBuilder.KhurpatalLakeSpots(ctx)) ctx.keepClear.Add(spot);   // Khurpatal Lake View Point pull-off and walk
+            foreach (var spot in LandmarkBuilder.SariyatalSpots(ctx)) ctx.keepClear.Add(spot);   // Sariyatal park, shore, Woodland Waterfall
             foreach (var spot in LandmarkBuilder.BoatClubSpots()) ctx.keepClear.Add(spot);   // the Boat House Club
             foreach (var (name, r) in new[] { ("Naina Devi", 20f), ("Gurudwara", 15f), ("Church", 16f) })
             {

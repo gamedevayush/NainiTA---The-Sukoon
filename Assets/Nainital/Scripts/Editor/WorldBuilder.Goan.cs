@@ -54,7 +54,9 @@ namespace Nainital.EditorTools
             // they stand at their road's level as railed ledges, and a pad on a knife ridge raised a rock pillar; 15 Nov)
             Pad(ctx.Poi("Tower 360"), 14f);
             Pad(ctx.Poi("Barapathar"), 11f);
-            Pad(ctx.Poi("Eco Cave Garden"), 13f);
+            // (Eco Cave Garden: no pad - the park climbs its slope; its walks and caves cut their own beds, 19 Nov)
+            // (Lover's Point shapes its own shelf once the roads are levelled: LandmarkBuilder.BuildLoversPoint)
+            LandmarkBuilder.ShapeSariyatalGround(ctx);   // Sariyatal's shore and west road at the lake, the park's lawn level
             Pad(ctx.Poi("Nainital Zoo"), 7f);
             Pad(ctx.Poi("Nainital Stadium"), 16f);
             var flats = ctx.Poi("Nainital Stadium");

@@ -32,6 +32,14 @@ namespace Nainital
         /// <summary>Driving an AI car (TrafficCar): seated, no collider, carried by the car.</summary>
         public bool InCar { get; private set; }
         public bool Home { get; private set; }   // at the door: PedestrianManager takes this walker away
+        /// <summary>From PedestrianManager's pool (goes back to it when its body is taken away), not a placed local.</summary>
+        [System.NonSerialized] public bool pooled;
+        bool onBike;
+        Vector3 postPos, watchAt;
+        Quaternion postRot;
+        float watchTimer, shoutCd;
+        bool watchClose;
+        GameObject lastHurtBy;
 
         CharacterMotor motor;
         HumanoidRig rig;
@@ -67,6 +75,15 @@ namespace Nainital
             motor = GetComponent<CharacterMotor>();
             rig = GetComponentInChildren<HumanoidRig>();
             health = GetComponent<Health>();
+            if (!health)   // everyone can be hurt (2026-11-18: police and ambulance system)
+            {
+                health = gameObject.AddComponent<Health>();
+                health.max = health.current = 60f;
+            }
+            health.Damaged += OnHurt;
+            health.Died += OnDied;
+            postPos = transform.position;
+            postRot = transform.rotation;
             cc = GetComponent<CharacterController>();
             pause = Random.Range(0f, 3f);
             if (laneOffset < 0f) laneOffset = Random.Range(0.35f, 0.9f);
@@ -74,6 +91,72 @@ namespace Nainital
         }
 
         public override bool CanInteract(PlayerController p) => (!health || !health.IsDead) && knockTimer <= 0f && !hidden && !InCar;
+
+        // ------------------------------------------------------------------ hurt / killed (WantedSystem, IncidentManager)
+        void OnHurt(float amount, Vector3 from, GameObject src)
+        {
+            lastHurtBy = src;   // first: Health is already at 0 when a blow kills (Damaged fires before Died)
+            if (health.IsDead) return;
+            bool byPlayer = WantedSystem.ByPlayer(src);
+            if (byPlayer) WantedSystem.Ensure().Assault(transform.position, false);
+            if (InCar) return;
+            if (rig && knockTimer <= 0f) rig.PlayHit();
+            Vector3 away = transform.position - from;
+            away.y = 0f;
+            Flee(away.sqrMagnitude > 0.01f ? away : -transform.forward, Random.Range(4f, 7f));
+            watchTimer = 0f;
+            talkTimer = 0f;
+            if (shoutCd <= 0f && knockTimer <= 0f)
+            {
+                shoutCd = 5f;
+                string[] shouts = { "Bachao! Police!", "Arey maar kyun raha hai?!", "Koi police ko bulao!", "Hai Ram! Bachao!" };
+                GameEvents.ShowToast(npcName + ": \"" + shouts[Random.Range(0, shouts.Length)] + "\"", 2f);
+            }
+        }
+
+        void OnDied()
+        {
+            if (rig) { rig.dead = true; rig.speed = 0f; }
+            fleeTimer = watchTimer = talkTimer = 0f;
+            if (WantedSystem.ByPlayer(lastHurtBy)) WantedSystem.Ensure().Kill(transform.position, false);
+            if (!InCar) IncidentManager.Report(gameObject, rig, Collected);
+        }
+
+        /// <summary>The ambulance took the body: a pooled walker goes back to the pool, a local comes back to his post
+        /// in two minutes.</summary>
+        void Collected()
+        {
+            if (!this) return;
+            if (pooled && PedestrianManager.Instance) { PedestrianManager.Instance.Release(this); return; }
+            gameObject.SetActive(false);
+            var im = IncidentManager.Instance;
+            if (im) im.Later(120f, () =>
+            {
+                if (!this) return;
+                transform.SetParent(null, true);
+                ResetState();
+                transform.SetPositionAndRotation(postPos, postRot);
+                gameObject.SetActive(true);
+                if (cc) cc.enabled = true;
+            });
+        }
+
+        /// <summary>Stop and stare at something (an accident) for a while; some walk up closer.</summary>
+        public void Watch(Vector3 at, float seconds)
+        {
+            if (health && health.IsDead) return;
+            watchAt = at;
+            watchTimer = seconds;
+            watchClose = Random.value < 0.35f;
+        }
+
+        /// <summary>Sit astride a two-wheeler (TrafficBike): like a car's driving seat, the riding pose.</summary>
+        public void EnterBike(Transform bike, Vector3 seatLocal)
+        {
+            EnterCar(bike, seatLocal);
+            onBike = true;
+            if (rig) { rig.seated = false; rig.driving = false; rig.riding = true; }
+        }
 
         /// <summary>Sit in a car's driving seat (PedestrianManager.MakeDriver).</summary>
         public void EnterCar(Transform car, Vector3 seatLocal)
@@ -89,20 +172,21 @@ namespace Nainital
             path = null;
             sit = true;
             idle = false;
-            if (rig) { rig.seated = true; rig.speed = 0f; rig.dead = false; }
+            if (rig) { rig.seated = true; rig.driving = true; rig.speed = 0f; rig.dead = false; }
         }
 
         /// <summary>Out of the car at the door, then off on foot to the nearest house (the car has been taken).</summary>
         public void LeaveCar(Vector3 door, Vector3 face)
         {
             InCar = false;
+            onBike = false;
             var pm = PedestrianManager.Instance;
             transform.SetParent(pm ? pm.transform : null, true);
             transform.SetPositionAndRotation(door, Quaternion.LookRotation(new Vector3(face.x, 0f, face.z).sqrMagnitude > 0.01f ? new Vector3(face.x, 0f, face.z) : Vector3.forward));
             Physics.SyncTransforms();
             if (cc) cc.enabled = true;
             sit = false;
-            if (rig) rig.seated = false;
+            if (rig) { rig.seated = false; rig.riding = false; rig.driving = false; }
             pause = 0.6f;
             GoHome(pm ? pm.NearestDoor(door) : door + face * 25f);
             fleeDir = new Vector3(face.x, 0f, face.z).normalized;   // first a few steps clear of the car
@@ -122,13 +206,14 @@ namespace Nainital
             var src = lines != null && lines.Length > 0 ? lines : DefaultLines;
             GameEvents.ShowDialog(npcName, src[Random.Range(0, src.Length)]);
             talkTimer = 5f;
+            if (rig) rig.PlayGesture("Talk", 4f);
         }
 
         public void Knock(Vector3 impulse)
         {
             if (knockTimer > 0f) return;
             knockTimer = 3.5f;
-            if (rig) { rig.dead = true; }
+            if (rig) { if (rig.Full) rig.knocked = true; else rig.dead = true; }   // the falling-down clip, then getting up
             if (motor) motor.impulse += impulse;
             string[] shouts = { "Arey bhai dekh ke chala!", "Oye! Andha hai kya?", "Police bulaunga!", "Hai Ram!" };
             GameEvents.ShowToast(npcName + ": \"" + shouts[Random.Range(0, shouts.Length)] + "\"", 2f);
@@ -152,6 +237,15 @@ namespace Nainital
             Home = false;
             fleeTimer = sideTimer = 0f;
             talkTimer = 0f;
+            watchTimer = 0f;
+            onBike = false;
+            knockTimer = 0f;
+            if (health && health.IsDead) health.Revive();
+            if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
+            if (rig) { rig.Revive(); rig.riding = false; rig.carrying = false; }
+            var cas = GetComponent<Casualty>();
+            if (cas) Destroy(cas);
+            lastHurtBy = null;
         }
 
         void SetHidden(bool h)
@@ -215,14 +309,21 @@ namespace Nainital
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
             if (!rig) return;
             float dt = Time.deltaTime;
-            if (InCar) { rig.seated = true; rig.speed = 0f; rig.grounded = true; return; }
+            if (InCar) { rig.seated = !onBike; rig.driving = !onBike; rig.riding = onBike; rig.speed = 0f; rig.grounded = true; return; }
+            shoutCd -= dt;
             if (homeAtNight)
             {
                 bool away = !TownClock.LocalsOut(TownClock.Hour);
                 if (away != hidden) SetHidden(away);
                 if (away) return;
             }
-            if (health && health.IsDead) { rig.dead = true; rig.speed = 0; return; }
+            if (health && health.IsDead)
+            {
+                rig.dead = true;
+                rig.speed = 0;
+                if (cc && cc.enabled && knockTimer > 0f) { knockTimer -= dt; motor.Move(Vector3.zero, 6f, dt); }   // thrown: lands first
+                return;
+            }
             if (knockTimer > 0f)
             {
                 knockTimer -= dt;
@@ -253,6 +354,14 @@ namespace Nainital
                 if (to.magnitude < 1.3f || homeTimer > 45f) { Home = true; return; }
                 desired = to.normalized * speed * 1.15f;
                 face = to;
+            }
+            else if (watchTimer > 0f)   // an accident: stop and look (a few walk up to the edge of it)
+            {
+                watchTimer -= dt;
+                Vector3 to = watchAt - transform.position;
+                to.y = 0f;
+                if (watchClose && to.magnitude > 5f) { desired = to.normalized * speed; face = to; }
+                else face = to;
             }
             else if (talkTimer > 0f)
             {
