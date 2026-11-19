@@ -140,6 +140,7 @@ namespace Nainital.EditorTools
             GandhiStatue(ctx, chowk, chowkCol, t);
             NainitalLetters(ctx, chowk, chowkCol, t);
             ctx.MeshObject("Tallital chowk", parent, chowk, ctx.mats.atlas, chowkCol);
+            LandmarkBuilder.BuildArmyRest(ctx, parent);   // the walled compound on the road up to Mall Road (Street View, 19 Nov)
 
             ctx.InfoSign("Tallital Bus Station", "Uttarakhand Parivahan ka bus adda - Haldwani, Kathgodam, Delhi ki buses yahin se. Saamne jheel ke kinare Gandhi ji ki murti.",
                          V(t.apron + t.A * 14f + t.N * 5.5f, ctx.H(t.apron + t.A * 14f + t.N * 5.5f)), Quaternion.LookRotation(Flat(t.N)), parent);

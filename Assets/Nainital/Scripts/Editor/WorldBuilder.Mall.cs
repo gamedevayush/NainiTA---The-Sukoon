@@ -471,6 +471,7 @@ namespace Nainital.EditorTools
             MallSplit(ctx, parent, U, L, low);
             MallHillEdge(ctx, parent, U, cobble);
             MallShopDressing(ctx, parent, U);
+            LandmarkBuilder.BuildLowerMallSights(ctx, parent);   // open gym, swan boats, Rotary Selfie Point (Street View, 19 Nov)
 
             void Marker(string name, int i)
             {
@@ -925,6 +926,12 @@ namespace Nainital.EditorTools
         /// t range, height, the face's distance from the centre line, painted or bare stone (process_data.py: UPPER_WALLS).</summary>
         static readonly (float t0, float t1, float h, float face, bool mural)[] UpperWalls =
         {
+            // the user's Street View route (19 Nov 2026), Tallital end: a steep green bank behind mossy rubble walls right at the
+            // road, the hotels high up and set back (Elphinstone, Mansarovar; the Methodist church on its terrace, Evelyn).
+            // Tools/fit_mall_streetview.py takes the shop row off these stretches. (Not in process_data.py's UPPER_WALLS: the
+            // raw data is not on this PC, so the ground behind them stays as it is.)
+            (0.028f, 0.079f, 3.2f, 3.6f, false),  // 154-230 m from Tallital chowk
+            (0.170f, 0.270f, 3.6f, 3.6f, false),  // 364-513 m
             (0.40f, 0.445f, 3.0f, 5.0f, false),   // rubble stone, cars parked nose-in along its foot
             (0.475f, 0.53f, 4.5f, 3.6f, true),    // painted panels, right at the road
         };

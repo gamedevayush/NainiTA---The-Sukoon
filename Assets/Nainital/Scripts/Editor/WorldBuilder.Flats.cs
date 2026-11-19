@@ -52,7 +52,7 @@ namespace Nainital.EditorTools
             BuildStands(ctx, parent, FlatsGroundY(ctx));
 
             // ---- the ground: pale grey grit, a 2 m grid over the polygon
-            var grit =PhotoMaterial("concrete_floor_worn_001", "M_FlatsGrit", new Color(1.45f, 1.3f, 1.05f), 0.05f) ?? ctx.mats.paver;
+            var grit =PhotoMaterial("concrete_floor_worn_001", "M_FlatsGrit", new Color(1.12f, 1.11f, 1.08f), 0.05f) ?? ctx.mats.paver;   // grey gravel, not sand (Street View, 19 Nov)
             var gm = new MeshBuilder();
             const float cell = 2f;
             for (float u = -hu; u < hu; u += cell)

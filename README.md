@@ -110,6 +110,31 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
 
+### Changed on 19 Nov (evening): Mall Road, Tallital and Mallital fitted to the owner's Street View routes
+
+The owner saved three Street View routes as 360 panoramas with their GPS (Brave extension "Street View 360 Saver":
+Tallital chowk -> Mall Road 935 m, Mallital 147 m, Bada Bazar -> Jama Masjid 199 m; `Downloads\StreetView360\route_*`).
+Each panorama was cut into left / ahead / right views and set beside the game rendered from the same spot.
+
+| # | What | What should be true now |
+|---|---|---|
+| 1 | Mall Road position | Upper and Lower Mall lie on the Street View car's track (the OSM lines ran up to 8.7 m east, so the camera stood on Lower Mall where the real Upper Mall is); the shop row moved with them |
+| 2 | Tallital to Mall Road | The Army Rest & Recoup Centre: whitewashed wall along the road, the gate with the red "ARMY REST & RECOUP CENTRE NAINITAL" board, low green-roofed barracks; no shop row |
+| 3 | Upper Mall 154-230 m, 364-513 m (from the chowk) | Mossy rubble retaining walls at the road, trees on the bank behind, no shops |
+| 4 | Mall trees | Old broadleaves close together on the strip between the roads (123, was 51) and on the bank |
+| 5 | Lower Mall lake side | City Joggers Park open gym, swan pedal boats, the Rotary Selfie Point pavilion (red tin roof, blue arch) |
+| 6 | Mallital, the road west past the Flats | A garden of trees on the south side instead of shops; the clock-tower building white with a red roof |
+| 7 | Bada Bazar | Left side open over the car park; right side four and five storeys, peach / pink / cream; the Flats ground grey grit |
+
+Not done: road and ground heights (Lower Mall stands 4-6 m over the water, the real one ~1.5 m; the Bada Bazar car park
+is level with the road) need `process_data.py` and the raw data; real shop names; ~500 m of Mall Road between the routes.
+
+Where: `Tools/fit_mall_streetview.py` (SEGMENTS: which road the car was on; STREET_EDITS: drop / low / tall / fill houses
+and trees per stretch; it always starts from `Generated/world.before_svfit.json`, run it, then Build World),
+`Editor/LandmarkBuilder.ArmyRest.cs`, `Editor/LandmarkBuilder.LowerMallSights.cs`, `WorldBuilder.Mall.cs` UpperWalls,
+`WorldBuilder.LowerMallWater.cs` (tree density). After a world build, reopen the scene before taking screenshots from a
+script, or the forest is not drawn in them.
+
 ### Added on 19 Nov: Eco Cave Garden, Lover's Point, Suicide Point, Khurpatal Lake View Point, Mansa Devi, Sariyatal, Woodland Waterfall, black main roads, Raj Bhavan, the zoo gate
 
 The owner: "nainital eco cave park bnna hai theek se, abhi to khraab sa hai, iske andr ka map dhundho, bahut badi cave
