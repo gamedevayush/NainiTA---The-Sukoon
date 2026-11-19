@@ -367,3 +367,8 @@ animation nikaal lena"; "mall road ki haalat kharab, terrain ubad khabad near to
 - 19 Nov ~22:35 the PC crashed (0x154) - BitLocker decrypting C/D/E/F at once while Unity and Blender ran; the 1 TB HDD
   was gone until a full power cycle. 20 Nov 03:20 the HDD was 100 % busy again with nothing of ours running: the v05 FBX
   were exported but not imported into Unity; HandIK / the handlebar and three-wheeler changes are not compiled yet.
+- 20 Nov 04:00 hand-off (owner asleep): the owner had removed the retro 350 and the electric scooty on purpose (their FBX
+  removed now) and mirrored the coach, the hatchback and the truck in X for right-hand drive ("sabka right hi ho").
+  Found: Auto Keying was on - one-frame actions pin many transforms; the two bus doors have real fold/slide animations, so
+  my 20 Nov hinge change left their meshes displaced; bike 13's handlebar key undid its raked frame. Nothing more changed
+  in the blend; the full fix list for the next PC is docs/VEHICLES.md section 9 (diagnostics in Tools/newvehicles/diag).

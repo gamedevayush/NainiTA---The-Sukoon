@@ -124,9 +124,14 @@ how to use the tool, what is left).
 | 5 | Bikes, scooties, auto, tirri: the front wheel is a child of the `Handlebar`, which turns about its own raked axis | In the blend and the tool |
 | 6 | Mixamo: Entering / Exiting Car, Pulled From Seat, Removing Driver, Honk, Jostled Passenger, Sitting (hands on thighs), Stand To Sit, Sit To Stand | In `Characters/Anims`, triggers in the controller; Mixamo has no motorcycle riding (procedural riding + a new pillion pose) |
 
-Still to do: the game using the approved setups (seats, lamps, passengers, hands, doors, damage, handlebar steering) and
-the new set replacing the branded library; car doors, `Steering` objects and the `Dmg_*` shape keys in Blender; both buses
-have their door on the right side (Tripo mirrored them? Indian buses have it on the left).
+**Next PC, start with [`docs/VEHICLES.md` section 9](docs/VEHICLES.md#9-pending---hand-off-of-20-nov-2026-0400-the-owner-went-to-sleep-do-these-on-the-next-pc-in-this-order)** (20 Nov hand-off): in v05 and the pushed FBX
+the two bus doors are displaced (their fold/slide animation keys fought my hinge change), bike 13's handlebar leans the
+wrong way, Auto Keying left one-frame keys everywhere, the owner's mirrors (right-hand drive) are held by keys, and every
+car / bus must be checked for right-hand drive; then export, import, compile, try the tool. The retro 350 and the electric
+scooty were removed on purpose.
+
+Still to do after that: the game using the approved setups (seats, lamps, passengers, hands, doors, damage, handlebar
+steering) and the new set replacing the branded library; car doors, `Steering` objects and the `Dmg_*` shape keys in Blender.
 
 ### Changed on 19 Nov (night): Mall Road joins, houses out of the carriageway (`Tools/fix_mall_road.py`)
 

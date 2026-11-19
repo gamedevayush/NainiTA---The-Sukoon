@@ -10,8 +10,10 @@ copies real brands. Fine for testing; a public / store release needs vehicles th
 logo or lettering. The owner (19 Nov): "2 bus, 10 gaadiyan, 5 bikes, 3 scooty, 1 tirri, 1 tuktuk ... bilkul bhi kisi company
 se match na khaaye, no logo, but kinda Indian ... tripo ko best images dena taaki tyre kaatne me dikkat na ho".
 
-**20 vehicles are in the set** (the owner removed the retro 350 and the electric scooty from the blend on 20 Nov; their
-uncut FBX are still in `Vehicles/New` - ask him before using or deleting them):
+**20 vehicles are in the set** (the owner removed the retro 350 and the electric scooty on purpose on 20 Nov; their FBX
+were removed from `Vehicles/New` too; their design image and Tripo model stay in `Tools/newvehicles/clean` and `models`):
+
+> **Read section 9 first: the 20 Nov hand-off has a list of things that are broken or not done.**
 
 | Kind | Vehicles |
 |---|---|
@@ -56,9 +58,9 @@ real size, one uniform scale. Blender adds `.001`, `.002` to repeated names; Uni
 | Damage | shape keys on the Body: `Dmg_Front`, `Dmg_Rear`, `Dmg_Left`, `Dmg_Right`, `Dmg_Top` | - |
 
 State of `NewVehicles_v05.blend` (20 Nov): every vehicle has Body + wheels; bikes, scooties, auto and tirri have the
-Handlebar with Wheel_F under it; both buses have a door (`Door_FR`). Not made yet: car doors, `Steering` objects, the five
-damage shape keys. **Open question:** both buses have their door on the vehicle's RIGHT (-X); Indian buses have it on the
-left - Tripo probably mirrored them. Mirror the two buses in X if the owner agrees.
+Handlebar with Wheel_F under it; both buses have a door with the owner's own fold/slide **animation** (keys on location and
+scale, not a hinge). Not made yet: car doors, `Steering` objects, the five damage shape keys. **v05 has known problems
+(displaced bus doors, bike 13's handlebar, keyed mirrors, right-hand drive to check) - fix them first: section 9.**
 
 ## 4. Blender -> Unity
 
@@ -140,3 +142,76 @@ in Brave Profile 1 (signed in with Google); reading the site token from a script
 - An excluded collection exports an empty FBX (fixed in `export_unity.py`).
 - `bpy.ops.object.select_all` fails in background mode when the blend was saved in edit mode (the script selects directly).
 - Wheel "origin off" was mostly along the axle (harmless); the tool measures across the axle only.
+
+## 9. PENDING - hand-off of 20 Nov 2026, 04:00 (the owner went to sleep; do these on the next PC, in this order)
+
+The owner's last words: "jitna theek hai vo bhej do, jitna reh gaya hai vo agle PC ko likh do, taaki wahan chalaun to
+theek kar de". Also: **every car and bus must be right-hand drive** (steering on the vehicle's right, as in India) -
+"buses aur kuch car maine scale -1 X axis ki kyunki unka steering left side tha, to tum aise karna ki sabka right hi ho".
+BitLocker: the owner handles it himself.
+
+### 9.1 What is wrong in `NewVehicles_v05.blend` (and so in the pushed FBX, exported from it at 03:17)
+
+**Auto Keying was on in the owner's Blender.** Many objects have an action with ONE keyframe that pins their
+location / rotation / scale (bodies, wheels, a handlebar). When the file loads or the frame changes, those keys put the
+transform back to the keyed value. Found with `anim_check.py` (any object with `animation_data.action`):
+
+| Object (collection) | Keys | Effect |
+|---|---|---|
+| `Door_FR` (00_bus_roadways) | location y -3.007 -> -2.704 and scale y 0.986 -> 0.085, frames 1-12 | **the door's real opening animation** (it folds/slides back) - keep it |
+| `Door_FR.001` (01_bus_tourist) | scale x -0.998; scale y 1 -> 0.207 and location y -3.773 -> -3.443, frames 0-100 | **the door's opening animation** + the owner's mirror - keep the animation |
+| `Body.001` (01_bus_tourist), `Body.002` (02_car_hatch_small), `Body.011` (11_truck_light) | scale x -0.998 / -1 / -0.962 (one key) | the owner's mirror for right-hand drive, held by a key |
+| `Handlebar.001` (13_bike_commuter125) | rotation = identity (one key) | **undoes the raked axis**: on 20 Nov I set its rotation along the steering axis and counter-rotated its mesh; the key put the rotation back to identity, so the handlebar mesh now leans 24 deg the wrong way and Wheel_F under it is off |
+| `Wheel_F` (12), wheels in 01, 03, 08, 10, 11, 13, 14, 16, 17, 18, 20, 21; `Body.013` | one key on location / rotation / scale | harmless while the values equal the object's own transform; check after the fixes |
+
+**The bus doors are displaced.** On 20 Nov I moved each door's origin onto a "hinge" (front edge) and moved the mesh the
+other way - but the doors' animation keys hold their location, so their origin went back and the mesh stayed moved:
+the roadways door now sits 0.29 m inside the body and 0.41 m back; the tourist door sits outside the body. The doors
+do not swing on a hinge at all - they fold / slide (the scale-y animation), so the hinge idea was wrong.
+
+### 9.2 Fix in Blender (open `Tools/newvehicles/NewVehicles_v05.blend`, save the result as `NewVehicles_v06.blend`)
+
+1. **Turn Auto Keying off** (Timeline, the record button; `scene.tool_settings.use_keyframe_insert_auto = False`).
+2. **Doors back:** take the door meshes from `NewVehicles_v04.blend` (objects `Door` -> v05 `Door_FR`, `Door.001` -> v05
+   `Door_FR.001`; append them and assign their mesh data to the v05 objects, then delete the appended objects). That puts
+   each mesh back where the owner made it relative to its animated origin. Then, on the tourist door only, move the 2
+   faces whose centre is at x > 0 (stray faces from the other side of the coach) into its Body - without touching the
+   origin. Do NOT move the doors' origins again.
+3. **Bike 13 handlebar:** delete `Handlebar.001`'s action (it only pins rotation to identity), restore its mesh from v04
+   (object `Handle` in 13_bike_commuter125) and redo the raked frame: origin = front wheel centre + d * 0.44 with
+   d = (0, sin 24 deg, cos 24 deg) (front is -Y), object Z along d, X = world X, keep the mesh where it is; then
+   Wheel_F as its child again (keep transform). Check the other seven handlebars (12, 14, 16, 17, 18, 20, 21): they have no
+   keys and should be fine.
+4. **One-key actions:** for every object whose action has keys at only ONE frame (everything in the table except the two
+   doors), evaluate at that frame, keep the resulting transform, and remove the action (`obj.animation_data_clear()`).
+5. **Mirrors into the mesh (no negative scale into Unity):** for each object with a negative determinant (bodies of 01,
+   02, 11; the tourist door; Wheel_F of 12): mesh.transform(diag(-1,1,1) on the negative axis), flip normals, make the
+   object's scale positive - the world shape must not change. For the tourist door keep its animation: set its scale-x
+   keys to +0.998 after mirroring the mesh. The coach's door is then on the vehicle's LEFT (+X) - rename it `Door_FL`.
+6. **Right-hand drive for every car and bus:** for each of 00-11 render a view through the windscreen (camera in front at
+   -Y, looking +Y at windscreen height; from there the vehicle's RIGHT (-X) appears on the LEFT of the picture) and look
+   where the steering wheel is. Mirror any that is still left-hand drive (as in step 5, the whole vehicle about its centre
+   x = the wheels' mean x; then swap the names Wheel_FL <-> Wheel_FR and Door_FL <-> Door_FR). Known: the owner mirrored 01,
+   02 and 11; **00_bus_roadways was not mirrored** - its door is on the vehicle's right (-X), so its driver is probably on
+   the left: check it first.
+7. Re-run the checks: `check_model.py` sheets and a front render of the whole row (`Tools/newvehicles/diag/front_check.py`;
+   the other scripts there found the problems above).
+
+### 9.3 Then Unity
+
+1. Export: `blender -b NewVehicles_v06.blend -P export_unity.py -- Assets\Nainital\Vehicles\New`. **Doors:** export their
+   animation too (`bake_anim=True` for the door objects, or a separate pass), and change the tool's door preview: if the
+   model has a clip for a door, the slider scrubs the clip (the hinge rotation is only for doors without one).
+2. Open Unity: it imports the 20 FBX. Then `call VehicleSetupWindow.FixMaterials` and `call VehicleSetupWindow.ImportCheck`.
+3. **Compile:** the 20 Nov changes (HandIK, handlebar / three-wheeler steering, Checks, NewVehicleImport) were never
+   compiled - fix any errors first.
+4. Try the tool in Play on a car, a bike, the auto and a bus: Checks list, steer, spin, hands on the wheel / grips, the
+   "player gets in" preview, Save.
+5. Commit and push (the owner wants every PC to be able to carry on).
+
+### 9.4 Still open elsewhere
+
+- Mall Road (README "Changed on 19 Nov (night)"): the Lower Mall lake-side edge, the Upper Mall deck vs the terrain, the
+  divider overlapping the Upper Mall edge.
+- The game using the approved setups (section 5, "After the owner's OK").
+- Car doors, `Steering` objects and the `Dmg_*` shape keys are not made yet.
