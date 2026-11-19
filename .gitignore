@@ -49,3 +49,15 @@ Assets/Resources/PerformanceTestRun*
 # processed models (Tools/make_vehicle_lods.py output before install_vehicles.py)
 Tools/processed/
 Tools/anims/
+
+# Tools/newvehicles (20 Nov): kept = scripts, prompts.json, clean/ (Tripo inputs), models/*_dec.glb (Tripo originals,
+# decoded) and the current blend; the Flow downloads, rejects, check sheets, Tripo's meshopt .glb and old blends stay local
+Tools/newvehicles/raw/
+Tools/newvehicles/rejected/
+Tools/newvehicles/checks/
+Tools/newvehicles/models/*.glb
+!Tools/newvehicles/models/*_dec.glb
+Tools/newvehicles/models/*_settings.png
+Tools/newvehicles/*.blend
+!Tools/newvehicles/NewVehicles_v05.blend
+*.blend1

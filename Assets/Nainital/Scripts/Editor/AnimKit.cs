@@ -30,6 +30,7 @@ namespace Nainital.EditorTools
             "m_idle", "m_walking", "m_running", "f_idle", "f_walking", "f_running", "jogging", "pistol_idle", "pistol_walk",
             "pistol_run", "pistol_walk_backward", "pistol_strafe", "pistol_strafe_2", "falling_idle", "treading_water",
             "swimming", "driving", "sitting_idle", "talking", "gesture_weight_shift", "block",
+            "car_passenger_jostled", "sit_hands_thighs",   // passengers (Vehicle Setup tool, 2026-11-19)
         };
 
         public static bool IsLoop(string file) => Loops.Contains(Path.GetFileNameWithoutExtension(file));
@@ -167,7 +168,11 @@ namespace Nainital.EditorTools
             actSm.defaultState = none;
             foreach (var (trig, clip) in new[] { ("Jab", "punch_jab"), ("Cross", "punch_cross"), ("Hook", "punch_hook"), ("Kick", "kick_roundhouse"),
                                                  ("Hit", "hit_reaction"), ("Roll", "roll"), ("Yell", "yelling"), ("Wave", "waving"), ("Talk", "talking"),
-                                                 ("Nod", "gesture_head_nod_yes"), ("Shake", "gesture_shaking_head_no"), ("Angry", "gesture_angry_gesture") })
+                                                 ("Nod", "gesture_head_nod_yes"), ("Shake", "gesture_shaking_head_no"), ("Angry", "gesture_angry_gesture"),
+                                                 // getting in and out of vehicles (Vehicle Setup tool, 2026-11-19)
+                                                 ("CarEnter", "car_enter"), ("CarExit", "car_exit"), ("PulledOut", "car_pulled_out"),
+                                                 ("RemoveDriver", "car_remove_driver"), ("Honk", "car_honk"),
+                                                 ("StandToSit", "stand_to_sit"), ("SitToStand", "sit_to_stand") })
             {
                 var st = Single(actSm, trig, clip, true);
                 var t = actSm.AddAnyStateTransition(st);

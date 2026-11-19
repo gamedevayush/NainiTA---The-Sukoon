@@ -95,6 +95,9 @@ namespace Nainital
         [System.NonSerialized] public bool aiming, handsUp, riding, carrying;
         /// <summary>At a vehicle's wheel (the Driving clip); knocked down (the falling-down clip, then getting up).</summary>
         [System.NonSerialized] public bool driving, knocked;
+        /// <summary>Astride behind the rider (with riding): legs as the rider's, hands resting on the thighs (Vehicle
+        /// Setup tool, 2026-11-19).</summary>
+        [System.NonSerialized] public bool pillion;
         [System.NonSerialized] public float aimPitch;
 
         public enum Attack { Jab = 0, Cross = 1, Kick = 2, Haymaker = 3 }
@@ -200,7 +203,9 @@ namespace Nainital
             {
                 "Jab" => "punch_jab", "Cross" => "punch_cross", "Hook" => "punch_hook", "Kick" => "kick_roundhouse", "Hit" => "hit_reaction",
                 "Roll" => "roll", "Yell" => "yelling", "Wave" => "waving", "Talk" => "talking", "Nod" => "gesture_head_nod_yes",
-                "Shake" => "gesture_shaking_head_no", "Angry" => "gesture_angry_gesture", "GetUp" => "getting_up", _ => state,
+                "Shake" => "gesture_shaking_head_no", "Angry" => "gesture_angry_gesture", "GetUp" => "getting_up",
+                "CarEnter" => "car_enter", "CarExit" => "car_exit", "PulledOut" => "car_pulled_out", "RemoveDriver" => "car_remove_driver",
+                "Honk" => "car_honk", "StandToSit" => "stand_to_sit", "SitToStand" => "sit_to_stand", _ => state,
             };
             return clipLen != null && clipLen.TryGetValue(clip, out var l) ? l : 1f;
         }
@@ -779,9 +784,19 @@ namespace Nainital
                 Blend(J.HipL, new Vector3(-62, 0, -14), seatW); Blend(J.HipR, new Vector3(-62, 0, 14), seatW);
                 Blend(J.KnL, new Vector3(96, 0, 0), seatW); Blend(J.KnR, new Vector3(96, 0, 0), seatW);
                 Blend(J.FtL, new Vector3(-12, 0, 0), seatW); Blend(J.FtR, new Vector3(-12, 0, 0), seatW);
-                Blend(J.ShL, new Vector3(-58, 0, 12), seatW); Blend(J.ShR, new Vector3(-58, 0, -12), seatW);
-                Blend(J.ElL, new Vector3(-28, 0, 0), seatW); Blend(J.ElR, new Vector3(-28, 0, 0), seatW);
-                Blend(J.Spine, new Vector3(12, 0, 0), seatW);
+                if (pillion)
+                {
+                    // the pillion: upright, upper arms down, forearms forward so the hands rest on the thighs
+                    Blend(J.ShL, new Vector3(-18, 0, 10), seatW); Blend(J.ShR, new Vector3(-18, 0, -10), seatW);
+                    Blend(J.ElL, new Vector3(-62, 0, 0), seatW); Blend(J.ElR, new Vector3(-62, 0, 0), seatW);
+                    Blend(J.Spine, new Vector3(3, 0, 0), seatW);
+                }
+                else
+                {
+                    Blend(J.ShL, new Vector3(-58, 0, 12), seatW); Blend(J.ShR, new Vector3(-58, 0, -12), seatW);
+                    Blend(J.ElL, new Vector3(-28, 0, 0), seatW); Blend(J.ElR, new Vector3(-28, 0, 0), seatW);
+                    Blend(J.Spine, new Vector3(12, 0, 0), seatW);
+                }
                 mPos.y = Mathf.Lerp(mPos.y, -0.44f, seatW);
             }
             else if (seatW > 0f)

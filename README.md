@@ -106,9 +106,45 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    - On the iPhone, allow the app in **Settings → General → VPN & Device Management**.
    - With a free Apple ID the app works for 7 days. Re-install it from Sideloadly to refresh.
 
-## Work in progress (last updated 19 Nov 2026)
+## Work in progress (last updated 20 Nov 2026)
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
+
+### Added on 19-20 Nov: an unbranded vehicle set, the Vehicle Setup tool, hands on the wheel, Mixamo clips for getting in and out
+
+**Full guide: [`docs/VEHICLES.md`](docs/VEHICLES.md)** (where everything is, the part names in Blender, Blender -> Unity,
+how to use the tool, what is left).
+
+| # | What | State |
+|---|---|---|
+| 1 | 22 original Indian-looking vehicles, no brand, no logo (Flow design -> Tripo 30k -> Blender) | 20 in the main blend `Tools/newvehicles/NewVehicles_v05.blend` (the owner removed the retro 350 and the electric scooty); cut into Body / wheels / handlebar / bus doors |
+| 2 | One FBX per vehicle in `Assets/Nainital/Vehicles/New` (+ PNG textures, URP materials) | Exported 20 Nov 03:17; **not imported into Unity yet on the main PC** - the first Unity start imports them, then run `call VehicleSetupWindow.FixMaterials` |
+| 3 | **Nainital > Vehicle Setup** (scene VehicleSetup, Play): every vehicle one at a time with all its people in their poses (Drive / Sit / Ride / Pillion / SideSaddle), entry points, head/tail lamps + night preview, door sliders, damage sliders, wheels spinning forward/back + steering, the "player gets in" preview, Checks for the Blender parts, Save / OK | The 19 Nov version compiled in batch; the 20 Nov changes (hands, handlebar steering, three-wheelers, Checks, `NewVehicleImport`) are **not compiled yet**; **not tried in Play yet** |
+| 4 | Hands on the steering wheel / handlebar grips (`HandIK`, wrist points per seat, ride on the handlebar / `Steering`) | Written 20 Nov, not compiled yet |
+| 5 | Bikes, scooties, auto, tirri: the front wheel is a child of the `Handlebar`, which turns about its own raked axis | In the blend and the tool |
+| 6 | Mixamo: Entering / Exiting Car, Pulled From Seat, Removing Driver, Honk, Jostled Passenger, Sitting (hands on thighs), Stand To Sit, Sit To Stand | In `Characters/Anims`, triggers in the controller; Mixamo has no motorcycle riding (procedural riding + a new pillion pose) |
+
+Still to do: the game using the approved setups (seats, lamps, passengers, hands, doors, damage, handlebar steering) and
+the new set replacing the branded library; car doors, `Steering` objects and the `Dmg_*` shape keys in Blender; both buses
+have their door on the right side (Tripo mirrored them? Indian buses have it on the left).
+
+### Changed on 19 Nov (night): Mall Road joins, houses out of the carriageway (`Tools/fix_mall_road.py`)
+
+The Street View fit (below) moved Upper and Lower Mall but not the short links at their ends: at Tallital (the toll plaza)
+Upper Mall stopped 5.9 m short of the link from the chowk, at Mallital 6.2 m short - the ground between the road ends was
+shaped by none of them (the owner: "terrain ubad khabad near toll plaza"). Now every end is pulled onto the link's end, the
+pull easing out over 30 m. 21 generated houses stood in a Mall carriageway or within 0.8 m of its edge: pushed out sideways
+(none removed, the house count stays); 24 trees too. A copy of the old data is `Generated/world.before_mallfix.json`.
+World built with it (no errors); road-level shots at both junctions are clean.
+
+**Still open on Mall Road** (measured by `Editor/MallProbe.cs`: `call MallProbe.Run` -> `Logs/mall_probe.txt`,
+`call MallProbe.Sections` -> `Logs/mall_sections.txt`):
+- Lower Mall: across the road the ground drops 1.4 m by 2 m from the centre toward the lake at x 406, 496, 731 - either the
+  bank shaping (`WorldBuilder.LowerMallWater.cs`, "under the parapet and the edge of the deck") reaches into the paving, or
+  the paving is narrower than world.json's 6 m (LowerHalf 2.4 m). Check in a road-level shot first.
+- Upper Mall (a deck mesh): on the hill side the terrain comes up through the deck (0.3 m at 2 m from the centre near
+  (708, -468)); near Tallital (x 854-875) the deck floats ~1.2 m over the lake-side ground; the Mall divider overlaps the
+  Upper Mall edge by 0.5-1 m.
 
 ### Changed on 19 Nov (evening): Mall Road, Tallital and Mallital fitted to the owner's Street View routes
 

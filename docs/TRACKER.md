@@ -337,3 +337,33 @@ and a sketch on the satellite ("orange means stairs to down, green in plain part
   grey), Raj Bhavan, the zoo gate, Naina Peak, Tiffin Top, Land's End, Himalaya Darshan, Khurpatal View Point.
   Not walked in play: the caves' passages, the Woodland stairs, Raj Bhavan's porch.
 
+
+## 19 Nov 2026 (night) - 20 Nov - Mall Road joins, an unbranded vehicle set, the Vehicle Setup tool
+Owner: pulled ebd2ff0 (Street View fit, made on the other PC), Build World; "ye real brand ki cars daalna theek rahega?" ->
+"2 bus, 10 gaadiyan, 5 bikes, 3 scooty, 1 tirri, 1 tuktuk generate karvaalo, kisi company se match na khaaye, no logo,
+kinda Indian, tripo ko best images"; "ek unity ka scene ... saari vehicles ki setting ... headlights, backlights, driver pose
+with another person ... capacity jitne character ... door alag aur 5 side damage preview ... same for bikes and scooty ...
+player kaise baithega, purane ko kaise hatayega, tyres aage peeche"; "bike pe baithne ka, car drive, sab ka humanoid
+animation nikaal lena"; "mall road ki haalat kharab, terrain ubad khabad near toll plaza, kisi ghar me na ghuse";
+"bike me handle ke child me front tyre"; "right and left hand pose ... steering for car, handle for bike scooty";
+"auto ke liye three wheeled and handle too"; then "sab push karo with instructions".
+- Vehicles: full write-up in docs/VEHICLES.md. Flow (Nano Banana Pro) copies real models from plain prompts (Matiz, Cube,
+  Innova, Delica, Bajaj RE) and badges noses (Tata T, Renault diamond): per-vehicle briefs with "must not look like ..." and
+  a bare-paint badge spot fixed it; every nose zoomed before Tripo. Flow's grid is virtualised: the first run saved the
+  wrong image under 11 names (shifted by one) - the script now takes only the never-seen top-left tile. Tripo: 22 models,
+  first 5 with PBR (30 credits), the rest PBR off (25). Front per model checked on 4-view sheets (cars +X, most
+  two-wheelers +Y, buses / tirri / two scooties / one bike -Y); scale by length alone made the buses 3.6 m wide -> median
+  of the three ratios.
+- Owner cut the parts himself (20 Nov, his own names); fixed in his open Blender over the blender MCP and saved as
+  NewVehicles_v05.blend: names, Wheel_F under the Handlebar, Handlebar origin + raked axis through the front wheel centre,
+  door hinges on the front edge, loose verts (truck 2, van 8, coach door 4 - they only spoilt the bounding boxes), 3 van
+  wheel faces and 2 coach-door faces back to the Body. The "origin off" numbers were along the axle (harmless).
+- Export: an excluded collection exported empty FBX (19 of 20 at 0.0 MB) - export_unity.py now shows each collection.
+  Unity left the FBX-embedded textures off the URP materials: FixMaterials builds them from the exported PNGs.
+- Mixamo: 9 clips through the site's Download button (the token route was refused by the safety check); no motorcycle
+  riding exists on Mixamo.
+- Mall Road: Upper Mall ended 5.9 m (Tallital) and 6.2 m (Mallital) short of the links; 21 houses within 0.8 m of a
+  carriageway. Fixed in world.json (fix_mall_road.py), world built, junction shots clean. MallProbe found more (README).
+- 19 Nov ~22:35 the PC crashed (0x154) - BitLocker decrypting C/D/E/F at once while Unity and Blender ran; the 1 TB HDD
+  was gone until a full power cycle. 20 Nov 03:20 the HDD was 100 % busy again with nothing of ours running: the v05 FBX
+  were exported but not imported into Unity; HandIK / the handlebar and three-wheeler changes are not compiled yet.
