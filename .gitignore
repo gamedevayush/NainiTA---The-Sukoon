@@ -31,6 +31,13 @@ __pycache__/
 *.bak
 *.before_*
 
+# Asset Store packs (Standard Unity Asset Store EULA: never in this public repo). Import them on each PC from
+# Package Manager > My Assets, then Nainital > 6b. Build character animator (docs/VEHICLES.md section 5)
+/Assets/MotoInteractionAnimsFREE/
+/Assets/MotoInteractionAnimsFREE.meta
+/Assets/Kevin Iglesias/
+/Assets/Kevin Iglesias.meta
+
 # the built world: made by Nainital > 2. Build World (see README)
 /Assets/Nainital/Generated/
 /Assets/Nainital/Generated.meta

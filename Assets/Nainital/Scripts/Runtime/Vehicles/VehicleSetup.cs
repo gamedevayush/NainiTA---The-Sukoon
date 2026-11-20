@@ -36,6 +36,19 @@ namespace Nainital
             public bool hands;
             public Vector3 handL, handR;
             public string handsOn;     // the model's steering object (Steering*, Handle*, Fork*), "" = the body
+            /// <summary>The ankles' points in vehicle space (HandIK feet): on the floor / the pedals in a car or a bus, on
+            /// the footpegs / the floorboard of a two-wheeler (20 Nov night: the sitting clips put the feet through the
+            /// floor).</summary>
+            public bool feet;
+            public Vector3 footL, footR;
+            /// <summary>On a two-wheeler: how far the back may lean forward from upright, degrees (HandIK.maxBend; the
+            /// pack's riding clips lean like a sport bike). bendSet false = the default for the pose (DefaultBend).</summary>
+            public bool bendSet;
+            public float bend;
+            /// <summary>What the seat is, measured on the model (vehicle space heights; -1 = not measured): the sitting
+            /// surface (a cushion's top, a two-wheeler seat's top; the hips stand HumanoidRig.NominalButt over it at pos)
+            /// and the roof's inside over the seat (HumanoidRig.seatRoof keeps each character's head under it).</summary>
+            public float surface = -1f, roof = -1f;
         }
 
         [Serializable]
@@ -45,6 +58,10 @@ namespace Nainital
             public Vector3 euler;
             public Vector2 size = new Vector2(0.22f, 0.12f);
             public bool mirror = true; // a second lamp at -x
+            /// <summary>The part it is fixed to, "" = the body. A bike's / scooty's headlight sits on the handlebar and turns
+            /// with it (owner, 20 Nov night: "kuch me front light handle ka child hongi"): the handlebar object's name.
+            /// pos / euler stay in the vehicle's space with the steering straight.</summary>
+            public string on = "";
         }
 
         [Serializable]
@@ -63,6 +80,10 @@ namespace Nainital
     public static class VehicleSetup
     {
         public const string ResourceDir = "VehicleSetup";
+        /// <summary>Where the Hips bone of a seated / riding person sits over the seat root (measured 20 Nov in the setup
+        /// tool): the Sit / Drive clips 0.51 m (HumanoidRig.SeatLock holds it at VehicleSeats.HipAboveRoot), the procedural
+        /// riding pose (rider / pillion) 0.40 m.</summary>
+        public static float HipsOverRoot(SeatPose p) => p == SeatPose.Ride || p == SeatPose.Pillion ? 0.40f : VehicleSeats.HipAboveRoot;
         static readonly Dictionary<string, VehicleSetupData> cache = new Dictionary<string, VehicleSetupData>();
 
         /// <summary>The saved setup of a model, or null. approvedOnly: what the game uses.</summary>
@@ -91,6 +112,12 @@ namespace Nainital
             rig.speed = 0f;
             rig.grounded = true;
         }
+
+        /// <summary>The back's lean limit for a seat (HandIK.maxBend): a two-wheeler's rider 12 deg (a commuter / scooty
+        /// rider sits nearly upright), the pillion 5 deg; -1 = the clip's own (cars, buses: the Driving / Sitting clips are
+        /// upright already). The seat's own value when the owner set one.</summary>
+        public static float DefaultBend(VehicleSetupData.Seat s) =>
+            s.bendSet ? s.bend : s.pose == SeatPose.Ride ? 12f : s.pose == SeatPose.Pillion ? 5f : -1f;
 
         /// <summary>How many people a kind of vehicle carries (driver included) - the tool's starting number.</summary>
         public static int Capacity(string model)
@@ -131,7 +158,7 @@ namespace Nainital
     [SelectionBase]
     public class SetupHandle : MonoBehaviour
     {
-        public enum Kind { Seat, Entry, Head, Tail, HandL, HandR }
+        public enum Kind { Seat, Entry, Head, Tail, HandL, HandR, FootL, FootR }
         public Kind kind;
         public int index;
 
@@ -139,8 +166,10 @@ namespace Nainital
         {
             Gizmos.color = kind == Kind.Seat ? new Color(0.2f, 0.8f, 1f) : kind == Kind.Entry ? new Color(0.2f, 1f, 0.3f)
                          : kind == Kind.Head ? new Color(1f, 0.95f, 0.6f) : kind == Kind.HandL ? new Color(0.3f, 0.5f, 1f)
-                         : kind == Kind.HandR ? new Color(1f, 0.55f, 0.1f) : new Color(1f, 0.2f, 0.2f);
+                         : kind == Kind.HandR ? new Color(1f, 0.55f, 0.1f) : kind == Kind.FootL ? new Color(0.2f, 0.9f, 0.9f)
+                         : kind == Kind.FootR ? new Color(0.95f, 0.3f, 0.85f) : new Color(1f, 0.2f, 0.2f);
             if (kind == Kind.HandL || kind == Kind.HandR) { Gizmos.DrawWireSphere(transform.position, 0.05f); return; }
+            if (kind == Kind.FootL || kind == Kind.FootR) { Gizmos.DrawWireCube(transform.position + transform.forward * 0.06f, new Vector3(0.09f, 0.04f, 0.24f)); return; }
             if (kind == Kind.Entry) { Gizmos.DrawWireSphere(transform.position + Vector3.up * 0.05f, 0.25f); Gizmos.DrawLine(transform.position, transform.position + Vector3.up * 1.7f); }
             else if (kind == Kind.Seat) { Gizmos.DrawWireCube(transform.position + Vector3.up * 0.51f, new Vector3(0.4f, 0.05f, 0.4f)); Gizmos.DrawRay(transform.position + Vector3.up * 0.51f, transform.forward * 0.5f); }
         }
@@ -187,6 +216,8 @@ namespace Nainital
                 Quaternion ra = sitter.rotation;
                 // in a car he is pulled out (Mixamo "Pulled From Seat"); off a two-wheeler he just gets off
                 if (sitterRig && car) { sitterRig.PlayGesture("PulledOut", 1.6f); yield return new WaitForSeconds(0.5f); }
+                // off a two-wheeler: the motorbike pack's dismount (leg over to the left), when the pack is in
+                else if (sitterRig && sitterRig.HasRideClips) { sitterRig.PlayGesture("Dismount", 1.3f); yield return new WaitForSeconds(0.7f); }
                 if (sitterRig) sitterRig.seated = sitterRig.driving = sitterRig.riding = sitterRig.pillion = false;
                 for (float t = 0f; t < 1f; t += Time.deltaTime / (car ? 1.1f : 0.8f))
                 {
@@ -214,6 +245,7 @@ namespace Nainital
             Quaternion r0 = player.rotation;
             // into a car: Mixamo "Entering Car" while he slides onto the seat; onto a two-wheeler: a swing of the leg
             if (playerRig && car && carDoor) playerRig.PlayGesture("CarEnter", 1.8f);   // an auto has no door to duck through
+            else if (playerRig && !car && playerRig.HasRideClips) playerRig.PlayGesture("Mount", 1.1f);   // the leg swung over
             VehicleSetup.Pose(playerRig, pose);
             for (float t = 0f; t < 1f; t += Time.deltaTime / (car ? 1.6f : 0.8f))
             {

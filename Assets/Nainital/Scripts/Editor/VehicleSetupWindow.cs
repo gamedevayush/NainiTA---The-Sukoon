@@ -55,6 +55,8 @@ namespace Nainital.EditorTools
         readonly List<(Transform t, Quaternion rest)> steeringWheels = new List<(Transform, Quaternion)>();
         /// <summary>Per seat: the wrist markers (driver / rider only; null otherwise).</summary>
         readonly List<(GameObject l, GameObject r)> hands = new List<(GameObject, GameObject)>();
+        /// <summary>Per seat: the ankle markers (everyone: the floor, the pedals, the footpegs).</summary>
+        readonly List<(GameObject l, GameObject r)> feet = new List<(GameObject, GameObject)>();
         readonly List<(Transform t, Quaternion rest, VehicleSetupData.Door d)> doors = new List<(Transform, Quaternion, VehicleSetupData.Door)>();
         readonly Dictionary<string, float> doorOpen = new Dictionary<string, float>();
         // doors that come with their own opening animation in the FBX (the buses' folding doors, 21 Nov): the slider scrubs
@@ -168,8 +170,50 @@ namespace Nainital.EditorTools
             }
         }
 
-        void OnEnable() { EditorApplication.update += Tick; EditorApplication.playModeStateChanged += PlayChanged; Refresh(); }
-        void OnDisable() { EditorApplication.update -= Tick; EditorApplication.playModeStateChanged -= PlayChanged; }
+        static VehicleSetupWindow instance;
+
+        /// <summary>The models in Vehicles/New by name (VehicleSetupShots goes through them).</summary>
+        public static List<string> ModelNames() =>
+            AssetDatabase.FindAssets("t:Model", new[] { NewDir }).Select(g => Path.GetFileNameWithoutExtension(AssetDatabase.GUIDToAssetPath(g))).OrderBy(n => n).ToList();
+
+        /// <summary>Put a model on show by its name (Play mode; opens the window if it is closed).</summary>
+        public static void Goto(string model)
+        {
+            var w = instance ? instance : GetWindow<VehicleSetupWindow>("Vehicle Setup");
+            w.Refresh();
+            int i = w.items.FindIndex(x => x.name == model);
+            if (i < 0) throw new System.Exception("no vehicle " + model);
+            w.Show(i);
+        }
+
+        /// <summary>Bridge: call VehicleSetupWindow.SteerArg - the Steer slider (degrees, from Bridge/arg.txt), and a log of
+        /// where each lamp hangs.</summary>
+        public static void SteerArg()
+        {
+            if (!instance || !instance.vehicle) throw new System.Exception("no vehicle on show");
+            float.TryParse(File.ReadAllText(Path.Combine(Application.dataPath, "../Bridge/arg.txt")).Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out instance.steer);
+            var V = instance.vehicle.transform;
+            Debug.Log($"[Nainital] {instance.Current} steer {instance.steer:F0}: " + string.Join("; ", instance.heads.Concat(instance.tails).Where(g => g)
+                .Select(g => $"{g.name} on {(g.transform.parent == V ? "body" : g.transform.parent.name)} at {V.InverseTransformPoint(g.transform.position):F2}")));
+        }
+
+        /// <summary>The data of seat i of the vehicle on show (null if none): VehicleSetupShots reads its measures.</summary>
+        public static VehicleSetupData.Seat SeatData(int i) =>
+            instance && instance.data != null && i >= 0 && i < instance.data.seats.Length ? instance.data.seats[i] : null;
+
+        /// <summary>Bridge: call VehicleSetupWindow.SnapAll - the "Snap everyone" button on the vehicle on show.</summary>
+        public static void SnapAll()
+        {
+            if (!instance || !instance.vehicle) throw new System.Exception("no vehicle on show");
+            instance.Collect();
+            instance.SnapSeats(0, instance.seats.Count - 1);
+            Debug.Log("[Nainital] " + instance.status);
+        }
+
+        void OnEnable() { instance = this; EditorApplication.update += Tick; EditorApplication.playModeStateChanged += PlayChanged; Refresh(); }
+        void OnDisable() { if (instance == this) instance = null; EditorApplication.update -= Tick; EditorApplication.playModeStateChanged -= PlayChanged; }
+        // the lamp / seat fields follow what is moved in the Scene view
+        void OnInspectorUpdate() { if (Application.isPlaying && vehicle) Repaint(); }
         void PlayChanged(PlayModeStateChange s) { if (s == PlayModeStateChange.EnteredPlayMode) { Refresh(); Show(index); } }
 
         // ------------------------------------------------------------------ list
@@ -242,16 +286,39 @@ namespace Nainital.EditorTools
                 if (GUILayout.Button("Face", GUILayout.Width(40))) Reroll(i);
                 if (i < hands.Count && hands[i].l)
                 {
-                    if (GUILayout.Button("L", GUILayout.Width(22))) Pick(hands[i].l);
-                    if (GUILayout.Button("R", GUILayout.Width(22))) Pick(hands[i].r);
+                    if (GUILayout.Button(new GUIContent("L", "left hand (blue)"), GUILayout.Width(22))) Pick(hands[i].l);
+                    if (GUILayout.Button(new GUIContent("R", "right hand (orange)"), GUILayout.Width(22))) Pick(hands[i].r);
                 }
+                if (i < feet.Count && feet[i].l)
+                {
+                    if (GUILayout.Button(new GUIContent("FL", "left foot (cyan)"), GUILayout.Width(28))) Pick(feet[i].l);
+                    if (GUILayout.Button(new GUIContent("FR", "right foot (pink)"), GUILayout.Width(28))) Pick(feet[i].r);
+                }
+                if (s.pose == SeatPose.Ride || s.pose == SeatPose.Pillion)
+                {
+                    // the back's lean (owner, 20 Nov night: "pehla itna jhuka kyun hai")
+                    float b0 = VehicleSetup.DefaultBend(s);
+                    float b1 = EditorGUILayout.FloatField(new GUIContent("", "Bend: how far his back may lean forward, degrees (rider 12, pillion 5 by default). He still leans further if his hands cannot reach the grips: then move him forward or the L / R balls back."), b0, GUILayout.Width(34));
+                    if (!Mathf.Approximately(b1, b0))
+                    {
+                        s.bendSet = true;
+                        s.bend = Mathf.Clamp(b1, 0f, 60f);
+                        var pik = seats[i] ? seats[i].GetComponent<HandIK>() : null;
+                        if (pik) pik.maxBend = s.bend;
+                    }
+                    GUILayout.Label("°", GUILayout.Width(10));
+                }
+                if (GUILayout.Button(new GUIContent("Snap", "Sets him at seat height over this model's floor (car 0.27 m, bus / truck / auto 0.42 m; a bike: on its seat) and both feet on the floor under the foot markers"), GUILayout.Width(44))) { Collect(); SnapSeats(i, i); }
                 if (i > 0 && GUILayout.Button("✕", GUILayout.Width(22))) { Collect(); RemoveAt(ref data.seats, i); Build(); GUIUtility.ExitGUI(); }
                 EditorGUILayout.EndHorizontal();
             }
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("+ Seat")) { Collect(); AddSeat(); Build(); }
             if (GUILayout.Button("Mirror selected seat")) MirrorSelected();
+            if (GUILayout.Button(new GUIContent("Snap everyone", "Everyone at seat height over the floor, feet on the floor (new vehicles get this by themselves)"))) { Collect(); SnapSeats(0, seats.Count - 1); }
+            if (GUILayout.Button(new GUIContent("Feet to default", "Both feet of every person back to the starting spots (pedals / floor / pegs)"))) { Collect(); foreach (var s in data.seats) DefaultFeet(s); Build(); }
             EditorGUILayout.EndHorizontal();
+            EditorGUILayout.LabelField("Hands: blue L / orange R on the wheel or the grips. Feet: cyan FL / pink FR on the floor, the pedals or the pegs - move them in the Scene view; the legs bend to them.", EditorStyles.wordWrappedMiniLabel);
 
             Section("Player gets in");
             EditorGUILayout.BeginHorizontal();
@@ -311,7 +378,7 @@ namespace Nainital.EditorTools
             GUI.backgroundColor = new Color(0.6f, 1f, 0.6f);
             if (GUILayout.Button(data != null && data.approved ? "OK ✓ (saved)" : "OK - approve", GUILayout.Height(30))) Save(true);
             GUI.backgroundColor = Color.white;
-            if (GUILayout.Button("Back to default", GUILayout.Height(30)) && EditorUtility.DisplayDialog("Vehicle Setup", "Throw away this vehicle's setup and start from the default seats and lamps?", "Yes", "No")) { data = Default(); Build(); }
+            if (GUILayout.Button("Back to default", GUILayout.Height(30)) && EditorUtility.DisplayDialog("Vehicle Setup", "Throw away this vehicle's setup and start from the default seats and lamps?", "Yes", "No")) { data = Default(); Build(); SnapSeats(0, seats.Count - 1); }
             EditorGUILayout.EndHorizontal();
             if (status.Length > 0) EditorGUILayout.HelpBox(status, MessageType.None);
             EditorGUILayout.EndScrollView();
@@ -320,21 +387,100 @@ namespace Nainital.EditorTools
         static void Section(string t) { EditorGUILayout.Space(6); EditorGUILayout.LabelField(t, EditorStyles.boldLabel); }
         static void Pick(GameObject g) { if (!g) return; Selection.activeGameObject = g; SceneView.lastActiveSceneView?.FrameSelected(); }
 
+        /// <summary>One block per lamp (user, 2026-11-20: "vehicle light transform position ka option nahi diya"): mirror,
+        /// size, Select, ✕ on the first line, then its position and rotation in the vehicle's space (x right, y up, z
+        /// forward; drag the X / Y / Z labels to slide it), and Snap: onto the body's surface straight ahead of / behind
+        /// it. A mirrored lamp's twin follows at -x.</summary>
         void LampRows(List<GameObject> objs, ref VehicleSetupData.Lamp[] arr, string label)
         {
             for (int i = 0; i < arr.Length && i < objs.Count; i++)
             {
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField(label + " " + i, GUILayout.Width(52));
                 var l = arr[i];
+                var g = objs[i];
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(label + " " + i, EditorStyles.boldLabel, GUILayout.Width(52));
                 bool m = EditorGUILayout.ToggleLeft("mirror", l.mirror, GUILayout.Width(58));
-                if (m != l.mirror) { Collect(); l.mirror = m; Build(); GUIUtility.ExitGUI(); }
+                if (m != l.mirror) { Collect(); l.mirror = m; BuildLamps(); GUIUtility.ExitGUI(); }
+                if (bars.Count > 0 && bars[0].t)
+                {
+                    bool onBar = !string.IsNullOrEmpty(l.on);
+                    bool nb = EditorGUILayout.ToggleLeft(new GUIContent("handle", "Fixed to " + bars[0].t.name + ": turns with the steering (a bike's / scooty's headlight). Off = on the body."), onBar, GUILayout.Width(62));
+                    if (nb != onBar) { Collect(); l.on = nb ? bars[0].t.name : ""; BuildLamps(); GUIUtility.ExitGUI(); }
+                }
+                EditorGUILayout.LabelField("size", GUILayout.Width(28));
                 var sz = EditorGUILayout.Vector2Field(GUIContent.none, l.size, GUILayout.Width(120));
-                if (sz != l.size) { l.size = sz; if (objs[i]) objs[i].transform.localScale = new Vector3(sz.x, sz.y, 1f); }
-                if (GUILayout.Button("Select", GUILayout.Width(52))) Pick(objs[i]);
+                if (sz != l.size) { l.size = sz; if (g) g.transform.localScale = new Vector3(sz.x, sz.y, 1f); }
+                if (GUILayout.Button("Select", GUILayout.Width(52))) Pick(g);
                 if (GUILayout.Button("✕", GUILayout.Width(22))) { Collect(); RemoveAt(ref arr, i); Build(); GUIUtility.ExitGUI(); }
                 EditorGUILayout.EndHorizontal();
+                if (!g) continue;
+                var t = g.transform;
+                var V = vehicle.transform;
+                EditorGUI.indentLevel++;
+                // in the vehicle's space whatever it hangs on (the body or the handlebar)
+                Vector3 lp = V.InverseTransformPoint(t.position);
+                var p = EditorGUILayout.Vector3Field("Position (m)", lp);
+                if (p != lp) { t.position = V.TransformPoint(p); l.pos = p; SceneView.RepaintAll(); }
+                Vector3 le = (Quaternion.Inverse(V.rotation) * t.rotation).eulerAngles;
+                var e = EditorGUILayout.Vector3Field("Rotation (°)", le);
+                if (e != le) { t.rotation = V.rotation * Quaternion.Euler(e); l.euler = e; SceneView.RepaintAll(); }
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Space(18);
+                if (GUILayout.Button(new GUIContent("Snap to body", "Moves the lamp along the vehicle's length onto the body's surface in front of it (head) / behind it (tail), keeping its height and side, and turns it to face out"))) SnapLamp(g, label == "Head");
+                if (GUILayout.Button("x ↔ 0", GUILayout.Width(52))) { Vector3 q = V.InverseTransformPoint(t.position); q.x = 0f; t.position = V.TransformPoint(q); l.pos = q; }
+                EditorGUILayout.EndHorizontal();
+                EditorGUI.indentLevel--;
             }
+        }
+
+        /// <summary>The lamp onto the body: a ray from 3 m out ahead of (head) / behind (tail) the lamp, along the vehicle's
+        /// length, at the lamp's own height and side, against the body's meshes (temporary colliders); the lamp sits 5 mm
+        /// proud of the hit and faces along the surface's normal.</summary>
+        void SnapLamp(GameObject g, bool head)
+        {
+            if (!g || !vehicle) return;
+            var temp = new List<MeshCollider>();
+            foreach (var mf in vehicle.GetComponentsInChildren<MeshFilter>())
+            {
+                if (!mf.sharedMesh || mf.GetComponentInParent<SetupHandle>() || mf.gameObject.layer == 9) continue;
+                var mc = mf.gameObject.AddComponent<MeshCollider>();
+                mc.sharedMesh = mf.sharedMesh;
+                temp.Add(mc);
+            }
+            foreach (var sk in vehicle.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                if (!sk.sharedMesh) continue;
+                var baked = new Mesh();
+                sk.BakeMesh(baked, true);
+                var mc = sk.gameObject.AddComponent<MeshCollider>();
+                mc.sharedMesh = baked;
+                temp.Add(mc);
+            }
+            Physics.SyncTransforms();
+            Vector3 fwd = vehicle.transform.forward * (head ? 1f : -1f);
+            Vector3 from = g.transform.position + fwd * 3f;
+            bool hitIt = false;
+            Transform onPart = null;
+            foreach (var h in Physics.RaycastAll(from, -fwd, 6f).OrderBy(h => h.distance))
+            {
+                if (!temp.Contains(h.collider as MeshCollider)) continue;
+                g.transform.position = h.point + h.normal * 0.005f;
+                // the quad's face toward the outside (its local -z along the normal; the lamp material draws both faces)
+                g.transform.rotation = Quaternion.LookRotation(-h.normal, vehicle.transform.up);
+                // on the handlebar's mesh (or a part under it): the lamp turns with the handlebar
+                for (var x = h.collider.transform; x && x != vehicle.transform; x = x.parent)
+                    if (bars.Any(bb => bb.t == x)) { onPart = x; break; }
+                g.transform.SetParent(onPart ? onPart : vehicle.transform, true);
+                hitIt = true;
+                break;
+            }
+            foreach (var mc in temp) Destroy(mc);
+            string where = onPart ? "the handlebar (" + onPart.name + ", turns with it)" : "the body";
+            string gn = g.name;
+            Vector3 at = vehicle.transform.InverseTransformPoint(g.transform.position);
+            Collect();
+            BuildLamps();   // the mirrored twin onto the same part
+            status = hitIt ? $"{gn} snapped onto {where} at {at:F3}" : $"{gn}: no body surface in line with it - move it over the lamp first";
         }
 
         // ------------------------------------------------------------------ scene
@@ -375,10 +521,20 @@ namespace Nainital.EditorTools
             foreach (var c in vehicle.GetComponentsInChildren<Collider>()) Destroy(c);
             foreach (var lg in vehicle.GetComponentsInChildren<LODGroup>()) lg.ForceLOD(0);
             box = LocalBounds(vehicle);
-            data = Load(Current) ?? Default();
+            var saved = Load(Current);
+            data = saved ?? Default();
             Scan();
             Build();
             status = "";
+            if (saved == null)
+            {
+                SnapSeats(0, seats.Count - 1);   // a new one: the default seats onto this model's floor / seat
+                // and on a handlebar vehicle its headlights onto the front, on the handlebar if that is where they sit
+                if (bars.Count > 0)
+                    for (int h = 0; h < data.head.Length; h++)
+                        if (h < heads.Count && heads[h]) SnapLamp(heads[h], true);
+                status = "";
+            }
             if (SceneView.lastActiveSceneView) SceneView.lastActiveSceneView.Frame(new Bounds(box.center, box.size * 1.3f), false);
             Repaint();
         }
@@ -526,8 +682,8 @@ namespace Nainital.EditorTools
         void Build()
         {
             foreach (var g in seats.Concat(entries).Concat(heads).Concat(tails)) if (g) Destroy(g);
-            foreach (var (l, r) in hands) { if (l) Destroy(l); if (r) Destroy(r); }
-            seats.Clear(); entries.Clear(); heads.Clear(); tails.Clear(); hands.Clear();
+            foreach (var (l, r) in hands.Concat(feet)) { if (l) Destroy(l); if (r) Destroy(r); }
+            seats.Clear(); entries.Clear(); heads.Clear(); tails.Clear(); hands.Clear(); feet.Clear();
             SteerAtRest();   // the wrist points are kept with the steering straight
             for (int i = 0; i < data.seats.Length; i++)
             {
@@ -542,6 +698,9 @@ namespace Nainital.EditorTools
                 e.transform.localPosition = s.entry;
                 entries.Add(e);
                 Seat(i);
+                var ik = p.AddComponent<HandIK>();
+                ik.vehicle = vehicle.transform;
+                ik.maxBend = VehicleSetup.DefaultBend(s);
                 // hands on the wheel / the grips: the driver and the rider
                 if (s.pose == SeatPose.Drive || s.pose == SeatPose.Ride)
                 {
@@ -556,12 +715,34 @@ namespace Nainital.EditorTools
                     hr.transform.position = vehicle.transform.TransformPoint(s.handR);
                     hl.transform.SetParent(on, true);
                     hr.transform.SetParent(on, true);
-                    var ik = p.AddComponent<HandIK>();
-                    ik.left = hl.transform; ik.right = hr.transform; ik.vehicle = vehicle.transform;
+                    ik.left = hl.transform; ik.right = hr.transform;
                     hands.Add((hl, hr));
                 }
                 else hands.Add((null, null));
+                // feet on the floor / pedals / pegs: everyone
+                if (!s.feet) DefaultFeet(s);
+                var fl = Marker("Foot L " + i, new Color(0.2f, 0.9f, 0.9f), 0.06f);
+                var fr = Marker("Foot R " + i, new Color(0.95f, 0.3f, 0.85f), 0.06f);
+                var flh = fl.AddComponent<SetupHandle>(); flh.kind = SetupHandle.Kind.FootL; flh.index = i;
+                var frh = fr.AddComponent<SetupHandle>(); frh.kind = SetupHandle.Kind.FootR; frh.index = i;
+                fl.transform.SetParent(vehicle.transform, false);
+                fr.transform.SetParent(vehicle.transform, false);
+                fl.transform.localPosition = s.footL;
+                fr.transform.localPosition = s.footR;
+                fl.transform.localRotation = fr.transform.localRotation = Quaternion.Euler(s.euler);
+                ik.footLeft = fl.transform; ik.footRight = fr.transform;
+                feet.Add((fl, fr));
             }
+            BuildLamps();
+        }
+
+        /// <summary>The lamps alone (re)made from the data, each on its part (the body or the handlebar), the steering
+        /// straight while they are placed. The people are left as they are.</summary>
+        void BuildLamps()
+        {
+            foreach (var g in heads.Concat(tails)) if (g) Destroy(g);
+            heads.Clear(); tails.Clear();
+            SteerAtRest();
             for (int i = 0; i < data.head.Length; i++) heads.Add(LampObj("Head " + i, data.head[i], true, i));
             for (int i = 0; i < data.tail.Length; i++) tails.Add(LampObj("Tail " + i, data.tail[i], false, i));
             ApplyNight();
@@ -600,6 +781,13 @@ namespace Nainital.EditorTools
             var p = Person(old.name, rig && !rig.female);
             p.transform.SetParent(vehicle.transform, false);
             var h = p.AddComponent<SetupHandle>(); h.kind = SetupHandle.Kind.Seat; h.index = i;
+            // the new face keeps the hands and the feet where they were (the old one's IK targets)
+            var oik = old.GetComponent<HandIK>();
+            if (oik)
+            {
+                var nik = p.AddComponent<HandIK>();
+                nik.left = oik.left; nik.right = oik.right; nik.footLeft = oik.footLeft; nik.footRight = oik.footRight; nik.vehicle = oik.vehicle;
+            }
             seats[i] = p;
             Destroy(old);
             Seat(i);
@@ -629,6 +817,12 @@ namespace Nainital.EditorTools
             g.transform.localPosition = l.pos;
             g.transform.localEulerAngles = l.euler;
             g.transform.localScale = new Vector3(l.size.x, l.size.y, 1f);
+            // on the handlebar (a bike's headlight): hung from it where it stands, so it turns with the steering
+            if (!string.IsNullOrEmpty(l.on))
+            {
+                var part = vehicle.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == l.on);
+                if (part) g.transform.SetParent(part, true);
+            }
             if (l.mirror)
             {
                 var m = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -682,6 +876,12 @@ namespace Nainital.EditorTools
         {
             if (!Application.isPlaying || !vehicle) return;
             float dt = 1f / 60f;
+            // each person's head under this seat's roof (HumanoidRig.SeatLock), wherever the seat was dragged to
+            for (int i = 0; i < seats.Count && data != null && i < data.seats.Length; i++)
+            {
+                var rig = seats[i] ? seats[i].GetComponentInChildren<HumanoidRig>() : null;
+                if (rig) rig.seatRoof = data.seats[i].roof >= 0f ? vehicle.transform.TransformPoint(0f, data.seats[i].roof, 0f).y - rig.transform.position.y : float.NaN;
+            }
             // the doors with their own clip first: sampling a baked clip puts every part it carries back at rest, so the
             // wheels, the handlebar and the hinged doors are posed after it
             foreach (var clip in doorClips.Values.Distinct())
@@ -714,6 +914,13 @@ namespace Nainital.EditorTools
                 if (d.hinge == DoorHinge.Bottom) a = -a;
                 t.localRotation = Quaternion.AngleAxis(a, axis) * rest;
             }
+            // a two-wheeler's people lean with the steering (the motorbike pack's lean loops; Steer +38 = full right)
+            if (VehicleSetup.TwoWheeler(Current))
+                foreach (var p in seats)
+                {
+                    var rig = p ? p.GetComponentInChildren<HumanoidRig>() : null;
+                    if (rig) rig.lean = steer / 38f;
+                }
             if (driveSpeed != 0f || steer != 0f) SceneView.RepaintAll();
         }
 
@@ -731,7 +938,7 @@ namespace Nainital.EditorTools
             if (oldIk)
             {
                 var pik = player.AddComponent<HandIK>();
-                pik.left = oldIk.left; pik.right = oldIk.right; pik.vehicle = oldIk.vehicle;
+                pik.left = oldIk.left; pik.right = oldIk.right; pik.footLeft = oldIk.footLeft; pik.footRight = oldIk.footRight; pik.vehicle = oldIk.vehicle;
                 pik.enabled = false;
             }
             var runner = root.GetComponent<SetupEnterPreview>();
@@ -753,10 +960,10 @@ namespace Nainital.EditorTools
                 if (seats[i]) { data.seats[i].pos = seats[i].transform.localPosition; data.seats[i].euler = seats[i].transform.localEulerAngles; }
                 if (i < entries.Count && entries[i]) data.seats[i].entry = entries[i].transform.localPosition;
             }
+            // the lamps and the wrists, read with the steering straight (the next frame turns it back to the slider)
+            SteerAtRest();
             for (int i = 0; i < data.head.Length && i < heads.Count; i++) if (heads[i]) ReadLamp(heads[i], data.head[i]);
             for (int i = 0; i < data.tail.Length && i < tails.Count; i++) if (tails[i]) ReadLamp(tails[i], data.tail[i]);
-            // the wrists, read with the steering straight (the next frame turns it back to the slider)
-            SteerAtRest();
             for (int i = 0; i < data.seats.Length && i < hands.Count; i++)
             {
                 var (l, r) = hands[i];
@@ -765,6 +972,156 @@ namespace Nainital.EditorTools
                 data.seats[i].handL = vehicle.transform.InverseTransformPoint(l.transform.position);
                 data.seats[i].handR = vehicle.transform.InverseTransformPoint(r.transform.position);
             }
+            for (int i = 0; i < data.seats.Length && i < feet.Count; i++)
+            {
+                var (l, r) = feet[i];
+                if (!l || !r) continue;
+                data.seats[i].feet = true;
+                data.seats[i].footL = vehicle.transform.InverseTransformPoint(l.transform.position);
+                data.seats[i].footR = vehicle.transform.InverseTransformPoint(r.transform.position);
+            }
+        }
+
+        /// <summary>Bus, truck, pickup, van, auto, e-rickshaw: chair-height seats (the hips ~0.42 m over the floor, shins
+        /// down); a car's seat is low (~0.27 m, legs out ahead).</summary>
+        bool ChairSeats()
+        {
+            string m = (Current ?? "").ToLowerInvariant();
+            return box.size.z > 6.5f || m.Contains("truck") || m.Contains("pickup") || m.Contains("van") || VehicleSetup.ThreeWheeler(Current);
+        }
+
+        /// <summary>Where the ankles start, from the seat (the hips HipsOverRoot over its root) and the kind of vehicle: a
+        /// car's driver on the pedals (well ahead: car seats are low and the legs go out), car passengers on the floor
+        /// ahead, bus / truck / van / auto seats (chair height) under the knees, a motorbike rider on the footpegs just ahead
+        /// of the hips, a scooty rider on the floorboard well ahead, the pillion on the rear pegs, side-saddle both on the
+        /// left. Snap then sets them on the vehicle's real floor.</summary>
+        void DefaultFeet(VehicleSetupData.Seat s)
+        {
+            s.feet = true;
+            var rot = Quaternion.Euler(s.euler);
+            Vector3 hips = s.pos + Vector3.up * VehicleSetup.HipsOverRoot(s.pose);
+            Vector3 R = rot * Vector3.right, F = rot * Vector3.forward;
+            string m = (Current ?? "").ToLowerInvariant();
+            bool scooty = m.Contains("scooty"), two = VehicleSetup.TwoWheeler(Current), chair = ChairSeats();
+            float half = 0.15f, down, ahead;
+            float? absY = null;
+            switch (s.pose)
+            {
+                case SeatPose.Ride:
+                    half = scooty ? 0.13f : 0.19f; ahead = scooty ? 0.40f : 0.14f; down = 0f; absY = scooty ? 0.26f : 0.32f; break;
+                case SeatPose.Pillion:
+                    // the rear pegs sit under the pillion's knees: straight under the hips made the legs hang straight
+                    // and he looked stood up (street160 / scooty, 20 Nov)
+                    half = 0.21f; ahead = 0.28f; down = 0f; absY = scooty ? 0.30f : 0.40f; break;
+                case SeatPose.SideSaddle:
+                    s.footL = hips - R * 0.28f + F * 0.12f; s.footL.y = two ? 0.30f : hips.y - 0.34f;
+                    s.footR = hips - R * 0.30f - F * 0.08f; s.footR.y = s.footL.y;
+                    return;
+                case SeatPose.Drive:
+                    // 0.75 m ahead was out of the leg's reach in 4 of the cars (21-24 cm short, 20 Nov)
+                    ahead = chair ? 0.40f : 0.62f; down = chair ? 0.34f : 0.19f; break;
+                default:
+                    ahead = chair ? 0.32f : 0.52f; down = chair ? 0.34f : 0.19f; break;
+            }
+            if (two && s.pose != SeatPose.Ride && s.pose != SeatPose.Pillion) absY = 0.32f;
+            Vector3 c = hips + F * ahead - Vector3.up * down;
+            if (absY.HasValue) c.y = absY.Value;
+            c.y = Mathf.Max(c.y, 0.1f);
+            s.footL = c - R * half;
+            s.footR = c + R * half;
+        }
+
+        /// <summary>Snap (seats a..b) onto the vehicle's own shape, measured by rays straight down through its meshes (every
+        /// surface, back faces too - VehicleSetupShots.AllHits):
+        /// a car / bus / auto: the FLOOR under the hips = the lowest surface seen from inside (a Tripo body is a shell: its
+        /// underbody's inside; 0.22 m in the compact sedan, 20 Nov); the hips go 0.27 m over it in a car, 0.42 m in a
+        /// chair-seat vehicle, never closer than 0.98 m under the roof (head room); each foot 0.08 m over the floor under it.
+        /// A two-wheeler: the hips 0.10 m over the top of the seat under them; the feet stay where they are (the pegs).
+        /// Only small moves are taken (hips within 0.25 m, feet within 0.6 m under the hips): a bus shell has no cabin
+        /// floor (its underbody is 0.5 m under the real one), so its seats keep their own height.</summary>
+        void SnapSeats(int a, int b)
+        {
+            if (!vehicle) return;
+            var temp = new List<Collider>();
+            foreach (var mf in vehicle.GetComponentsInChildren<MeshFilter>())
+            {
+                if (!mf.sharedMesh || mf.GetComponentInParent<SetupHandle>() || mf.gameObject.layer == 9) continue;
+                var mc = mf.gameObject.AddComponent<MeshCollider>();
+                mc.sharedMesh = mf.sharedMesh;
+                temp.Add(mc);
+            }
+            foreach (var sk in vehicle.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                if (!sk.sharedMesh || sk.GetComponentInParent<SetupHandle>() || sk.gameObject.layer == 9) continue;
+                var baked = new Mesh();
+                sk.BakeMesh(baked, true);
+                var mc = sk.gameObject.AddComponent<MeshCollider>();
+                mc.sharedMesh = baked;
+                temp.Add(mc);
+            }
+            Physics.SyncTransforms();
+            var V = vehicle.transform;
+            bool two = VehicleSetup.TwoWheeler(Current), chair = ChairSeats();
+            float top = box.max.y + 0.5f, bottom = box.min.y + 0.05f;
+            List<RaycastHit> Column(Vector3 p) => VehicleSetupShots.AllHits(new Vector3(p.x, top, p.z), Vector3.down, top - box.min.y + 0.5f, temp);
+            float? Floor(Vector3 p)
+            {
+                var hs = Column(p).Where(h => h.point.y > bottom).ToList();
+                if (hs.Count == 0) return null;
+                var backs = hs.Where(h => Vector3.Dot(h.normal, Vector3.up) < 0f).ToList();
+                return (backs.Count > 0 ? backs : hs).Min(h => h.point.y);
+            }
+            float? Roof(Vector3 p) { var hs = Column(p); return hs.Count > 0 ? hs[0].point.y : (float?)null; }
+            int seated = 0, footed = 0;
+            for (int i = Mathf.Max(0, a); i <= b && i < data.seats.Length && i < seats.Count; i++)
+            {
+                var s = data.seats[i];
+                var p = seats[i];
+                if (!p) continue;
+                float over = VehicleSetup.HipsOverRoot(s.pose);
+                float hipsY = p.transform.position.y + over, want = hipsY;
+                float? floorY = null;
+                if (two)
+                {
+                    var hs = Column(p.transform.position);
+                    if (hs.Count > 0) want = hs[0].point.y + 0.10f;
+                    // behind the rider the first surface down can be a grab rail or a tail cowl (street160's lifted the
+                    // pillion to 1.10 m, 20 Nov): never more than 0.10 m over the rider's hips
+                    if (i > 0 && seats[0]) want = Mathf.Min(want, seats[0].transform.position.y + VehicleSetup.HipsOverRoot(data.seats[0].pose) + 0.10f);
+                }
+                else
+                {
+                    floorY = Floor(p.transform.position);
+                    if (floorY.HasValue)
+                    {
+                        want = floorY.Value + (chair ? 0.42f : 0.27f);
+                        var roof = Roof(p.transform.position);
+                        if (roof.HasValue) want = Mathf.Max(floorY.Value + 0.12f, Mathf.Min(want, roof.Value - 0.98f));
+                    }
+                }
+                if (Mathf.Abs(want - hipsY) <= 0.25f && want != hipsY)
+                {
+                    p.transform.position = new Vector3(p.transform.position.x, want - over, p.transform.position.z);
+                    s.pos = p.transform.localPosition;
+                    hipsY = want;
+                    seated++;
+                }
+                if (two || i >= feet.Count) continue;
+                foreach (var f in new[] { feet[i].l, feet[i].r })
+                {
+                    if (!f) continue;
+                    Vector3 fp = f.transform.position;
+                    float? fy = Floor(fp) ?? floorY;
+                    if (!fy.HasValue) continue;
+                    float y = fy.Value + 0.08f;
+                    if (y < hipsY - 0.6f || y > hipsY - 0.05f) continue;   // no cabin floor modelled there: leave it
+                    f.transform.position = new Vector3(fp.x, y, fp.z);
+                    footed++;
+                }
+            }
+            foreach (var mc in temp) Destroy(mc);
+            Collect();
+            status = $"Snap: {seated} people set on the seat height, {footed} feet on the floor (move a marker and Snap again if one went wrong)";
         }
 
         /// <summary>Handlebar / steering wheel back to straight (the preview turns them every frame from the slider).</summary>
@@ -785,7 +1142,13 @@ namespace Nainital.EditorTools
             var on = HandsParent();
             Vector3 c;
             float half;
-            if (bars.Count > 0 && on == bars[0].t) { c = vehicle.transform.InverseTransformPoint(on.position) + new Vector3(0f, 0.1f, -0.1f); half = 0.33f; }
+            if (bars.Count > 0 && on == bars[0].t)
+            {
+                // the grips: the handlebar mesh's widest points (the bar's origin is on the steering head, low and well
+                // ahead of the grips - the scooty rider reached down to the apron for them, 20 Nov)
+                if (Grips(on, out var gl, out var gr)) { s.handL = gl; s.handR = gr; return; }
+                c = vehicle.transform.InverseTransformPoint(on.position) + new Vector3(0f, 0.1f, -0.1f); half = 0.33f;
+            }
             else if (steeringWheels.Count > 0 && on == steeringWheels[0].t) { c = vehicle.transform.InverseTransformPoint(on.position) + new Vector3(0f, 0.05f, 0f); half = 0.17f; }
             else if (VehicleSetup.TwoWheeler(Current)) { c = s.pos + new Vector3(0f, 0.95f, 0.55f); half = 0.32f; }
             else { c = s.pos + new Vector3(0f, VehicleSeats.HipAboveRoot + 0.42f, 0.42f); half = VehicleSetup.ThreeWheeler(Current) ? 0.3f : 0.18f; }   // an auto's grips are wide
@@ -793,11 +1156,54 @@ namespace Nainital.EditorTools
             s.handR = c + new Vector3(half, 0f, 0f);
         }
 
-        static void ReadLamp(GameObject g, VehicleSetupData.Lamp l)
+        /// <summary>Both grips of a handlebar, in vehicle space: on each side the widest vertices of the handlebar's meshes
+        /// (the parts under it too, the front wheel left out), below its top 12 cm (rear-view mirror heads stand above the
+        /// grips), then 6 cm in from the bar end and 2 cm down to where a fist holds it. False if the bar has no mesh.</summary>
+        bool Grips(Transform bar, out Vector3 l, out Vector3 r)
         {
-            l.pos = g.transform.localPosition;
-            l.euler = g.transform.localEulerAngles;
-            l.size = new Vector2(g.transform.localScale.x, g.transform.localScale.y);
+            l = r = Vector3.zero;
+            var V = vehicle.transform;
+            var pts = new List<Vector3>();
+            foreach (var mf in bar.GetComponentsInChildren<MeshFilter>())
+            {
+                if (!mf.sharedMesh || mf.name.StartsWith("Wheel", System.StringComparison.OrdinalIgnoreCase)) continue;
+                // the FBX meshes are not Read/Write: the editor's read-only mesh data still has them
+                using (var md = Mesh.AcquireReadOnlyMeshData(mf.sharedMesh))
+                {
+                    var vs = new Unity.Collections.NativeArray<Vector3>(md[0].vertexCount, Unity.Collections.Allocator.Temp);
+                    md[0].GetVertices(vs);
+                    foreach (var v in vs) pts.Add(V.InverseTransformPoint(mf.transform.TransformPoint(v)));
+                    vs.Dispose();
+                }
+            }
+            if (pts.Count < 8) return false;
+            float top = pts.Max(p => p.y);
+            // the grips sit in a band under the top: a scooty's "Handlebar" carries its front cowl and apron, whose low
+            // edges are wider than the grips (the left target landed mid-apron, 20 Nov)
+            var low = pts.Where(p => p.y < top - 0.08f && p.y > top - 0.40f).ToList();
+            if (low.Count < 8) low = pts;
+            Vector3 Side(int sign)
+            {
+                var side = low.Where(p => p.x * sign > 0.05f).ToList();
+                if (side.Count == 0) return Vector3.zero;
+                float w = side.Max(p => p.x * sign);
+                var end = side.Where(p => p.x * sign > w - 0.03f).ToList();
+                var m = new Vector3(end.Average(p => p.x), end.Average(p => p.y), end.Average(p => p.z));
+                return m + new Vector3(-sign * 0.06f, -0.02f, 0f);
+            }
+            l = Side(-1); r = Side(1);
+            return l != Vector3.zero && r != Vector3.zero;
+        }
+
+        /// <summary>A lamp back into the data: in the vehicle's space (whatever part it hangs on) and the part's name.</summary>
+        void ReadLamp(GameObject g, VehicleSetupData.Lamp l)
+        {
+            var V = vehicle.transform;
+            l.pos = V.InverseTransformPoint(g.transform.position);
+            l.euler = (Quaternion.Inverse(V.rotation) * g.transform.rotation).eulerAngles;
+            Vector3 s = g.transform.lossyScale, vs = V.lossyScale;
+            l.size = new Vector2(s.x / Mathf.Max(1e-4f, vs.x), s.y / Mathf.Max(1e-4f, vs.y));
+            l.on = g.transform.parent && g.transform.parent != V ? g.transform.parent.name : "";
         }
 
         void Save(bool ok)
@@ -864,14 +1270,22 @@ namespace Nainital.EditorTools
             void S(SeatPose p, float x, float hipY, float z, float yaw = 0f, int side = 0)
             {
                 float ex = side != 0 ? side * (half + 0.6f) : (x > 0.05f ? half + 0.6f : -(half + 0.6f));
-                list.Add(new VehicleSetupData.Seat { pose = p, pos = new Vector3(x, hipY - VehicleSeats.HipAboveRoot, z), euler = new Vector3(0f, yaw, 0f), entry = new Vector3(ex, 0f, z) });
+                // hipY = the Hips bone's height over the road (the clips hold it HipsOverRoot over the root: measured 20 Nov)
+                list.Add(new VehicleSetupData.Seat { pose = p, pos = new Vector3(x, hipY - VehicleSetup.HipsOverRoot(p), z), euler = new Vector3(0f, yaw, 0f), entry = new Vector3(ex, 0f, z) });
             }
             if (VehicleSetup.TwoWheeler(Current))
             {
                 float seatTop = H * 0.57f;
-                // riders: root as BikeRide.SeatLocal (the riding pose holds its own height)
-                list.Add(new VehicleSetupData.Seat { pose = SeatPose.Ride, pos = new Vector3(0f, seatTop + 0.05f - 0.51f, box.center.z - L * 0.1f), entry = new Vector3(-0.9f, 0f, box.center.z - L * 0.1f) });
-                list.Add(new VehicleSetupData.Seat { pose = SeatPose.Pillion, pos = new Vector3(0f, seatTop + 0.08f - 0.51f, box.center.z - L * 0.1f - 0.38f), entry = new Vector3(-0.9f, 0f, box.center.z - L * 0.3f) });
+                // the rider an arm's reach behind the grips (a scooty's long seat left him 0.24 m short of them, the
+                // dual-sport 0.37 m, 20 Nov), the pillion 0.38 m behind him; Snap then sets both on the seat's top
+                var bar = vehicle ? vehicle.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name.StartsWith("Handle", System.StringComparison.OrdinalIgnoreCase) || t.name.StartsWith("Fork", System.StringComparison.OrdinalIgnoreCase)) : null;
+                float zr = box.center.z - L * 0.1f;
+                // from the grips themselves (the bar's origin is on the steering head, well ahead of them: measuring from
+                // it sat the commuter-125 rider low and far back, 20 Nov)
+                if (bar && Grips(bar, out var gl, out var gr)) zr = Mathf.Clamp((gl.z + gr.z) * 0.5f - 0.50f, box.center.z - L * 0.25f, box.center.z + L * 0.1f);
+                else if (bar) zr = Mathf.Clamp(vehicle.transform.InverseTransformPoint(bar.position).z - 0.1f - 0.62f, box.center.z - L * 0.25f, box.center.z + L * 0.1f);
+                list.Add(new VehicleSetupData.Seat { pose = SeatPose.Ride, pos = new Vector3(0f, seatTop + 0.10f - VehicleSetup.HipsOverRoot(SeatPose.Ride), zr), entry = new Vector3(-0.9f, 0f, zr) });
+                list.Add(new VehicleSetupData.Seat { pose = SeatPose.Pillion, pos = new Vector3(0f, seatTop + 0.12f - VehicleSetup.HipsOverRoot(SeatPose.Pillion), zr - 0.38f), entry = new Vector3(-0.9f, 0f, zr - 0.38f) });
             }
             else if (m.Contains("tuktuk"))
             {

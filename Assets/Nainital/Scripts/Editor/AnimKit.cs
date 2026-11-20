@@ -42,6 +42,50 @@ namespace Nainital.EditorTools
             return c;
         }
 
+        // ---- Asset Store clips (user, 2026-11-20 night: "bike pe and car me bethne ka animation theek nahi, dhoondh ke add
+        // karo" - Mixamo has no motorcycle riding). Two free packs from the owner's Unity account, Standard Asset Store EULA:
+        // they are NOT in git (the repo is public; .gitignore), so on a new PC import them from Package Manager > My Assets
+        // and run this again. Without them the animator is built without the Ride / Pillion / Grip states and HumanoidRig
+        // keeps its procedural riding pose.
+        public const string MotoDir = "Assets/MotoInteractionAnimsFREE/Animations";   // "Motorcycle Interaction Animset FREE" (SpectraMotions)
+        public const string KevinPoses = "Assets/Kevin Iglesias/Human Animations/Animations/Masked Poses";   // "Human Basic Motions FREE" (Kevin Iglesias)
+        static readonly Dictionary<string, string> Store = new Dictionary<string, string>
+        {
+            { "AS_Idle_Riding", MotoDir + "/Mounted/Idle/AS_Idle_Riding.fbx" },
+            { "AS_Turn_V1_Left_Loop", MotoDir + "/Riding/Turn_V1/AS_Turn_V1_Left_Loop.fbx" },
+            { "AS_Turn_V1_Right_Loop", MotoDir + "/Riding/Turn_V1/AS_Turn_V1_Right_Loop.fbx" },
+            { "AS_Turn_V1_Left_Loop_Passenger", MotoDir + "/Riding/Turn_V1/AS_Turn_V1_Left_Loop_Passenger.fbx" },
+            { "AS_Turn_V1_Right_Loop_Passenger", MotoDir + "/Riding/Turn_V1/AS_Turn_V1_Right_Loop_Passenger.fbx" },
+            { "AS_Mount_Left", MotoDir + "/Mounted/Mount/AS_Mount_Left.fbx" },
+            { "AS_Dismount_Left", MotoDir + "/Mounted/Dismount/AS_Dismount_Left.fbx" },
+            { "AS_Bike_Start", MotoDir + "/Interactions/Start/AS_Bike_Start.fbx" },
+            { "Human@ObjectGripHands01", KevinPoses + "/Human@ObjectGripHands01.fbx" },
+        };
+        static readonly HashSet<string> StoreLoops = new HashSet<string>
+        {
+            "AS_Idle_Riding", "AS_Turn_V1_Left_Loop", "AS_Turn_V1_Right_Loop", "AS_Turn_V1_Left_Loop_Passenger",
+            "AS_Turn_V1_Right_Loop_Passenger", "Human@ObjectGripHands01",
+        };
+
+        public static bool IsStoreClip(string path) => Store.ContainsValue(path);
+        public static bool IsStoreLoop(string path) => StoreLoops.Contains(Path.GetFileNameWithoutExtension(path));
+
+        static AnimationClip StoreClip(string name)
+        {
+            if (!Store.TryGetValue(name, out var p) || !File.Exists(p)) return null;
+            return AssetDatabase.LoadAllAssetsAtPath(p).OfType<AnimationClip>().FirstOrDefault(x => !x.name.StartsWith("__preview__"));
+        }
+
+        /// <summary>Re-import the store clips the animator uses so AnimClipImport sets them like ours (root kept in place,
+        /// loops). Returns how many were found.</summary>
+        static int PrepareStoreClips()
+        {
+            int n = 0;
+            foreach (var p in Store.Values)
+                if (File.Exists(p)) { AssetDatabase.ImportAsset(p, ImportAssetOptions.ForceUpdate); n++; }
+            return n;
+        }
+
         /// <summary>Which leg is forward at the clip's start: + left, - right (the humanoid "Upper Leg Front-Back" muscles).
         /// Blending a walk that starts on one foot with a run that starts on the other folds both legs together.</summary>
         public static float LeadLeg(AnimationClip c)
@@ -94,6 +138,7 @@ namespace Nainital.EditorTools
         public static void Build()
         {
             AssetDatabase.Refresh();
+            int store = PrepareStoreClips();
             Directory.CreateDirectory("Assets/Resources");
             if (AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath)) AssetDatabase.DeleteAsset(ControllerPath);
             var ctrl = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
@@ -105,7 +150,10 @@ namespace Nainital.EditorTools
             P("ActSpeed", AnimatorControllerParameterType.Float, 1f);
             P("Grounded", AnimatorControllerParameterType.Bool, 1f);
             foreach (var b in new[] { "Dead", "Knocked", "Rising", "Seated", "Driving", "Swim", "Aim", "Female" }) P(b, AnimatorControllerParameterType.Bool);
-            foreach (var t in new[] { "Jab", "Cross", "Hook", "Kick", "Hit", "Roll", "Yell", "Wave", "Talk", "Nod", "Shake", "Angry", "Shoot" })
+            // the vehicle ones too: from 19 Nov their states were built but these triggers were never added, so every
+            // "CarEnter" / "PulledOut" ... call did nothing and Unity logged "parameter does not exist" (found 20 Nov night)
+            foreach (var t in new[] { "Jab", "Cross", "Hook", "Kick", "Hit", "Roll", "Yell", "Wave", "Talk", "Nod", "Shake", "Angry", "Shoot",
+                                      "CarEnter", "CarExit", "PulledOut", "RemoveDriver", "Honk", "StandToSit", "SitToStand" })
                 P(t, AnimatorControllerParameterType.Trigger);
 
             // ---- layer 0: where the body is and how it moves
@@ -141,6 +189,28 @@ namespace Nainital.EditorTools
             var dead = Single(sm, "Dead", "death_back");
             sm.defaultState = move;
 
+            // on a motorbike / scooty (the Asset Store pack): the rider's riding idle with the lean blended in by Lean
+            // (-1 left .. +1 right), the pillion's two lean loops (their mix at 0 sits straight)
+            AnimatorState ride = null, pillion = null;
+            var rideIdle = StoreClip("AS_Idle_Riding");
+            if (rideIdle)
+            {
+                P("Ride", AnimatorControllerParameterType.Bool);
+                P("Pillion", AnimatorControllerParameterType.Bool);
+                P("Lean", AnimatorControllerParameterType.Float);
+                AnimatorState LeanTree(string name, (string clip, float at)[] parts)
+                {
+                    var st = ctrl.CreateBlendTreeInController(name, out var tree, 0);
+                    tree.blendType = BlendTreeType.Simple1D;
+                    tree.blendParameter = "Lean";
+                    tree.useAutomaticThresholds = false;
+                    foreach (var (clip, at) in parts) { var c = StoreClip(clip); if (c) tree.AddChild(c, at); }
+                    return st;
+                }
+                ride = LeanTree("Ride", new[] { ("AS_Turn_V1_Left_Loop", -1f), ("AS_Idle_Riding", 0f), ("AS_Turn_V1_Right_Loop", 1f) });
+                pillion = LeanTree("PillionRide", new[] { ("AS_Turn_V1_Left_Loop_Passenger", -1f), ("AS_Turn_V1_Right_Loop_Passenger", 1f) });
+            }
+
             void Any(AnimatorState to, float blend, params (string p, bool v)[] when)
             {
                 var t = sm.AddAnyStateTransition(to);
@@ -148,11 +218,22 @@ namespace Nainital.EditorTools
                 t.hasExitTime = false;
                 t.duration = blend;
                 foreach (var (p, v) in when) t.AddCondition(v ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0f, p);
+                // every ordinary state waits while on a bike, or Move (Grounded) would pull the rider off it every frame
+                if (ride != null && to != ride && to != pillion && to != dead && to != knocked && to != getUp)
+                {
+                    t.AddCondition(AnimatorConditionMode.IfNot, 0f, "Ride");
+                    t.AddCondition(AnimatorConditionMode.IfNot, 0f, "Pillion");
+                }
             }
             // most important first (Any State transitions are tried in order)
             Any(dead, 0.15f, ("Dead", true));
             Any(knocked, 0.1f, ("Knocked", true), ("Dead", false));
             Any(getUp, 0.15f, ("Rising", true), ("Knocked", false), ("Dead", false));   // HumanoidRig holds Rising while it plays
+            if (ride != null)
+            {
+                Any(ride, 0.2f, ("Ride", true), ("Dead", false), ("Knocked", false));
+                Any(pillion, 0.2f, ("Pillion", true), ("Ride", false), ("Dead", false), ("Knocked", false));
+            }
             Any(drive, 0.2f, ("Driving", true), ("Dead", false), ("Knocked", false));
             Any(sit, 0.25f, ("Seated", true), ("Driving", false), ("Dead", false), ("Knocked", false));
             Any(swim, 0.3f, ("Swim", true), ("Seated", false), ("Driving", false), ("Dead", false), ("Knocked", false));
@@ -185,6 +266,26 @@ namespace Nainital.EditorTools
                 back.exitTime = 0.95f;
                 back.duration = 0.1f;
             }
+            // getting on / off a two-wheeler and the kick / button start (the Asset Store pack)
+            foreach (var (trig, clip) in new[] { ("Mount", "AS_Mount_Left"), ("Dismount", "AS_Dismount_Left"), ("BikeStart", "AS_Bike_Start") })
+            {
+                var c = StoreClip(clip);
+                if (!c) continue;
+                P(trig, AnimatorControllerParameterType.Trigger);
+                var st = actSm.AddState(trig);
+                st.motion = c;
+                st.speedParameterActive = true;
+                st.speedParameter = "ActSpeed";
+                var t = actSm.AddAnyStateTransition(st);
+                t.hasExitTime = false;
+                t.duration = 0.08f;
+                t.canTransitionToSelf = true;
+                t.AddCondition(AnimatorConditionMode.If, 0f, trig);
+                var back = st.AddTransition(none);
+                back.hasExitTime = true;
+                back.exitTime = 0.95f;
+                back.duration = 0.12f;
+            }
 
             // ---- layer 2: the pistol's shot over the arms and chest
             var mask = new AvatarMask { name = "UpperBody" };
@@ -212,10 +313,36 @@ namespace Nainital.EditorTools
             tb.exitTime = 0.9f;
             tb.duration = 0.1f;
 
+            // ---- layer 3: the fingers closed round the steering wheel / the grips (HumanoidRig weights it in while driving
+            // or riding; the Kevin Iglesias "Object Grip Hands" pose, fingers only)
+            var grip = StoreClip("Human@ObjectGripHands01");
+            if (grip)
+            {
+                var fm = new AvatarMask { name = "Fingers" };
+                for (int i = 0; i < (int)AvatarMaskBodyPart.LastBodyPart; i++)
+                {
+                    var part = (AvatarMaskBodyPart)i;
+                    fm.SetHumanoidBodyPartActive(part, part == AvatarMaskBodyPart.LeftFingers || part == AvatarMaskBodyPart.RightFingers);
+                }
+                AssetDatabase.AddObjectToAsset(fm, ctrl);
+                var gSm = new AnimatorStateMachine { name = "Grip", hideFlags = HideFlags.HideInHierarchy };
+                AssetDatabase.AddObjectToAsset(gSm, ctrl);
+                ctrl.AddLayer(new AnimatorControllerLayer { name = "Grip", stateMachine = gSm, defaultWeight = 0f, blendingMode = AnimatorLayerBlendingMode.Override, avatarMask = fm });
+                var gs = gSm.AddState("Grip");
+                gs.motion = grip;
+                gSm.defaultState = gs;
+            }
+
             EditorUtility.SetDirty(ctrl);
             AssetDatabase.SaveAssets();
+            // the AnimatorController calls above record Undo steps: a Ctrl+Z in the editor later (moving a seat or a lamp in
+            // the Vehicle Setup tool) walked back through them and left the controller EMPTY in memory - no parameters, no
+            // states, every character in its default pose dropped through its seat and 1.7 M "Parameter 'Speed' does not
+            // exist" lines in the log (20 Nov 23:10). The built controller is not something to undo.
+            foreach (var o in AssetDatabase.LoadAllAssetsAtPath(ControllerPath)) if (o) Undo.ClearUndo(o);
+            Undo.ClearUndo(ctrl);
             int clips = ctrl.animationClips.Distinct().Count();
-            Debug.Log($"[Nainital] character animator: {clips} Mixamo clips -> {ControllerPath}");
+            Debug.Log($"[Nainital] character animator: {clips} clips -> {ControllerPath}" + (rideIdle ? $" (with the motorbike pack: Ride / Pillion / Mount / Dismount; {store} store clips)" : " (no motorbike pack: procedural riding)") + (grip ? ", finger grip layer" : ""));
         }
     }
 
@@ -237,6 +364,26 @@ namespace Nainital.EditorTools
 
         void OnPreprocessAnimation()
         {
+            if (AnimKit.IsStoreClip(assetPath))
+            {
+                // the Asset Store clips the animator uses: their own frame ranges and names kept (the turn loops are frames
+                // 10-30 of their takes), the root held in place like ours, loops where they loop
+                var si = (ModelImporter)assetImporter;
+                var sc = si.clipAnimations.Length > 0 ? si.clipAnimations : si.defaultClipAnimations;
+                bool sl = AnimKit.IsStoreLoop(assetPath);
+                foreach (var c in sc)
+                {
+                    c.loopTime = sl;
+                    c.lockRootRotation = true;
+                    c.keepOriginalOrientation = true;
+                    c.lockRootHeightY = true;
+                    c.keepOriginalPositionY = true;
+                    c.lockRootPositionXZ = true;
+                    c.keepOriginalPositionXZ = true;
+                }
+                si.clipAnimations = sc;
+                return;
+            }
             if (!assetPath.StartsWith(AnimKit.Dir + "/")) return;
             var mi = (ModelImporter)assetImporter;
             bool loop = AnimKit.IsLoop(assetPath);

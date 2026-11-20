@@ -372,3 +372,71 @@ animation nikaal lena"; "mall road ki haalat kharab, terrain ubad khabad near to
   Found: Auto Keying was on - one-frame actions pin many transforms; the two bus doors have real fold/slide animations, so
   my 20 Nov hinge change left their meshes displaced; bike 13's handlebar key undid its raked frame. Nothing more changed
   in the blend; the full fix list for the next PC is docs/VEHICLES.md section 9 (diagnostics in Tools/newvehicles/diag).
+
+## 20 Nov 2026 (night) - Vehicle Setup: lamp position, feet on the floor / pegs, riders reach the grips
+Owner (main PC, after pulling cd09c69): "vehicle light transform position ka option nahi diya, or bike pe and car me bethne
+ka animation bhi theek nahi hai.. vo dhoondh ke add karo".
+- Unity batch at first refused: "No valid Unity Editor license" (Hub closed, sign-in expired); he signed in and opened the GUI.
+- Measured, not guessed: `VehicleSetupShots` (check sheets with cut views + per-seat hand / foot misses), `Probe` (every
+  surface under the cabin), `ClipPoseReport`. Sedan: people's feet under the car, the driver's ankle 0.15 m under the road;
+  the floor (the underbody's inside) at 0.22 m; Tripo cabins have partial seats only. All Mixamo sitting clips are chair poses.
+- Trap: Physics.RaycastAll gives ONE hit per collider - the car body is one mesh, so it only gave the roof; `AllHits` loops
+  Collider.Raycast with back faces on. Trap: the hips over the seat root are 0.51 m for Sit / Drive (SeatLock) but 0.40 m for
+  the riding pose; a first guess of 0.40 for all put the car foot targets 11 cm low.
+- Done: feet IK + markers + Snap (floor-based, small moves only), lamp Position / Rotation / Snap to body, reach lean,
+  grips from the bar mesh (a scooty's bar carries its apron: band 8-40 cm under the top), the rider an arm's reach behind
+  the grips, pillion pegs 0.28 m ahead (straight under the hips looked stood up). All 20 defaults: hands / feet within ~15 cm.
+- Found (free, Asset Store EULA): "Motorcycle Interaction Animset FREE" (SpectraMotions, May 2026) and "Basic Motions FREE"
+  (sitting low = a car seat). Waiting for the owner to add them to his account; then wire them in AnimKit.
+- Old: `[Nainital] car rescued (under the ground) at (0.0, 750.5, 0.0)` spams in Play (106x on 19 Nov, 53x today) - a car
+  at the world origin falling through again and again; not looked into yet.
+- 21:56 the owner imported both packs. SpectraMotions' is Humanoid with riding idle, lean loops (rider + passenger),
+  mount / dismount; Kevin Iglesias' free version has no sitting clips (the search result described an older paid-era
+  listing) - only its finger grip pose is used. Wired in AnimKit (Ride / PillionRide / Mount / Dismount / BikeStart / Grip
+  layer), HumanoidRig (`lean`, SeatLock at 0.40 m for clip riding). Packs kept out of git (.gitignore; public repo).
+- Found: CarEnter / CarExit / PulledOut / RemoveDriver / Honk / StandToSit / SitToStand never had animator parameters (19 Nov
+  on) - the car enter / pulled-out moves never played. Fixed in AnimKit.
+- Checked on the sheets: riders on AS_Idle_Riding with hands on the grips (0 cm), pillions on the passenger loop, the
+  sedan's driver on Driving with hands on the wheel.
+- 22:20 owner: "pehla itna jhuka kyun hai" (his bike_commuter100 rider folded over the bars). Causes measured: the pack's
+  clips lean like a sport bike; the town's 12 own characters have arms of 0.18-0.39 m shoulder-to-wrist (half the Mixamo
+  ones; ClipPoseReport.Arms); his saved L / R balls sit 0.62 m ahead of the hips at hip height. HandIK: Upright to a per-seat
+  bend (rider 12, pillion 5; three passes - one fell short), reach lean capped at 20 deg, forearm stretch up to 1.35x.
+  Riders 37-43 -> 24-29 deg, pillions 12-24 -> 5 deg. Tool: "Bend deg" field on Ride / Pillion seats.
+- 22:50 owner: "kuch me front light handle ka child hongi". Lamp.on (the part's name) + "handle" toggle; Snap to body hangs
+  the lamp on the part it hit; new handlebar vehicles snap their headlights by themselves. Checked with the Steer slider at
+  30 deg (VehicleSetupWindow.SteerArg): dualsport / street160 / both scooties on the Handlebar and turning, commuter-125's
+  headlight is in its Body mesh (stays), autos on the body.
+- 23:10 owner's screenshot: everyone on bike_commuter100 lying back, arms up to the bars. Cause: the character animator was
+  EMPTY in the editor's memory (0 parameters, 0 states; the file on disk was fine) - the AnimatorController calls in
+  AnimKit.Build record Undo steps, and a Ctrl+Z while moving things in the tool walked back through them. With no clip the
+  people fell to their default pose, SeatLock never ran (hips 0.03-0.20 m), the IK pulled hands / feet to the bike, and the
+  log filled with 1.7 M "Parameter 'Speed' does not exist" lines (from 22:52). Fix: AnimKit.Build rebuilt, and it now clears
+  the controller's Undo history (Undo.ClearUndo on every sub-asset). Check: rider in Ride, hips 0.95, bend 10, hands 0 cm;
+  pillions in PillionRide; no missing-parameter lines. New checks: VehicleSetupShots.Diag, ClipPoseReport.Controller.
+
+## 21 Nov 2026 (00:30-03:00) - the owner's 20 vehicle setups checked and fitted to the models
+Owner (main PC): "unity kholo" (opened via WMI, Hub first), then he set up and approved all 20 vehicles (01:04-01:45):
+"sab krdi hain maine..check kro". Then "krskte ho theek? perfect precision ke saath?", and at the end "iske baad agar koi
+dikkat ho ya kuch change ho to push instruction pe daaldena..sab push krdo with updates and instructions".
+- First check (sheets + JSON summary): 11 vehicles fine, 9 with clear faults (street160 rider over the seat + pillion in
+  his lap, roadways 5/6 feet 52 cm short, tallboy driver inside his backrest, sedan driver 14 cm low, mpv_large front
+  20 cm high, tirri rear pair's feet on the opposite bench, neoretro arms like wings, tirri left hand, scooty_family
+  headlight quad at 254 deg).
+- Measured instead of guessed: every surface down each seat's line every 5 cm (`VehicleSetupShots.ProfileZ`), two-sided
+  cut views with a ruler (`SeatCuts`; a Tripo shell is one-sided, so from inside its floor / seats were invisible), side
+  scans and the handlebar meshes' ends (`SideScan`, `Bar`), the characters' own bodies (`Offsets`).
+- Found a systematic fault of the 20 Nov Snap rule: hips = floor + 0.27 ignores modelled cushions, so in every vehicle with
+  one people sat 8-17 cm INTO it; bus_tourist's feet 12-28 cm under its floor (and seats 19/20 on top of 15/16);
+  bus_roadways' back four on open floor; suv_boxy's rear three in the boot.
+- Body offsets (22 characters, 4 poses): hips over the seat of the trousers 0.06-0.21 m, head top 0.64-1.01 m over the
+  hips, ankle over the sole 0.07-0.10 seated / 0.11-0.15 astride. A fixed hips height cannot be right for all, so
+  HumanoidRig now measures each skin once per pose and sits it on the surface (clamped +-0.07: hems), heads under `roof`.
+- `Tools/vehicles/fit_vehicle_seats.py` refitted all 20 (with hand-set rows where the automatic read was wrong: filled
+  footwells in mpv_large row 3 / suv_boxy rear, the tourist driver's cab, tirri side ledges, tuktuk raised floor).
+- After: 3 runs x 20 sheets. Buses (43 people), mpv_compact, van, suv passengers, tirri, 5 pillions: 0-4 cm. Open
+  (docs/VEHICLES.md section 0): low roofs sink tall characters 10-31 cm in hatch / tallboy / mpv_large / pickup / truck /
+  tuktuk (owner to decide); street160 rider's hands 20 cm, tuktuk / scooty_family 10, sedan / suv_muscular drivers' feet
+  9-10, commuter100 riders 7 / 12; Snap still on the old rule; the tourist driver by eye.
+- Not touched: the `car rescued (under the ground)` spam; scooty_family's headlight quad turned 254 deg (double-sided,
+  the beam uses the vehicle's forward - harmless but looks thin from the front).

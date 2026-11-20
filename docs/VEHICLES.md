@@ -3,6 +3,83 @@
 Written 20 Nov 2026 so another PC can pick this up. The work log is in `docs/TRACKER.md` (19-20 Nov); the README's
 "Work in progress" has the short version.
 
+## 0. Hand-off of 21 Nov 2026 (03:00, main PC) - read this first
+
+The owner set up and approved **all 20** vehicles in the tool (21 Nov 01:04-01:45), then asked for a check ("check kro")
+and a fix "with perfect precision". If anything below looks wrong or needs changing, it goes into this list.
+
+**What was checked (measured, not by eye):** every seat of every model against the model's own surfaces - every surface
+straight down along each seat's line every 5 cm (`call VehicleSetupShots.RunProfileZ`, arg.txt `all`, arg2.txt `seats`),
+cut views made two-sided so a Tripo shell's floor and seats show from inside (`SeatCuts`), the handlebar meshes' ends
+(`RunBar`), and the characters' own bodies in each pose (`RunOffsets`: hips over the seat of the trousers 0.06-0.21 m, head
+top over the hips 0.64-1.01 m, ankle over the sole 0.07-0.10 m seated / 0.11-0.15 m astride).
+
+**What was wrong in the owner's setups (all fixed by `Tools/vehicles/fit_vehicle_seats.py --write`):**
+
+| Vehicle | Was | Now |
+|---|---|---|
+| all cars / buses with a modelled cushion | the old Snap rule (hips = floor + 0.27) ignored cushions: people sat 8-17 cm INTO them (mpv_large rows 2-3, hatch rear, suv_boxy / tuktuk drivers) | hips = the cushion's top + 0.12 (`HumanoidRig.NominalButt`), 0.17 m in front of the backrest's foot |
+| bus_tourist | feet 12-28 cm under the floor (1.43 vs floor 1.55); seats 19 / 20 sat 7 cm from 15 / 16 (two people in one seat) | feet on the floor (ankle 1.63), under the next seat's overhang in the last row; 19 / 20 on the empty left row z -1.24 |
+| bus_roadways | seats 13-16 on open floor at the back (hips 1-15 cm over the floor), 17 at the back centre; 5 / 6 floating 20 cm, feet 52 cm short | 13-16 on the back-to-back row (z -2.30, facing the back - its backrest is on the forward side), 17 on the empty front-left seat; all on the 1.44 cushions, feet on the 1.29 floor; the driver's feet on the cab floor (1.13) |
+| bike_street160 | rider 14 cm over the seat, pillion in his lap (17 cm apart), rider's feet 27 cm ahead of the pegs | rider on the seat dip (0.83), feet on the pegs found by a side scan (z -0.15); pillion on the pad (z -0.60, 0.99), pegs 0.54 high |
+| car_tallboy | driver 22 cm back, inside his backrest (feet 33 cm short) | on the cushion beside the passenger, feet in the footwell |
+| car_sedan_compact | driver 14 cm lower than the passenger | same height (an empty shell: floor + 0.27) |
+| car_hatch_small | front passenger's feet hanging under the dash 28 cm over the floor | on the floor (0.39) |
+| car_suv_boxy | the three rear passengers sat behind the rear seat's backrest, in the boot | on the rear seat (z -0.90) |
+| car_mpv_large | front row 16-22 cm high, middle / third rows 15-17 cm sunk, feet under the floor | on the cushions; third row's footwell is filled in the model, so the feet go where a floor 0.30 m down would be |
+| tirri_erickshaw | rear-facing pair's feet on the opposite bench (0.85-1.05), one of them 11 cm sunk; driver's left hand 20 cm ahead of the bar | feet on the floor (0.45), both on the cushion; left hand on the bar's end (-0.34, 1.07, 0.69) |
+| tuktuk_auto | driver sunk 8 cm, passengers' feet under their raised floor (0.60) | on the cushions, feet on that floor |
+| truck_light, car_pickup, car_van | hips / feet a few cm off | fitted |
+| scooty_neoretro | Bend 0 + bar ends at +-0.40: arms spread like wings, hands 11 cm short | grips +-0.34 symmetric, **Bend 8** (the owner had set 0 - put it back if he prefers) |
+
+Untouched (already right): car_mpv_compact, car_suv_muscular, the other bikes' feet / grips, all lamps.
+The owner's own setups as they were: `Tools/vehicles/setups_before_fit_21nov/` (diff against `Assets/Resources/VehicleSetup`).
+
+**New in code:**
+- `VehicleSetupData.Seat.surface` / `roof`: the sitting surface and the roof's inside over the seat (vehicle space, -1 =
+  not measured). The fitter fills them.
+- `HumanoidRig` seat fit: seats count on a nominal seat of the trousers (0.12 m under the hips); each character measures
+  its own once per pose from its baked skin (cached per mesh) and sits that much higher / lower (clamped +-0.07 m: a kurta /
+  saree hem hanging under the seat line would read as a fuller seat), eased in; with `seatRoof` set it keeps its head 3 cm
+  under the roof. `SoleLift`: HandIK lifts / lowers the foot targets by the character's own sole (nominal 0.08 m seated,
+  0.14 m astride). This applies to every seated / riding character in the game, not only the setups.
+- Tool: each person's `seatRoof` from the seat's `roof`; `VehicleSetupWindow.SeatData(i)`.
+- Checks (bridge, Play first): `VehicleSetupShots.RunProfileZ` / `RunColumns` / `RunSideScan` / `RunBar` / `RunOffsets` /
+  `SeatCuts` (arg.txt `model:seat,seat;model2`) -> `Shots/vseat_<model>.png` with a 10 cm ruler and the hips in red; the
+  sheet (`Run`) now logs `butt-gap` (seat of the trousers over the surface) and `head-room` per seat. Readers in
+  `Tools/vehicles/`: `sheet_report.py` (worst over all runs), `seat_geom.py`, `profile_line.py`, `sidescan_read.py`,
+  `offsets_read.py`; `bridge.ps1` / `waitlog.ps1` / `recompile_play.ps1` drive the bridge.
+
+**Check after the fit (3 runs of all 20 sheets, random characters each run; `sheet_report.py`):** every bus seat
+(43 people), car_mpv_compact, car_van, the suv_boxy / suv_muscular passengers, tirri and the pillions of commuter125,
+dualsport, street160 and both scooties: feet and hands 0-4 cm. The seat of the trousers sits on the surface by
+construction of the fit (0 cm) except where the roof rule pushes a tall character down (suv_boxy rear up to 6 cm, tirri 4,
+and item 1). Heads clear the roof everywhere (>= 3 cm). **Still open - do these next, in this order:**
+1. **Small cabins vs tall characters (owner to decide)**: the roofs of car_hatch_small, car_tallboy, car_mpv_large,
+   car_pickup, truck_light and tuktuk_auto are too low for the taller characters (head top 0.75-1.0 m over the hips,
+   headroom over a correct hips height 0.72-0.80 m). The roof rule keeps every head 3 cm inside, so those characters sink
+   10-31 cm into the cushion (hidden by the doors from outside, visible in the cut views). Options: (a) keep it; (b) let
+   heads touch / pass the roof instead (`HumanoidRig.HeadClear`, or no `roof` in those setups); (c) seat only the shorter
+   characters there (`CharacterLibrary.Pick` by height).
+2. Hands short: **bike_street160 rider 20 cm** (the bar's real ends are at +-0.44, z 0.40 by `RunBar`; his targets are at
+   +-0.27 z 0.30 on the switch housings - move them out to about +-0.38 1.03 0.37, or raise Bend), **tuktuk driver 10 cm**
+   and **scooty_family rider 10 cm** (both rose 8-20 cm onto their cushions: lower the balls or move the seat forward),
+   truck driver 5 cm.
+3. Feet short after the rise: **car_sedan_compact driver 9 cm** and **car_suv_muscular driver 10 cm** (pedals 0.62 m
+   ahead: bring the feet to ~0.50 m ahead), **bike_commuter100 rider 7 cm / third rider 12 cm**, bike_dualsport rider 8 cm,
+   scooty_neoretro rider 5 cm (short-legged characters on high seats).
+4. **The tool's Snap still uses the old floor rule** (floor + 0.27, cushions ignored): do not press Snap / Snap everyone
+   on these 20 fitted vehicles until `SnapSeats` follows `fit_vehicle_seats.py` (cushion + NominalButt, feet on the floor
+   ahead of the cushion, `surface` / `roof` stored). A new vehicle snapped by the tool should go through the fitter too.
+5. bus_tourist driver: the model has no cushion under him (a block from 1.33 to 1.92 m where his seat is, cab floor
+   0.91); only his feet were put on the floor. Look at `SeatCuts` `bus_tourist:0` and set him by eye.
+6. tuktuk / tirri handlebars are modelled on the LEFT half only (x -0.40..0): both hands sit left of the centre. Fix in
+   Blender (centre the bar) or accept.
+7. scooty_family's headlight quad is turned 254 deg (side-on: a thin line from the front; the beam itself uses the
+   vehicle's forward). Snapped heads at ~180 deg are fine (the quad is two-sided). Set it to 180 in its Rotation field.
+8. Then the game must read the approved setups (section 5, "After the owner's OK"): seats with `surface` / `roof`
+   (set `HumanoidRig.seatRoof`), lamps by `on`, HandIK feet / hands / bend.
+
 ## 1. Why there is a new set
 
 The old library (`Assets/Nainital/Vehicles/Models`: Bolero, Scorpio, Innova Crysta, WagonR, Ertiga, Amaze, Tata 407...)
@@ -95,8 +172,28 @@ decryption after a crash). The first Unity start on the next PC imports them; ru
    in and out ("Entry"). "Face" = another look, "+ Seat", "✕", "Mirror selected seat".
 4. **Hands**: driver / rider seats get a blue (left) and orange (right) ball = the wrists. Put them on the steering rim /
    the handlebar grips ("L" / "R" select them). HandIK bends the arms to them; they ride on the handlebar / `Steering`, so
-   the hands turn with the steering.
-5. **Lamps**: "+ Head lamp" / "+ Tail lamp" (mirrored pair by default), size per lamp; "Night preview".
+   the hands turn with the steering. On a handlebar they start on the grips (the bar mesh's widest points in a band 8-40 cm
+   under its top). When the arms cannot reach, HandIK leans the back forward (up to 35 deg) like a real rider.
+4b. **Feet (20 Nov night)**: everyone gets a cyan (left) and pink (right) foot marker ("FL" / "FR") = the ankles; HandIK
+   bends the legs to them. Every Mixamo sitting clip (Driving too) is a chair pose with the shins straight down, so without
+   this the feet went through a car's floor and hung off a bike's pegs. **Snap** (per seat) / **Snap everyone**: sets the
+   person at seat height over this model's floor (car 0.27 m, bus / truck / van / auto 0.42 m, head room 0.98 m under the
+   roof; a two-wheeler on its seat, the pillion never more than 0.10 m over the rider) and the feet 8 cm over the floor
+   under their markers. The floor = the lowest surface a ray meets inside the shell (a Tripo body is a closed shell: its
+   underbody's inside, 0.22 m in the compact sedan). Only small moves are taken (hips +-0.25 m, feet up to 0.6 m under the
+   hips): a bus shell has no cabin floor, so bus seats keep their height. A vehicle with no saved setup is snapped by itself.
+   "Feet to default" puts the feet back (car driver: pedals 0.62 m ahead; motorbike: pegs 0.32 m high; scooty: floorboard;
+   pillion: rear pegs 0.28 m ahead, 0.40 m high).
+5. **Lamps**: "+ Head lamp" / "+ Tail lamp" (mirrored pair by default). Per lamp: size, **Position (m)** and **Rotation (deg)**
+   in the vehicle's space (x right, y up, z forward; drag the X / Y / Z labels to slide), **Snap to body** (moves it along
+   the length onto the body's surface ahead of / behind it and turns it to face out), "x <-> 0" (centre it). The fields
+   follow what is moved in the Scene view. "Night preview".
+   **On the handlebar (20 Nov night: "kuch me front light handle ka child hongi")**: the "handle" toggle hangs a lamp on the
+   handlebar object (saved as `on` = its name), so it turns with the steering; Snap to body sets it by itself to the part
+   the lamp landed on. A new handlebar vehicle gets its headlights snapped at once: dualsport, street160 and both
+   scooties came out on the Handlebar, commuter-125 on the body (its headlight is cut into the Body mesh, so it cannot turn
+   anyway), the auto and the e-rickshaw on the body. Position / Rotation stay in the vehicle's space with the steering
+   straight. The game (when it reads the setups) must hang a lamp under the part named in `on`.
 6. **Wheels**: Speed slider (- = reverse) spins every wheel, Steer turns the handlebar (and Wheel_F under it) or the car's
    front wheels and `Steering`. The **Checks** list says what is wrong with the parts (origin off the centre, Wheel_F not
    under the handlebar, door origin in the middle, wheel count...).
@@ -106,6 +203,46 @@ decryption after a crash). The first Unity start on the next PC imports them; ru
    walks up and gets in (Mixamo "Entering Car"; not for the open three-wheelers).
 10. **Save** -> `Assets/Resources/VehicleSetup/<name>.json`. **OK - approve** = the owner is happy; the game will only use
    approved setups.
+
+**Checking without opening the cars (20 Nov night)**: `call VehicleSetupShots.Play` (bridge), then `call
+VehicleSetupShots.Run` with `Bridge/arg.txt` = a model name, a comma list or `all` -> `Shots/vsetup_<model>.png`: the left
+side, a cut through the driver's seat and one through the left passengers (the body in front of the cut clipped away), front
+three-quarter, the top with the roof cut off, a close one over the driver's shoulder; the log line gives each seat's clip,
+hips height and how far each hand / foot is from its target. `call VehicleSetupShots.Probe` lists every surface under two
+lines down the vehicle (floor, seats, roof). `call ClipPoseReport.Run` prints the leg / arm muscles of the sitting clips.
+`call VehicleSetupShots.Stop` leaves Play. With the default setups every hand / foot is within ~15 cm of its target on all
+20 models (most 0 cm).
+
+**Riding clips from the Asset Store (20 Nov night, in)**: Mixamo has no motorcycle riding and no car-seat sitting. The
+owner added two free packs (Standard Asset Store EULA) to his Unity account and imported them:
+- "Motorcycle Interaction Animset FREE" (SpectraMotions) -> `Assets/MotoInteractionAnimsFREE/` (Humanoid). AnimKit uses
+  `AS_Idle_Riding` + `AS_Turn_V1_Left/Right_Loop` as the **Ride** state (1D blend on `Lean`, -1 left .. +1 right),
+  `AS_Turn_V1_Left/Right_Loop_Passenger` as **PillionRide**, and `AS_Mount_Left` / `AS_Dismount_Left` / `AS_Bike_Start` as
+  the Mount / Dismount / BikeStart actions. HumanoidRig: `riding` (+ `pillion`) now plays these; `lean` drives the turn
+  loops; the hips are held 0.40 m over the root as the old procedural pose did, so saved seats and BikeRide stay right.
+  The setup tool's Steer slider leans a two-wheeler's people; "Player gets in" plays Dismount / Mount on two-wheelers.
+- "Human Basic Motions FREE" (Kevin Iglesias) -> `Assets/Kevin Iglesias/`. This version has NO sitting clips (idles,
+  locomotion, talk only); its masked pose `Human@ObjectGripHands01` is the **Grip** layer (fingers only) - drivers and
+  riders close their fingers round the wheel / the grips. Car seats rely on the feet IK above.
+- **Not in git** (the repo is public; the EULA forbids redistributing them): both folders are in .gitignore. On another PC:
+  Package Manager > My Assets > download + import both, then **Nainital > 6b. Build character animator**. Without them
+  AnimKit builds no Ride / Pillion / Grip states and HumanoidRig keeps the procedural riding pose (the committed controller
+  references their clips; on a PC without them those states are empty and HumanoidRig does not use them).
+- Found while wiring: the 19 Nov car triggers (CarEnter, CarExit, PulledOut, RemoveDriver, Honk, StandToSit, SitToStand)
+  had states but no parameters, so they never played ("parameter does not exist"); AnimKit adds them now.
+- **Back lean (owner: "pehla itna jhuka kyun hai")**: the pack's clips lean like a sport bike (chest muscle -0.71), and the
+  town's own 12 characters have short arms (shoulder to wrist 0.18-0.39 m vs 0.41-0.50 for the Mixamo-rigged goan_* /
+  police: `call ClipPoseReport.Arms`), so the reach hunched riders 37-43 deg. HandIK now straightens the back to `maxBend`
+  (rider 12 deg, pillion 5 deg; per seat: the "Bend deg" field next to Ride / Pillion seats, saved as `bend`), leans at most
+  `maxReachLean` 20 deg more for the grips, and draws the forearm out up to `maxArmStretch` 1.35x for the rest. Riders came
+  to 24-29 deg, pillions 5. A rider still folded = his L / R balls are far / low from his hips (the sheet's log gives
+  "grips 0.62m ahead -0.01m up"): move the seat forward or the balls back / up.
+- **Trap (20 Nov 23:10)**: a Ctrl+Z in the editor could undo AnimKit.Build's steps and leave the controller empty in memory
+  (people drop through their seats, "Parameter 'Speed' does not exist" floods the log). Build now clears that Undo history;
+  if it ever happens again: Nainital > 6b. Build character animator. `call ClipPoseReport.Controller` shows what the asset
+  holds; `call VehicleSetupShots.Diag` shows each person's animator state.
+- Check (vsetup sheets, 20 Nov 22:04): every rider plays AS_Idle_Riding with both hands on the grips (0 cm), pillions the
+  passenger loop, car drivers Driving with hands on the wheel.
 
 **After the owner's OK (not done yet):** the game must read these setups - `VehicleSeats` (seats), `VehicleLamps`
 (lamps), traffic passengers by capacity, HandIK on drivers/riders, `BikeRide` steering the handlebar with the wheel under

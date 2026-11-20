@@ -98,6 +98,8 @@ namespace Nainital
         /// <summary>Astride behind the rider (with riding): legs as the rider's, hands resting on the thighs (Vehicle
         /// Setup tool, 2026-11-19).</summary>
         [System.NonSerialized] public bool pillion;
+        /// <summary>Riding: how far the two-wheeler leans, -1 left .. +1 right (the motorbike pack's lean loops).</summary>
+        [System.NonSerialized] public float lean;
         [System.NonSerialized] public float aimPitch;
 
         public enum Attack { Jab = 0, Cross = 1, Kick = 2, Haymaker = 3 }
@@ -180,8 +182,19 @@ namespace Nainital
 
         // ------------------------------------------------------------------ the Mixamo character animator (AnimKit)
         static readonly int ActSpeedId = Animator.StringToHash("ActSpeed");
-        static readonly string[] Bools = { "Grounded", "Dead", "Knocked", "Rising", "Seated", "Driving", "Swim", "Aim", "Female" };
+        static readonly string[] Bools = { "Grounded", "Dead", "Knocked", "Rising", "Seated", "Driving", "Swim", "Aim", "Female", "Ride", "Pillion" };
         static readonly int[] BoolIds = System.Array.ConvertAll(Bools, Animator.StringToHash);
+        static readonly int LeanId = Animator.StringToHash("Lean");
+        /// <summary>The animator has the motorbike pack's Ride / Pillion states (Asset Store, not in git: AnimKit builds
+        /// them only when the pack is imported); without them riding stays the procedural pose. gripLayer: the fingers
+        /// closed round the wheel / the grips (-1 = none).</summary>
+        bool rideAnim;
+        int gripLayer = -1;
+        float gripW;
+        /// <summary>Riding from the pack's clips now.</summary>
+        bool RideNow => riding && rideAnim && Full;
+        /// <summary>The motorbike pack's clips are in this character's animator (Ride / Pillion, Mount / Dismount).</summary>
+        public bool HasRideClips => rideAnim && Full;
         static Dictionary<string, float> clipLen;
         bool full, wasKnocked;
         float actT, actW, upT, upW, risingT;
@@ -205,7 +218,8 @@ namespace Nainital
                 "Roll" => "roll", "Yell" => "yelling", "Wave" => "waving", "Talk" => "talking", "Nod" => "gesture_head_nod_yes",
                 "Shake" => "gesture_shaking_head_no", "Angry" => "gesture_angry_gesture", "GetUp" => "getting_up",
                 "CarEnter" => "car_enter", "CarExit" => "car_exit", "PulledOut" => "car_pulled_out", "RemoveDriver" => "car_remove_driver",
-                "Honk" => "car_honk", "StandToSit" => "stand_to_sit", "SitToStand" => "sit_to_stand", _ => state,
+                "Honk" => "car_honk", "StandToSit" => "stand_to_sit", "SitToStand" => "sit_to_stand",
+                "Mount" => "AS_Mount_Left", "Dismount" => "AS_Dismount_Left", "BikeStart" => "AS_Bike_Start", _ => state,
             };
             return clipLen != null && clipLen.TryGetValue(clip, out var l) ? l : 1f;
         }
@@ -222,16 +236,28 @@ namespace Nainital
 
         void DriveFull(float dt)
         {
-            bool sittingProc = riding || rowing;   // these stay procedural
-            anim.SetBool(BoolIds[0], grounded || swimming || seated || sittingProc || driving);
+            bool clipRide = riding && rideAnim;
+            bool sittingProc = (riding && !clipRide) || rowing;   // these stay procedural
+            anim.SetBool(BoolIds[0], grounded || swimming || seated || sittingProc || driving || clipRide);
             anim.SetBool(BoolIds[1], dead && !knocked);
             anim.SetBool(BoolIds[2], knocked);
             if (wasKnocked && !knocked && !dead) risingT = ClipLen("GetUp") * 0.95f;
             wasKnocked = knocked;
             risingT -= dt;
             anim.SetBool(BoolIds[3], risingT > 0f);
-            anim.SetBool(BoolIds[4], seated && !driving && !sittingProc);
-            anim.SetBool(BoolIds[5], driving);
+            anim.SetBool(BoolIds[4], seated && !driving && !sittingProc && !clipRide);
+            anim.SetBool(BoolIds[5], driving && !clipRide);
+            if (rideAnim)
+            {
+                anim.SetBool(BoolIds[9], clipRide && !pillion && !dead);
+                anim.SetBool(BoolIds[10], clipRide && pillion && !dead);
+                anim.SetFloat(LeanId, Mathf.Clamp(lean, -1f, 1f), 0.15f, dt);
+            }
+            if (gripLayer >= 0)
+            {
+                gripW = Mathf.MoveTowards(gripW, (driving || (riding && !pillion)) && !dead && !knocked ? 1f : 0f, dt * 6f);
+                anim.SetLayerWeight(gripLayer, gripW);
+            }
             anim.SetBool(BoolIds[6], swimming);
             anim.SetBool(BoolIds[7], aiming && !seated && !driving);
             anim.SetBool(BoolIds[8], IsFemale);
@@ -244,15 +270,115 @@ namespace Nainital
         }
 
         /// <summary>Seated or at a wheel (the Sit / Driving clips): the hips onto the seat point, 0.51 m over the
-        /// character's root, whatever the character's size (VehicleSeats, benches).</summary>
+        /// character's root, whatever the character's size (VehicleSeats, benches). On a two-wheeler with the pack's riding
+        /// clips: 0.40 m, where the procedural riding pose held them (BikeRide.SeatLocal and the saved setups count on it).</summary>
         void SeatLock()
         {
-            if (!(seated || driving) || riding || rowing || dead || knocked || !anim) return;
+            bool r = RideNow;
+            if ((!(seated || driving) && !r) || (riding && !r) || rowing || dead || knocked || !anim) return;
             var hips = anim.GetBoneTransform(HumanBodyBones.Hips);
             if (!hips) return;
             Vector3 h = transform.InverseTransformPoint(hips.position);
-            Vector3 want = new Vector3(0f, VehicleSeats.HipAboveRoot, 0f);
+            float y = r ? VehicleSetup.HipsOverRoot(SeatPose.Ride) : VehicleSeats.HipAboveRoot;
+            // this character's own body in this pose (owner, 21 Nov: "perfect precision"): the seat places hips for a
+            // nominal seat of the trousers; a fuller / thinner one sits that much higher / lower, and under a roof the head
+            // stays inside it
+            int kind = r ? (pillion ? 3 : 2) : driving ? 0 : 1;
+            if (kind != fitKind)
+            {
+                fitKind = kind; fitSince = Time.time; fit = CachedFit(kind);
+                fitAdj = float.IsNaN(fit.x) ? 0f : Mathf.Clamp(fit.x - NominalButt, -MaxFitAdj, MaxFitAdj);
+            }
+            if (float.IsNaN(fit.x) && Time.time - fitSince > FitSettle) fit = MeasureFit(kind, hips);
+            float adj = 0f;
+            if (!float.IsNaN(fit.x))
+            {
+                // a draped kurta / saree hem can hang under the seat line: no more than MaxFitAdj either way
+                adj = Mathf.Clamp(fit.x - NominalButt, -MaxFitAdj, MaxFitAdj);
+                if (!float.IsNaN(seatRoof)) adj = Mathf.Min(adj, seatRoof - fit.y - HeadClear - y);
+            }
+            // eased in when the measure lands (no pop), at once when it was cached
+            fitAdj = Mathf.MoveTowards(fitAdj, adj, Time.deltaTime * 0.5f);
+            Vector3 want = new Vector3(0f, y + fitAdj, 0f);
             model.localPosition += transform.InverseTransformVector(transform.TransformVector(want - h));
+        }
+
+        /// <summary>The seat of the trousers that seat heights count on (VehicleSetup, VehicleSeats): the hips this much
+        /// over the cushion's top / a two-wheeler seat's top. Each character's own (measured once per pose) moves it.</summary>
+        public const float NominalButt = 0.12f;
+        /// <summary>The ankle over the floor / the footpeg that foot targets count on: seated 0.08 m, astride 0.14 m (the
+        /// riding clips point the toes down). Each character's own sole moves the foot (HandIK, SoleLift).</summary>
+        public const float NominalSoleSeated = 0.08f, NominalSoleAstride = 0.14f;
+        const float FitSettle = 0.6f, HeadClear = 0.03f, MaxFitAdj = 0.07f;
+        /// <summary>The roof's inside over this character's root when it sits under one (the vehicle setups' seats; NaN =
+        /// none): SeatLock keeps its head under it.</summary>
+        [System.NonSerialized] public float seatRoof = float.NaN;
+        // per skin and pose: (hips over the seat of the trousers, head top over the hips, ankle over the sole), measured
+        // once from the baked skin (the town's 12 characters 0.06-0.15 m / 0.75-1.0 m / 0.07-0.08 m seated; the Mixamo
+        // ones up to 0.21 m: measured 21 Nov, VehicleSetupShots.Offsets)
+        static readonly Dictionary<(Mesh, int), Vector3> fitCache = new Dictionary<(Mesh, int), Vector3>();
+        int fitKind = -1;
+        float fitSince, fitAdj;
+        Vector3 fit = new Vector3(float.NaN, float.NaN, float.NaN);
+
+        /// <summary>This character's own (hips over the seat of the trousers, head top over the hips, ankle over the sole)
+        /// in the pose it sits in now (NaN until measured).</summary>
+        public Vector3 Fit => fit;
+
+        /// <summary>How much higher than its target this character's ankle goes for its sole to stand where a nominal
+        /// sole would (0 until measured). HandIK adds it to the foot targets.</summary>
+        public float SoleLift => float.IsNaN(fit.z) || fitKind < 0 ? 0f : fit.z - (fitKind >= 2 ? NominalSoleAstride : NominalSoleSeated);
+
+        Vector3 CachedFit(int kind)
+        {
+            var key = (FitKey(), kind);
+            return key.Item1 && fitCache.TryGetValue(key, out var f) ? f : new Vector3(float.NaN, float.NaN, float.NaN);
+        }
+
+        Mesh FitKey()
+        {
+            var sk = model ? model.GetComponentInChildren<SkinnedMeshRenderer>() : null;
+            return sk ? sk.sharedMesh : null;
+        }
+
+        /// <summary>The skin as posed now: the lowest point of the middle strip under the hips (a rider's thighs and a kurta's
+        /// hem hang lower beside / before it), the top of the head, the lowest point under the left ankle.</summary>
+        Vector3 MeasureFit(int kind, Transform hips)
+        {
+            var f = new Vector3(NominalButt, 0.85f, kind >= 2 ? NominalSoleAstride : NominalSoleSeated);
+            var skins = model.GetComponentsInChildren<SkinnedMeshRenderer>();
+            var ankle = anim.GetBoneTransform(HumanBodyBones.LeftFoot);
+            if (skins.Length == 0 || !ankle) return f;
+            float low = float.MaxValue, top = float.MinValue, sole = float.MaxValue;
+            Vector3 hp = hips.position, ap = ankle.position, R = transform.right, U = transform.up, F = transform.forward;
+            var m = new Mesh();
+            var verts = new List<Vector3>();
+            foreach (var sk in skins)
+            {
+                if (!sk.sharedMesh || !sk.enabled) continue;
+                sk.BakeMesh(m, false);   // unscaled: TransformPoint below puts the renderer's own scale on
+                m.GetVertices(verts);
+                var tr = sk.transform;
+                foreach (var v in verts)
+                {
+                    Vector3 w = tr.TransformPoint(v);
+                    Vector3 d = w - hp;
+                    float dy = Vector3.Dot(d, U);
+                    if (dy > top) top = dy;
+                    float dx = Vector3.Dot(d, R), dz = Vector3.Dot(d, F);
+                    if (dy < 0f && Mathf.Abs(dx) < 0.04f && dz < 0f && dz > -0.10f && dy < low) low = dy;
+                    Vector3 da = w - ap;
+                    float ay = Vector3.Dot(da, U);
+                    if (ay < 0.05f && (da - U * ay).magnitude < 0.14f && ay < sole) sole = ay;
+                }
+            }
+            if (Application.isPlaying) Destroy(m); else DestroyImmediate(m);
+            if (low < 0f && low > -0.4f) f.x = -low;
+            if (top > 0.3f && top < 1.5f) f.y = top;
+            if (sole < 0f && sole > -0.3f) f.z = -sole;
+            var key = FitKey();
+            if (key) fitCache[(key, kind)] = f;
+            return f;
         }
 
         /// <summary>Aimed pistol: the chest tips up or down to the target on top of the clip.</summary>
@@ -500,7 +626,18 @@ namespace Nainital
                 anim.applyRootMotion = false;
                 anim.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
                 full = false;
-                foreach (var prm in anim.parameters) if (prm.name == "Knocked") full = true;
+                rideAnim = false;
+                foreach (var prm in anim.parameters) { if (prm.name == "Knocked") full = true; if (prm.name == "Ride") rideAnim = true; }
+                // the pack's clips may be missing on a PC that has not imported it (not in git): then the states are empty
+                bool rideClip = false, gripClip = false;
+                foreach (var c in anim.runtimeAnimatorController.animationClips)
+                {
+                    if (!c) continue;
+                    if (c.name == "AS_Idle_Riding") rideClip = true;
+                    if (c.name == "Human@ObjectGripHands01") gripClip = true;
+                }
+                rideAnim = rideAnim && rideClip;
+                gripLayer = gripClip ? anim.GetLayerIndex("Grip") : -1;
                 skinSpine = B("Spine");
                 skinChest = B("Chest");
             }
@@ -907,11 +1044,12 @@ namespace Nainital
             {
                 // the clips do the legs, falls, swims, sitting, driving, fights, hits, rolls and deaths: the procedural pose
                 // only for the arms (hands up, the stretcher, the guard) and the seated poses on a bike or in a boat
-                fullT = riding || rowing ? seatW : 0f;
+                bool procRide = (riding && !rideAnim) || rowing;   // with the motorbike pack the clips ride too
+                fullT = procRide ? seatW : 0f;
                 upperT = Mathf.Max(blockW, poseW);
                 rolling = false;
                 mRot = Vector3.zero;
-                mPos = riding || rowing ? new Vector3(0f, mPos.y, 0f) : Vector3.zero;
+                mPos = procRide ? new Vector3(0f, mPos.y, 0f) : Vector3.zero;
             }
             fullW = Mathf.MoveTowards(fullW, fullT, dt * 10f);
             upperW = Mathf.MoveTowards(upperW, upperT, dt * 9f);
@@ -924,7 +1062,7 @@ namespace Nainital
             for (int i = 0; i < JC; i++)
                 if (joints[i]) joints[i].localRotation = Quaternion.Slerp(joints[i].localRotation, Quaternion.Euler(tgt[i]), k01);   // a bone can be gone while the editor rebuilds the world
             if (skinBones != null) { ApplySkin(); if (fullClips) ApplyAimBend(); }
-            if (fullClips && (seated || driving) && !riding && !rowing) { SeatLock(); return; }
+            if (fullClips && (((seated || driving) && !riding) || RideNow) && !rowing) { SeatLock(); return; }
             if (rolling)
             {
                 model.localRotation = rollRot;

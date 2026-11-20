@@ -106,7 +106,7 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    - On the iPhone, allow the app in **Settings → General → VPN & Device Management**.
    - With a free Apple ID the app works for 7 days. Re-install it from Sideloadly to refresh.
 
-## Work in progress (last updated 20 Nov 2026)
+## Work in progress (last updated 21 Nov 2026, 03:00)
 
 **Next PC, in this order (21 Nov 2026):**
 
@@ -115,8 +115,9 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 2. **Nainital > 2. Build World** (~17 min) - `world.json` changed on 19-21 Nov (Street View fit + Mall Road joins).
    After a build, reopen `Scenes/Nainital.unity` before taking screenshots from a script (the forest is not drawn in
    them otherwise).
-3. Vehicles: **Nainital > Vehicle Setup**, Play. Set up each of the 20 new vehicles (seats, lamps, doors) and press
-   OK - nothing is approved yet, so the game does not use them yet. Blender source: `Tools/newvehicles/NewVehicles_v06.blend`;
+3. Vehicles: **all 20 are set up and approved by the owner (21 Nov) and fitted to each model's shape** - open items
+   (small cabins vs tall characters, a few hands / feet short, the tool's Snap rule) are in **`docs/VEHICLES.md` section 0**;
+   do those first. **Nainital > Vehicle Setup**, Play, to look at them. Blender source: `Tools/newvehicles/NewVehicles_v06.blend`;
    after editing it run `blender -b NewVehicles_v06.blend -P export_unity.py -- Assets\Nainital\Vehicles\New`, then
    `call VehicleSetupWindow.FixMaterials`. Turn Auto Keying OFF in Blender (it broke v05). Details: `docs/VEHICLES.md` 9.0.
 4. More Street View routes (Brave extension "Street View 360 Saver", `C:\Users\<you>\tools\streetview-360` on the main PC;
@@ -124,11 +125,48 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    `Tools/fit_mall_streetview.py`, run it, **then `Tools/fix_mall_road.py`** (the fit starts again from
    `Generated/world.before_svfit.json` and would undo the clean-up), then Build World. The ~500 m of Mall Road between
    the 19 Nov routes is not fitted yet.
+4b. **Asset Store packs (not in git)**: in Package Manager > My Assets, download and import "Motorcycle Interaction
+   Animset FREE" (SpectraMotions) and "Human Basic Motions FREE" (Kevin Iglesias), then **Nainital > 6b. Build character
+   animator**. Without them riders keep the old procedural pose. Never commit `Assets/MotoInteractionAnimsFREE/` or
+   `Assets/Kevin Iglesias/` (the repo is public).
 5. Open: car doors, `Steering` objects and `Dmg_*` keys on the new vehicles; the game using the approved setups; Mall
    Road heights (Lower Mall 4-6 m over the water, real ~1.5 m - needs `process_data.py` and the raw data); real shop
    names along the routes.
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
+
+### Changed on 21 Nov (early morning): the owner's 20 vehicle setups checked and fitted to the models
+
+Owner: "sab krdi hain maine..check kro", then "krskte ho theek? perfect precision ke saath?", then "iske baad agar koi
+dikkat ho ya kuch change ho to push instruction pe daaldena".
+
+| What | Where |
+|---|---|
+| Every seat fitted to the model: hips on the cushion's top (+ 0.12 m), feet on the floor ahead of it, people moved off open floor / out of the boot / out of each other (bus_roadways 13-17, bus_tourist 19-20, street160 pillion, suv_boxy rear, tallboy driver) | `Assets/Resources/VehicleSetup/*.json` (approved kept), `Tools/vehicles/fit_vehicle_seats.py`; before: `Tools/vehicles/setups_before_fit_21nov/` |
+| Each character sits on its own body (seat of the trousers, head under the roof, sole) - measured once per pose from its skin | `Runtime/Characters/HumanoidRig.cs` (`SeatLock`, `NominalButt`, `seatRoof`, `SoleLift`), `HandIK.cs` |
+| Seats store the sitting surface and the roof's inside | `VehicleSetupData.Seat.surface / roof` |
+| Measuring tools: surfaces along each seat line, side scan, handlebar ends, two-sided cut views with a ruler, body offsets; sheet logs butt-gap / head-room | `Editor/VehicleSetupShots.cs`, `Tools/vehicles/*.py`, `*.ps1` |
+
+What is still open (small cabins vs tall characters - owner to decide; a few hands / feet short; Snap still on the old
+rule): `docs/VEHICLES.md` **section 0**.
+
+### Changed on 20 Nov (night): Vehicle Setup - lamp position fields, feet on the floor and the pegs
+
+Owner: "vehicle light transform position ka option nahi diya, or bike pe and car me bethne ka animation bhi theek nahi hai".
+
+| What | Where |
+|---|---|
+| Lamps: Position / Rotation fields, Snap to body, x <-> 0 | `Editor/VehicleSetupWindow.cs` `LampRows`, `SnapLamp` |
+| Feet IK (every seat), FL / FR markers, Snap / Snap everyone / Feet to default, new vehicles snapped by themselves | `Runtime/Characters/HandIK.cs`, `VehicleSetupWindow.cs` `DefaultFeet`, `SnapSeats`; `VehicleSetupData.Seat.feet / footL / footR` |
+| Riders lean to the grips when the arms are short; grips found on the bar mesh; rider seated an arm's reach behind them | `HandIK.Reach`, `VehicleSetupWindow.Grips`, `Default()` |
+| Check sheets of the tool's vehicles (cut views, hand / foot misses), interior probe, clip muscle report | `Editor/VehicleSetupShots.cs`, `Editor/ClipPoseReport.cs` |
+| Riding from real clips: Ride (rider, Lean blend) / PillionRide states, Mount / Dismount / BikeStart, fingers gripping the wheel / grips (Asset Store packs, NOT in git) | `Editor/AnimKit.cs` (`Store`), `HumanoidRig` (`lean`, `HasRideClips`, Grip layer), `.gitignore` |
+| Fixed: the car get-in / pulled-out / honk triggers never existed in the animator (since 19 Nov) | `Editor/AnimKit.cs` |
+
+Why the car looked wrong: every Mixamo sitting clip (Driving too) is a chair pose, shins straight down; a car seat is ~0.27 m
+over the floor, so the feet went through the floor and out under the car. Not done: the two free Asset Store packs for real
+riding / low-seat clips were then imported by the owner (docs/VEHICLES.md section 5): the motorbike pack gives real
+riding; the Kevin Iglesias pack has no sitting clips in its free version (only the finger grip is used).
 
 ### Added on 19-20 Nov: an unbranded vehicle set, the Vehicle Setup tool, hands on the wheel, Mixamo clips for getting in and out
 
