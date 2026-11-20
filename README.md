@@ -108,6 +108,26 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 ## Work in progress (last updated 20 Nov 2026)
 
+**Next PC, in this order (21 Nov 2026):**
+
+1. `git pull` (LFS on). Open the project (Unity 6000.4.1f1, or 6000.3.28f1 - do not commit the `.meta` /
+   `ProjectSettings` / `packages-lock.json` changes 6000.3 makes).
+2. **Nainital > 2. Build World** (~17 min) - `world.json` changed on 19-21 Nov (Street View fit + Mall Road joins).
+   After a build, reopen `Scenes/Nainital.unity` before taking screenshots from a script (the forest is not drawn in
+   them otherwise).
+3. Vehicles: **Nainital > Vehicle Setup**, Play. Set up each of the 20 new vehicles (seats, lamps, doors) and press
+   OK - nothing is approved yet, so the game does not use them yet. Blender source: `Tools/newvehicles/NewVehicles_v06.blend`;
+   after editing it run `blender -b NewVehicles_v06.blend -P export_unity.py -- Assets\Nainital\Vehicles\New`, then
+   `call VehicleSetupWindow.FixMaterials`. Turn Auto Keying OFF in Blender (it broke v05). Details: `docs/VEHICLES.md` 9.0.
+4. More Street View routes (Brave extension "Street View 360 Saver", `C:\Users\<you>\tools\streetview-360` on the main PC;
+   it saves `Downloads\StreetView360\route_*`): add the route and its stretches to `SEGMENTS` / `STREET_EDITS` in
+   `Tools/fit_mall_streetview.py`, run it, **then `Tools/fix_mall_road.py`** (the fit starts again from
+   `Generated/world.before_svfit.json` and would undo the clean-up), then Build World. The ~500 m of Mall Road between
+   the 19 Nov routes is not fitted yet.
+5. Open: car doors, `Steering` objects and `Dmg_*` keys on the new vehicles; the game using the approved setups; Mall
+   Road heights (Lower Mall 4-6 m over the water, real ~1.5 m - needs `process_data.py` and the raw data); real shop
+   names along the routes.
+
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
 
 ### Added on 19-20 Nov: an unbranded vehicle set, the Vehicle Setup tool, hands on the wheel, Mixamo clips for getting in and out

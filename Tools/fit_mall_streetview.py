@@ -230,6 +230,9 @@ def main():
     with open(world_path, "w", encoding="utf-8") as f:
         json.dump(world, f, separators=(",", ":"))
     print(f"  wrote {world_path}")
+    # this starts from the world as it was before the first fit, so the later clean-up must run again after it
+    print("  NEXT: python -I Tools/fix_mall_road.py Assets/Nainital/Data/world.json  (Tallital junction, houses / trees "
+          "out of the carriageways), then Nainital > 2. Build World")
 
 
 def point_in(poly, q):
