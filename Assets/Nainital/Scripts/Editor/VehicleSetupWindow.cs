@@ -57,6 +57,9 @@ namespace Nainital.EditorTools
         readonly List<(GameObject l, GameObject r)> hands = new List<(GameObject, GameObject)>();
         readonly List<(Transform t, Quaternion rest, VehicleSetupData.Door d)> doors = new List<(Transform, Quaternion, VehicleSetupData.Door)>();
         readonly Dictionary<string, float> doorOpen = new Dictionary<string, float>();
+        // doors that come with their own opening animation in the FBX (the buses' folding doors, 21 Nov): the slider scrubs
+        // the clip instead of swinging the door about a hinge
+        readonly Dictionary<string, AnimationClip> doorClips = new Dictionary<string, AnimationClip>();
         readonly List<(SkinnedMeshRenderer r, int i, string name)> damage = new List<(SkinnedMeshRenderer, int, string)>();
         float spin, wheelR = 0.33f;
         Bounds box;
@@ -389,10 +392,38 @@ namespace Nainital.EditorTools
             return b;   // the vehicle stands at the origin unrotated: world = vehicle space
         }
 
+        /// <summary>A wheel's radius from its mesh: the larger of the mesh's own half height and half length, in metres. (The
+        /// renderer's world box of a wheel turned about its axle is a turned box - up to 40 % too big: the buses and bike
+        /// 13 read 0.68 / 0.37 m for 0.50 / 0.27 m wheels, 21 Nov.)</summary>
+        static float WheelRadius(Transform t)
+        {
+            var mf = t.GetComponent<MeshFilter>();
+            if (!mf || !mf.sharedMesh) return 0f;
+            Vector3 e = mf.sharedMesh.bounds.extents, s = t.lossyScale;
+            float[] r = { Mathf.Abs(e.x * s.x), Mathf.Abs(e.y * s.y), Mathf.Abs(e.z * s.z) };
+            System.Array.Sort(r);
+            return r[1];   // a wheel is a disc: two of its extents are the radius, the smallest is half its width
+        }
+
         /// <summary>Wheels, handlebar, doors and damage keys of the model, by their names.</summary>
         void Scan()
         {
-            wheels.Clear(); bars.Clear(); steeringWheels.Clear(); doors.Clear(); damage.Clear(); doorOpen.Clear(); spin = 0f;
+            wheels.Clear(); bars.Clear(); steeringWheels.Clear(); doors.Clear(); damage.Clear(); doorOpen.Clear(); doorClips.Clear(); spin = 0f;
+            string modelPath = items.Count > 0 && items[index].source ? AssetDatabase.GetAssetPath(items[index].source) : null;
+            if (!string.IsNullOrEmpty(modelPath))
+                foreach (var clip in AssetDatabase.LoadAllAssetsAtPath(modelPath).OfType<AnimationClip>())
+                {
+                    if (clip.name.StartsWith("__preview__")) continue;
+                    foreach (var b in AnimationUtility.GetCurveBindings(clip))
+                    {
+                        string leaf = b.path.Substring(b.path.LastIndexOf('/') + 1);
+                        if (!leaf.StartsWith("Door_", System.StringComparison.OrdinalIgnoreCase)) continue;
+                        // only a door whose own curves change: a baked clip also carries flat keys for the other parts
+                        var c = AnimationUtility.GetEditorCurve(clip, b);
+                        if (c != null && c.keys.Length > 1 && Mathf.Abs(c.keys[0].value - c.keys[c.keys.Length - 1].value) > 1e-3f)
+                            doorClips[leaf] = clip;
+                    }
+                }
             var saved = data.doors.ToDictionary(d => d.name, d => d);
             var newDoors = new List<VehicleSetupData.Door>();
             foreach (var t in vehicle.GetComponentsInChildren<Transform>(true))
@@ -406,8 +437,8 @@ namespace Nainital.EditorTools
                     // handlebar carries round with it
                     var inv = t.parent ? Quaternion.Inverse(t.parent.rotation) : Quaternion.identity;
                     wheels.Add(new Wheel { t = t, rest = t.localRotation, front = front, axle = inv * vehicle.transform.right, up = inv * vehicle.transform.up });
-                    var r = t.GetComponent<Renderer>();
-                    if (r) wheelR = Mathf.Max(0.15f, r.bounds.extents.y);
+                    float wr = WheelRadius(t);
+                    if (wr > 0f) wheelR = Mathf.Max(0.15f, wr);
                 }
                 else if (n.StartsWith("Handle", System.StringComparison.OrdinalIgnoreCase) || n.StartsWith("Fork", System.StringComparison.OrdinalIgnoreCase))
                     bars.Add((t, t.localRotation));
@@ -451,7 +482,7 @@ namespace Nainital.EditorTools
                 {
                     float off = Vector3.ProjectOnPlane(r.bounds.center - w.t.position, vehicle.transform.right).magnitude;   // along the axle does not wobble
                     checks.Add(off > 0.04f ? $"⚠ {w.t.name}: origin {off * 100f:F0} cm off the wheel's centre - it will wobble (Blender: Origin to Geometry)"
-                                           : $"✓ {w.t.name}: origin at the centre, radius {r.bounds.extents.y:F2} m" + (w.viaBar ? ", steers with " + w.t.parent.name : ""));
+                                           : $"✓ {w.t.name}: origin at the centre, radius {WheelRadius(w.t):F2} m" + (w.viaBar ? ", steers with " + w.t.parent.name : ""));
                 }
             }
             if (barSteer)
@@ -483,6 +514,7 @@ namespace Nainital.EditorTools
             {
                 var r = t.GetComponent<Renderer>();
                 if (!r) continue;
+                if (doorClips.TryGetValue(t.name, out var dc)) { checks.Add($"✓ {t.name}: opens with its own animation ({dc.name}, {dc.length:F2} s) - the slider plays it"); continue; }
                 Vector3 c = r.bounds.center, e = r.bounds.extents;
                 Vector3 o = t.position - c;
                 bool onEdge = Mathf.Abs(o.z) > e.z * 0.6f || Mathf.Abs(o.y) > e.y * 0.6f || Mathf.Abs(o.x) > e.x * 0.6f;
@@ -650,6 +682,14 @@ namespace Nainital.EditorTools
         {
             if (!Application.isPlaying || !vehicle) return;
             float dt = 1f / 60f;
+            // the doors with their own clip first: sampling a baked clip puts every part it carries back at rest, so the
+            // wheels, the handlebar and the hinged doors are posed after it
+            foreach (var clip in doorClips.Values.Distinct())
+            {
+                float o = 0f;
+                foreach (var kv in doorClips) if (kv.Value == clip && doorOpen.TryGetValue(kv.Key, out float v)) o = Mathf.Max(o, v);
+                clip.SampleAnimation(vehicle, o * clip.length);
+            }
             if (wheels.Count > 0)
             {
                 spin += driveSpeed / wheelR * Mathf.Rad2Deg * dt;
@@ -667,7 +707,7 @@ namespace Nainital.EditorTools
             }
             foreach (var (t, rest, d) in doors)
             {
-                if (!t) continue;
+                if (!t || doorClips.ContainsKey(d.name)) continue;
                 doorOpen.TryGetValue(d.name, out float o);
                 float a = d.openDeg * o * (d.flip ? -1f : 1f);
                 Vector3 axis = d.hinge == DoorHinge.Side ? Vector3.up : Vector3.right;

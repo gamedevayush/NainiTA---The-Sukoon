@@ -38,8 +38,24 @@ for col in bpy.data.collections:
     renamed = []
     if body.name == col.name:
         renamed.append((body, body.name)); body.name = "Body"
+    # objects that keep an animation (the bus doors' fold / slide, 21 Nov): their location keys must move with the
+    # collection too, and the FBX gets the animation baked over their key range
+    animated = [o for o in objs if o.animation_data and o.animation_data.action]
+    shifted = []
     for o in tops:
         o.location -= off
+        if o in animated:
+            for fc in o.animation_data.action.fcurves:
+                if fc.data_path == "location":
+                    d = off[fc.array_index]
+                    for k in fc.keyframe_points:
+                        k.co.y -= d; k.handle_left.y -= d; k.handle_right.y -= d
+                    shifted.append((fc, d))
+    sc = bpy.context.scene
+    frames = sorted({k.co.x for o in animated for fc in o.animation_data.action.fcurves for k in fc.keyframe_points})
+    if frames:
+        sc.frame_start, sc.frame_end = int(frames[0]), int(frames[-1])
+    sc.frame_set(sc.frame_start)
     # the collection may be excluded / hidden in the saved file (he edits one vehicle at a time): an object that is not
     # in the view layer cannot be selected, and the FBX came out empty (20 Nov). Only this background copy changes.
     def show(lc):
@@ -57,9 +73,14 @@ for col in bpy.data.collections:
     bpy.ops.export_scene.fbx(
         filepath=path, use_selection=True, object_types={"MESH", "EMPTY"}, mesh_smooth_type="FACE",
         use_mesh_modifiers=False, path_mode="COPY", embed_textures=True, apply_scale_options="FBX_SCALE_ALL",
-        axis_forward="-Z", axis_up="Y", bake_space_transform=True, add_leaf_bones=False, bake_anim=False)
+        axis_forward="-Z", axis_up="Y", bake_space_transform=True, add_leaf_bones=False, bake_anim=bool(animated),
+        bake_anim_use_all_bones=False, bake_anim_use_nla_strips=False, bake_anim_use_all_actions=False,
+        bake_anim_force_startend_keying=True, bake_anim_step=1.0, bake_anim_simplify_factor=0.0)
     for o in tops:
         o.location += off
+    for fc, d in shifted:
+        for k in fc.keyframe_points:
+            k.co.y += d; k.handle_left.y += d; k.handle_right.y += d
     for o, n in renamed:
         o.name = n
     # the textures as plain PNGs too: Unity left the embedded ones off the URP materials (19 Nov), so

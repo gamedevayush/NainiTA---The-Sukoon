@@ -143,7 +143,28 @@ in Brave Profile 1 (signed in with Google); reading the site token from a script
 - `bpy.ops.object.select_all` fails in background mode when the blend was saved in edit mode (the script selects directly).
 - Wheel "origin off" was mostly along the axle (harmless); the tool measures across the axle only.
 
-## 9. PENDING - hand-off of 20 Nov 2026, 04:00 (the owner went to sleep; do these on the next PC, in this order)
+## 9.0 DONE on 21 Nov 2026 (main PC) - read this first
+
+Sections 9.1-9.3 below were done; the current blend is **`Tools/newvehicles/NewVehicles_v06.blend`**, made from v05 by
+`Tools/newvehicles/fix_v06.py` (v04 is not in git, so the doors were fixed without it):
+
+| Item | What was done |
+|---|---|
+| Auto Keying | Off. The 19 one-frame actions are gone (transforms kept); only the two bus doors keep their animation |
+| Bus doors | Each door's mesh slid back into its opening by matching the door's open edges to the body's (`diag/door_fit.py`, renders `diag/door_try.py`): roadways (-0.28, -0.41, +0.07) m, coach (+0.12, -0.45, +0.16) m. Their fold / slide animation is kept. No stray faces were found on the coach's door |
+| Door names | **Both buses have their passenger door on the vehicle's RIGHT** (-X; front is -Y, so right is -X), next to the driver: `Door_FR` is the right name for both (the "rename it Door_FL" in 9.2 step 5 was a slip) |
+| Bike 13 | The handlebar's key removed and its raked rotation put back (the mesh was counter-rotated for it, so it is where the owner made it); Wheel_F back on the wheel centre below the steering axis |
+| Mirrors | The negative scales of the 01 / 02 / 11 bodies, the coach's door and bike 12's front wheel are baked into the meshes (world shape unchanged, scale positive) |
+| Right-hand drive | Checked by renders (`diag/windscreen_check.py`, `diag/cabin_check.py`): 00, 01, 02, 03, 06, 07, 09, 11 have the steering wheel on the right; 04, 05, 08, 10 have opaque glass (no cabin to see). **Nothing more had to be mirrored**; 00_bus_roadways was already right-hand drive |
+| Van | 10_car_van's `Wheel_R` (both rear wheels in one mesh) sat 0.75 m to the left - a one-frame key held it there; slid back under the body |
+| Export | `export_unity.py` now bakes the doors' animation into the FBX (and moves their location keys with the collection) |
+| Unity | 20 FBX imported, `FixMaterials` + `ImportCheck` clean (every model along z, every material textured); the 20 Nov code compiled with no errors; `NewVehicleImport` also renames the clip's curves (Door_FR.001 -> Door_FR); the tool's door slider plays the door's own clip when it has one; the wheel radius comes from the mesh (the rotated wheels' world box read up to 40 % big) |
+| Tried in Play | car_hatch_small, car_suv_boxy, bike_commuter125, tuktuk_auto, bus_roadways, bus_tourist: Checks all green (only "no Steering object" info on cars / buses), handlebar steering with the rider's hands on the grips, the coach's door opening from its clip with the driver on the right, the "player gets in" preview, Save (the test file was deleted: setups are the owner's to make and approve) |
+
+**Still open:** car doors, `Steering` objects and the `Dmg_*` shape keys (not made yet); the game using the approved
+setups (section 5); the Mall Road items in 9.4.
+
+## 9. (was PENDING) - hand-off of 20 Nov 2026, 04:00 (the owner went to sleep; do these on the next PC, in this order)
 
 The owner's last words: "jitna theek hai vo bhej do, jitna reh gaya hai vo agle PC ko likh do, taaki wahan chalaun to
 theek kar de". Also: **every car and bus must be right-hand drive** (steering on the vehicle's right, as in India) -

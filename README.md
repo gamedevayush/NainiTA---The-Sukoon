@@ -117,18 +117,16 @@ how to use the tool, what is left).
 
 | # | What | State |
 |---|---|---|
-| 1 | 22 original Indian-looking vehicles, no brand, no logo (Flow design -> Tripo 30k -> Blender) | 20 in the main blend `Tools/newvehicles/NewVehicles_v05.blend` (the owner removed the retro 350 and the electric scooty); cut into Body / wheels / handlebar / bus doors |
-| 2 | One FBX per vehicle in `Assets/Nainital/Vehicles/New` (+ PNG textures, URP materials) | Exported 20 Nov 03:17; **not imported into Unity yet on the main PC** - the first Unity start imports them, then run `call VehicleSetupWindow.FixMaterials` |
-| 3 | **Nainital > Vehicle Setup** (scene VehicleSetup, Play): every vehicle one at a time with all its people in their poses (Drive / Sit / Ride / Pillion / SideSaddle), entry points, head/tail lamps + night preview, door sliders, damage sliders, wheels spinning forward/back + steering, the "player gets in" preview, Checks for the Blender parts, Save / OK | The 19 Nov version compiled in batch; the 20 Nov changes (hands, handlebar steering, three-wheelers, Checks, `NewVehicleImport`) are **not compiled yet**; **not tried in Play yet** |
-| 4 | Hands on the steering wheel / handlebar grips (`HandIK`, wrist points per seat, ride on the handlebar / `Steering`) | Written 20 Nov, not compiled yet |
+| 1 | 22 original Indian-looking vehicles, no brand, no logo (Flow design -> Tripo 30k -> Blender) | 20 in the main blend **`Tools/newvehicles/NewVehicles_v06.blend`** (21 Nov: v05 + `fix_v06.py` - doors, bike 13, keys, mirrors, the van's rear wheels; every car / bus checked right-hand drive) |
+| 2 | One FBX per vehicle in `Assets/Nainital/Vehicles/New` (+ PNG textures, URP materials) | Re-exported from v06 on 21 Nov (the bus doors with their fold / slide clip), imported on the main PC, `FixMaterials` + `ImportCheck` clean |
+| 3 | **Nainital > Vehicle Setup** (scene VehicleSetup, Play): every vehicle one at a time with all its people in their poses (Drive / Sit / Ride / Pillion / SideSaddle), entry points, head/tail lamps + night preview, door sliders, damage sliders, wheels spinning forward/back + steering, the "player gets in" preview, Checks for the Blender parts, Save / OK | Compiled and tried in Play on 21 Nov (a car, an SUV, bike 125, the auto, both buses): Checks green, the bus door slider plays the door's own clip, wheel radius from the mesh |
+| 4 | Hands on the steering wheel / handlebar grips (`HandIK`, wrist points per seat, ride on the handlebar / `Steering`) | Compiled; the rider's hands follow the handlebar in Play |
 | 5 | Bikes, scooties, auto, tirri: the front wheel is a child of the `Handlebar`, which turns about its own raked axis | In the blend and the tool |
 | 6 | Mixamo: Entering / Exiting Car, Pulled From Seat, Removing Driver, Honk, Jostled Passenger, Sitting (hands on thighs), Stand To Sit, Sit To Stand | In `Characters/Anims`, triggers in the controller; Mixamo has no motorcycle riding (procedural riding + a new pillion pose) |
 
-**Next PC, start with [`docs/VEHICLES.md` section 9](docs/VEHICLES.md#9-pending---hand-off-of-20-nov-2026-0400-the-owner-went-to-sleep-do-these-on-the-next-pc-in-this-order)** (20 Nov hand-off): in v05 and the pushed FBX
-the two bus doors are displaced (their fold/slide animation keys fought my hinge change), bike 13's handlebar leans the
-wrong way, Auto Keying left one-frame keys everywhere, the owner's mirrors (right-hand drive) are held by keys, and every
-car / bus must be checked for right-hand drive; then export, import, compile, try the tool. The retro 350 and the electric
-scooty were removed on purpose.
+**The 20 Nov hand-off ([`docs/VEHICLES.md` section 9](docs/VEHICLES.md)) was done on 21 Nov** - see its section 9.0
+for what changed (both buses' doors are on the right, next to the driver: `Door_FR` for both). The retro 350 and the
+electric scooty were removed on purpose.
 
 Still to do after that: the game using the approved setups (seats, lamps, passengers, hands, doors, damage, handlebar
 steering) and the new set replacing the branded library; car doors, `Steering` objects and the `Dmg_*` shape keys in Blender.

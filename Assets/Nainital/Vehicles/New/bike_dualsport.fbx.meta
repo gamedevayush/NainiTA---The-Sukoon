@@ -1,7 +1,7 @@
 fileFormatVersion: 2
 guid: d10e02ae234da3342a5fbb362290bf87
 ModelImporter:
-  serializedVersion: 24200
+  serializedVersion: 24300
   internalIDToNameTable: []
   externalObjects:
   - first:
@@ -9,11 +9,17 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: tripo_material_3209c56f-3457-49e4-b868-89a150c35160
     second: {fileID: 2100000, guid: 919cfbf9c50be2e42aee5767ee012bbb, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: tripo_material_3209c56f-3457-49e4-b868-89a150c35160.001
+    second: {fileID: 2100000, guid: 919cfbf9c50be2e42aee5767ee012bbb, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
     materialSearch: 1
     materialLocation: 1
+    searchTexturesGlobally: 1
   animations:
     legacyGenerateAnimations: 4
     bakeSimulation: 0
