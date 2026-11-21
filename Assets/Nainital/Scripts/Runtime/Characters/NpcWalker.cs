@@ -34,7 +34,13 @@ namespace Nainital
         public bool Home { get; private set; }   // at the door: PedestrianManager takes this walker away
         /// <summary>From PedestrianManager's pool (goes back to it when its body is taken away), not a placed local.</summary>
         [System.NonSerialized] public bool pooled;
+        /// <summary>The CharacterLibrary look (its id) this walker wears: PedestrianManager seats only the looks that fit a
+        /// vehicle's seat (VehicleSetup.PickLook).</summary>
+        [System.NonSerialized] public string lookId;
         bool onBike;
+        // in a vehicle of the unbranded set: its parts and the seat's pose (VehicleParts.Sit)
+        VehicleParts seatParts;
+        SeatPose seatPose;
         Vector3 postPos, watchAt;
         Quaternion postRot;
         float watchTimer, shoutCd;
@@ -162,6 +168,7 @@ namespace Nainital
         public void EnterCar(Transform car, Vector3 seatLocal)
         {
             InCar = true;
+            seatParts = null;
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
             if (!cc) cc = GetComponent<CharacterController>();
             if (cc) cc.enabled = false;
@@ -175,9 +182,31 @@ namespace Nainital
             if (rig) { rig.seated = true; rig.driving = true; rig.speed = 0f; rig.dead = false; }
         }
 
+        /// <summary>Sit in seat n of a vehicle of the unbranded set: its pose, hands on the wheel / grips, feet on the floor /
+        /// pegs, head under its roof (VehicleParts.Sit).</summary>
+        public void EnterSeat(VehicleParts parts, int seat)
+        {
+            var s = parts ? parts.SeatData(seat) : null;
+            if (s == null) return;
+            InCar = true;
+            if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
+            if (!cc) cc = GetComponent<CharacterController>();
+            if (cc) cc.enabled = false;
+            GoingHome = Home = false;
+            path = null;
+            sit = true;
+            idle = false;
+            seatParts = parts;
+            seatPose = s.pose;
+            onBike = s.pose == SeatPose.Ride || s.pose == SeatPose.Pillion;
+            if (rig) rig.dead = false;
+            parts.Sit(transform, rig, seat);
+        }
+
         /// <summary>Out of the car at the door, then off on foot to the nearest house (the car has been taken).</summary>
         public void LeaveCar(Vector3 door, Vector3 face)
         {
+            if (seatParts) { seatParts.Leave(transform); seatParts = null; }
             InCar = false;
             onBike = false;
             var pm = PedestrianManager.Instance;
@@ -186,7 +215,7 @@ namespace Nainital
             Physics.SyncTransforms();
             if (cc) cc.enabled = true;
             sit = false;
-            if (rig) { rig.seated = false; rig.riding = false; rig.driving = false; }
+            if (rig) { rig.seated = false; rig.riding = false; rig.driving = false; rig.pillion = false; }
             pause = 0.6f;
             GoHome(pm ? pm.NearestDoor(door) : door + face * 25f);
             fleeDir = new Vector3(face.x, 0f, face.z).normalized;   // first a few steps clear of the car
@@ -239,6 +268,7 @@ namespace Nainital
             talkTimer = 0f;
             watchTimer = 0f;
             onBike = false;
+            seatParts = null;
             knockTimer = 0f;
             if (health && health.IsDead) health.Revive();
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
@@ -309,6 +339,7 @@ namespace Nainital
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
             if (!rig) return;
             float dt = Time.deltaTime;
+            if (InCar && seatParts) { VehicleSetup.Pose(rig, seatPose); return; }
             if (InCar) { rig.seated = !onBike; rig.driving = !onBike; rig.riding = onBike; rig.speed = 0f; rig.grounded = true; return; }
             shoutCd -= dt;
             if (homeAtNight)

@@ -20,6 +20,9 @@ import os, re, json, glob, sys, math, copy
 L = os.path.join(os.environ["LOCALAPPDATA"], "Unity", "Editor", "Editor.log")
 D = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Assets", "Resources", "VehicleSetup"))
 WRITE = "--write" in sys.argv
+# --out DIR: write the fitted setups there instead (to diff against the ones in the project)
+OUT = sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else None
+if OUT: WRITE = True
 NB = 0.12            # HumanoidRig.NominalButt
 SOLE = 0.08          # HumanoidRig.NominalSoleSeated
 OVER = {0: 0.51, 1: 0.51, 2: 0.40, 3: 0.40, 4: 0.51}
@@ -86,7 +89,11 @@ DRIVE_EXTRA = 0.10
 FILLED = 0.30   # a Tripo row whose footwell is filled up to the cushion: the feet where a floor 0.30 m under it would be
 OVR = {
     # the driver's cab: 0.91 is the cab floor (no cushion under him in the model); only the feet onto it
-    "bus_tourist": {0: dict(auto=False, feetY=0.99),
+    # item 5 (21 Nov, 2nd pass): the model has no cushion for him; the driver's seat is a closed block (backrest, top
+    # 1.92, underside 1.33, z 3.29-3.59; Tools/newvehicles/diag/cut_render.py) and he sat INSIDE it (root z 3.48). Now
+    # his back is against its front face (hips z 3.71), hips 0.12 over the block's underside (1.45), feet on the cab
+    # floor (0.91) under the wheel
+    "bus_tourist": {0: dict(auto=False, ry=0.94, rz=3.71, surface=1.33, feetY=0.99, feetZ=3.95),
                     **{i: dict(feetY=1.63) for i in range(1, 25)},
                     # the last row: the next seat's backrest stands 5 cm past the cushion - feet under its overhang
                     21: dict(feetY=1.63, feetZ=-1.66), 22: dict(feetY=1.63, feetZ=-1.66),
@@ -114,8 +121,28 @@ OVR = {
     # the passengers' floor (0.60) runs to z 0.06: the feet out on it, not tucked against the bench
     "tuktuk_auto": {1: dict(feetZ=-0.05), 2: dict(feetZ=-0.05)},
     # the pillion pegs high and near (a street bike's step seat), the grips symmetric at the bar ends (+-0.40) less 6 cm
-    "bike_street160": {1: dict(feetY=0.54, feetZ=-0.42, footLX=-0.20, footRX=0.20)},
+    "bike_street160": {1: dict(feetY=0.54, feetZ=-0.42, footLX=-0.20, footRX=0.20),
+                       # 21 Nov (2nd pass, item 2): the hands were on the switch housings (+-0.27, z 0.30), 20 cm short; the
+                       # grips are the bar's ends (RunBar: +-0.44 at y 1.00-1.10, z 0.40) less 6 cm in / 2 cm down. The
+                       # rider onto the front of the seat dip (0.83 from z -0.26 to -0.21, the tank rises from -0.16) and a
+                       # street bike's lean (bend 18)
+                       0: dict(rz=-0.20, handL=(-0.38, 1.03, 0.39), handR=(0.38, 1.03, 0.39), bend=18)},
     "scooty_neoretro": {0: dict(handL=(-0.34, 1.07, 0.19), handR=(0.34, 1.07, 0.19), bend=8)},
+    # item 2: the right hand was on the cowl (0.19, 1.10, 0.17), the left 8 cm in from its grip; the grips are the bar's
+    # ends (RunBar: +-0.36 at y 0.95-1.05, z 0.36). The rider onto the front of the seat (0.80 from z -0.21 to -0.06)
+    "scooty_family": {0: dict(rz=-0.15, handL=(-0.30, 0.98, 0.36), handR=(0.30, 0.98, 0.36))},
+    # item 3: the drivers' feet 0.62 m ahead of the root were 9-10 cm out of reach: 0.50 m ahead, on the floor there
+    "car_sedan_compact": {0: dict(feetAhead=0.50)},
+    "car_suv_muscular": {0: dict(feetAhead=0.50)},
+}
+# item 6 (21 Nov, 2nd pass): the auto's and the e-rickshaw's round steering wheel stood left of the centre in the model;
+# Tools/newvehicles/fix_v06_bars.py moved it onto the centre line and printed the wrists on its rim (ten-to-two)
+OVR["tuktuk_auto"][0] = dict(handL=(-0.092, 1.073, 0.778), handR=(0.092, 1.084, 0.779))
+OVR["tirri_erickshaw"][0] = dict(handL=(-0.100, 1.119, 0.653), handR=(0.094, 1.120, 0.659))
+# lamps set by hand (model: {"head" / "tail": {index: dict(euler=(x, y, z))}})
+LAMPS = {
+    # item 7: the headlight quad lay flat (euler 270.8 / 254.3 / 268.8: facing down, a thin line from the front)
+    "scooty_family": {"head": {0: dict(euler=(0.0, 180.0, 0.0))}},
 }
 
 out_rows = []
@@ -248,6 +275,17 @@ for src in sorted(glob.glob(os.path.join(SRC, "*.json"))):
             if "handL" in ov: s["handL"] = dict(zip("xyz", ov["handL"]))
             if "handR" in ov: s["handR"] = dict(zip("xyz", ov["handR"]))
             if "bend" in ov: s["bendSet"] = True; s["bend"] = float(ov["bend"])
+            if "feetAhead" in ov:
+                # both feet this far ahead of the root (along the seat's facing), on the floor there: the highest up
+                # surface 10+ cm under the hips (not a wheel), else the underbody's inside (an empty shell)
+                hips_y = s["pos"]["y"] + over
+                for k in ("footL", "footR"):
+                    s[k]["z"] = round(s["pos"]["z"] + face * ov["feetAhead"], 3)
+                    frow = row(rows_at(model, s[k]["x"]), s[k]["z"])
+                    fu = [y for (y, b, pp) in frow if not b and y < hips_y - 0.1 and not pp.startswith("Wheel")]
+                    fb = [y for (y, b, pp) in frow if b and y < hips_y]
+                    if fu or fb: s[k]["y"] = round((max(fu) if fu else min(fb)) + SOLE, 3)
+                note.append(f"feet {ov['feetAhead']:.2f} ahead at y {s['footL']['y']:.2f}/{s['footR']['y']:.2f}")
             note.append("hand-set")
         # what changed
         d = []
@@ -259,10 +297,16 @@ for src in sorted(glob.glob(os.path.join(SRC, "*.json"))):
                 dd = math.dist([s[k][c] for c in "xyz"], [o[k][c] for c in "xyz"])
                 if dd >= 0.01: d.append(f"{k} ({o[k]['x']:+.2f},{o[k]['y']:.2f},{o[k]['z']:+.2f})->({s[k]['x']:+.2f},{s[k]['y']:.2f},{s[k]['z']:+.2f})")
         out_rows.append(f"{model:18s} s{i:<2d} {POSE.get(p, p):7s} {'; '.join(d) if d else '-'}   [{' | '.join(note)}]")
+    for kind, per in LAMPS.get(model, {}).items():
+        for li, lv in per.items():
+            if li < len(new[kind]) and "euler" in lv:
+                new[kind][li]["euler"] = dict(zip("xyz", lv["euler"]))
+                out_rows.append(f"{model:18s} {kind} lamp {li}: euler -> {lv['euler']}")
     changed[f] = new
 
 print("\n".join(out_rows))
 if WRITE:
     for f, j in changed.items():
+        if OUT: os.makedirs(OUT, exist_ok=True); f = os.path.join(OUT, os.path.basename(f))
         open(f, "w", encoding="utf-8").write(json.dumps(j, indent=4))
     print(f"wrote {len(changed)} files")

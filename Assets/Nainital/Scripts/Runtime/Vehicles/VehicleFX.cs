@@ -12,10 +12,13 @@ namespace Nainital
     {
         public ParticleSystem exhaust;
         public Renderer tail;
+        /// <summary>More tail lamps (the unbranded set: one mesh per part they hang on).</summary>
+        public Renderer[] tails = new Renderer[0];
         public AudioSource engine;
 
         TrafficCar traffic;
         CarController car;
+        BikeRide bike;
         Rigidbody rb;
         float lastSpeed, brakeGlow, timer;
         MaterialPropertyBlock mpb;
@@ -26,6 +29,7 @@ namespace Nainital
         {
             traffic = GetComponent<TrafficCar>();
             car = GetComponent<CarController>();
+            bike = GetComponent<BikeRide>();
             rb = GetComponent<Rigidbody>();
             mpb = new MaterialPropertyBlock();
             if (engine && AudioManager.Instance) engine.clip = AudioManager.Instance.engineClip;
@@ -36,8 +40,8 @@ namespace Nainital
             float dt = Mathf.Max(Time.deltaTime, 1e-4f);
             if (!traffic) traffic = GetComponent<TrafficCar>();
             bool driven = car && CarController.Driving == car;
-            bool running = traffic || driven;
-            float speed = traffic ? traffic.Speed : (rb && !rb.isKinematic ? rb.linearVelocity.magnitude : 0f);
+            bool running = traffic || driven || (bike && !bike.Crashed);   // a two-wheeler is always ridden
+            float speed = traffic ? traffic.Speed : bike ? bike.Speed : (rb && !rb.isKinematic ? rb.linearVelocity.magnitude : 0f);
             float accel = (speed - lastSpeed) / dt;
             lastSpeed = speed;
             float throttle = driven ? Mathf.Abs(GameInput.Move.y) : Mathf.Clamp01(accel / 2.5f);
@@ -45,17 +49,20 @@ namespace Nainital
             brakeGlow = Mathf.MoveTowards(brakeGlow, braking ? 1f : 0f, dt * (braking ? 10f : 3f));
 
             // tail lamps: on at night (VehicleLamps), and bright whenever braking
-            if (tail)
+            if (tail || tails.Length > 0)
             {
                 var dn = DayNightCycle.Instance;
                 bool night = dn && dn.NightFactor > 0.3f;
                 bool show = running && (night || brakeGlow > 0.05f);
-                if (tail.enabled != show) tail.enabled = show;
-                if (show)
+                if (show) mpb.SetColor(ColorId, Color.Lerp(night ? TailNight : TailNight * 0.6f, TailBrake, brakeGlow));
+                void Light(Renderer r)
                 {
-                    mpb.SetColor(ColorId, Color.Lerp(night ? TailNight : TailNight * 0.6f, TailBrake, brakeGlow));
-                    tail.SetPropertyBlock(mpb);
+                    if (!r) return;
+                    if (r.enabled != show) r.enabled = show;
+                    if (show) r.SetPropertyBlock(mpb);
                 }
+                Light(tail);
+                foreach (var r in tails) Light(r);
             }
 
             // exhaust: idle puffs, more when pulling away

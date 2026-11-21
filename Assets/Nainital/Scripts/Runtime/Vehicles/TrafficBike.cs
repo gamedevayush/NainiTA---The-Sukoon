@@ -35,9 +35,19 @@ namespace Nainital
             if (obstacleMask < 0) obstacleMask = (1 << VehicleFactory.VehicleLayer) | (1 << 8) | (1 << 9);
             bike.Place(Lane(idx), Lane(idx + dir) - Lane(idx));
             var pm = PedestrianManager.Instance;
-            if (pm) rider = pm.MakeRider(bike.model, bike.SeatLocal);
+            var vp = bike.Parts;
+            if (pm && vp && vp.HasSetup)
+            {
+                // the unbranded set: the rider on the setup's seat, hands on the grips, feet on the pegs; one in three
+                // carries someone behind (a pillion, or side-saddle - whatever the setup's second seat is)
+                rider = pm.MakeSeated(vp, 0);
+                if (vp.SeatCount > 1 && Random.value < 0.35f) pillion = pm.MakeSeated(vp, 1);
+            }
+            else if (pm) rider = pm.MakeRider(bike.model, bike.SeatLocal);
             bike.OnCrash += Thrown;
         }
+
+        NpcWalker pillion;
 
         Vector3[] Pts => net.roads[road].pts;
 
@@ -174,6 +184,16 @@ namespace Nainital
         void Thrown(Vector3 carVelocity, GameObject by)
         {
             down = true;
+            if (pillion)
+            {
+                var q = pillion;
+                pillion = null;
+                Vector3 sd = Vector3.Cross(Vector3.up, carVelocity.sqrMagnitude > 0.01f ? carVelocity.normalized : transform.forward);
+                q.LeaveCar(transform.position - transform.forward * 0.5f + sd * 0.4f, sd);
+                q.Knock(carVelocity * 0.6f + Vector3.up * 3.5f);
+                var qh = q.GetComponent<Health>();
+                if (qh) qh.Damage(carVelocity.magnitude * 3f, transform.position, by);
+            }
             if (!rider) { Debug.Log($"[Nainital] bike {name} knocked over, no rider"); return; }
             var r = rider;
             rider = null;
@@ -188,6 +208,7 @@ namespace Nainital
         void OnDestroy()
         {
             if (rider) Destroy(rider.gameObject);
+            if (pillion) Destroy(pillion.gameObject);
         }
     }
 }

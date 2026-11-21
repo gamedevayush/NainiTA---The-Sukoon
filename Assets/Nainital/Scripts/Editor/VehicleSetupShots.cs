@@ -179,6 +179,128 @@ namespace Nainital.EditorTools
 
         public static void Run() => Each(() => Sheet());
 
+        /// <summary>
+        /// Who fits which seat (docs/VEHICLES.md section 0 item 1, option c; 21 Nov 2026): every character of the
+        /// CharacterLibrary in every seat of each vehicle (all seats at once, one character at a time), as it sits in the
+        /// game - its own seat fit, the roof rule, HandIK - and per seat its worst miss in cm: either foot off its target,
+        /// either hand off the wheel / the grips, the seat of its trousers off the cushion (the roof rule sinks a tall one).
+        /// Writes Assets/Resources/VehicleFits.json (vehicles not in this run keep what they had); the game seats only
+        /// those within VehicleSetup.FitCm (VehicleSetup.PickLook). Bridge: Play, then call VehicleSetupShots.RunFits with
+        /// Bridge/arg.txt = model names or all. ~2.4 s per character per vehicle (all 20: ~18 min).
+        /// Run it again after a setup changes, a character is added, or the Asset Store riding packs come in.
+        /// </summary>
+        public static void RunFits()
+        {
+            if (!EditorApplication.isPlaying) throw new System.Exception("not playing (press Play in the VehicleSetup scene)");
+            string a = Arg();
+            var names = new Queue<string>();
+            if (a.ToLowerInvariant() == "all" || a.Length == 0) foreach (var n in VehicleSetupWindow.ModelNames()) names.Enqueue(n);
+            else foreach (var n in a.Split(',')) names.Enqueue(n.Trim());
+            var lib = CharacterLibrary.Instance;
+            var ids = lib.entries.Where(e => e != null && e.prefab).Select(e => e.id).ToList();
+            var result = new Dictionary<string, List<List<(string id, int cm)>>>();
+            string cur = null;
+            int ci = 0, stage = 0;
+            double next = 0;
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying) { EditorApplication.update -= Tick; Debug.LogWarning("[Nainital] fits: Play ended, nothing written"); return; }
+                if (EditorApplication.timeSinceStartup < next) return;
+                try
+                {
+                    if (stage == 0)
+                    {
+                        if (names.Count == 0) { EditorApplication.update -= Tick; WriteFits(result); return; }
+                        cur = names.Dequeue();
+                        VehicleSetupWindow.Goto(cur);
+                        result[cur] = new List<List<(string, int)>>();
+                        ci = 0; stage = 1;
+                        next = EditorApplication.timeSinceStartup + 1.2;
+                    }
+                    else if (stage == 1)
+                    {
+                        for (int s = 0; s < VehicleSetupWindow.SeatsShown; s++) VehicleSetupWindow.SetLook(s, ids[ci]);
+                        stage = 2;
+                        next = EditorApplication.timeSinceStartup + 2.2;
+                    }
+                    else
+                    {
+                        var miss = SeatMisses();
+                        var list = result[cur];
+                        while (list.Count < miss.Count) list.Add(new List<(string, int)>());
+                        for (int s = 0; s < miss.Count; s++) list[s].Add((ids[ci], miss[s]));
+                        ci++;
+                        stage = ci < ids.Count ? 1 : 0;
+                        if (stage == 0)
+                            Debug.Log($"[Nainital] fits {cur}: " + string.Join("; ", list.Select((l, s) => $"seat {s} {l.Count(x => x.Item2 <= VehicleSetup.FitCm)}/{l.Count} fit")));
+                        next = EditorApplication.timeSinceStartup + 0.05;
+                    }
+                }
+                catch (System.Exception e) { Debug.LogWarning("[Nainital] fits " + cur + ": " + e.Message); stage = 0; }
+            }
+            EditorApplication.update += Tick;
+        }
+
+        /// <summary>Per seat of the vehicle on show: the worst of feet / hands off their targets and the seat of the
+        /// trousers off the sitting surface, cm (999: nobody there).</summary>
+        static List<int> SeatMisses()
+        {
+            var root = GameObject.Find("VEHICLE SETUP");
+            var vehicle = root.transform.GetChild(0);
+            var seats = vehicle.GetComponentsInChildren<SetupHandle>().Where(h => h.kind == SetupHandle.Kind.Seat).OrderBy(h => h.index).ToArray();
+            var outL = new List<int>();
+            foreach (var s in seats)
+            {
+                var an = s.GetComponentInChildren<Animator>();
+                var ik = s.GetComponent<HandIK>();
+                var hr = s.GetComponentInChildren<HumanoidRig>();
+                if (!an || !an.isHuman || !ik || !hr) { outL.Add(999); continue; }
+                float lift = hr.SoleLift, worst = 0f;
+                void Off(HumanBodyBones bone, Transform target, Vector3 add)
+                {
+                    var b = an.GetBoneTransform(bone);
+                    if (b && target) worst = Mathf.Max(worst, (b.position - (target.position + add)).magnitude);
+                }
+                Off(HumanBodyBones.LeftFoot, ik.footLeft, Vector3.up * lift);
+                Off(HumanBodyBones.RightFoot, ik.footRight, Vector3.up * lift);
+                Off(HumanBodyBones.LeftHand, ik.left, Vector3.zero);
+                Off(HumanBodyBones.RightHand, ik.right, Vector3.zero);
+                var sd = VehicleSetupWindow.SeatData(s.index);
+                var hips = an.GetBoneTransform(HumanBodyBones.Hips);
+                if (sd != null && sd.surface >= 0f && hips && !float.IsNaN(hr.Fit.x))
+                    worst = Mathf.Max(worst, Mathf.Abs((hips.position.y - hr.Fit.x) - sd.surface));
+                outL.Add(Mathf.RoundToInt(worst * 100f));
+            }
+            return outL;
+        }
+
+        static void WriteFits(Dictionary<string, List<List<(string id, int cm)>>> result)
+        {
+            const string path = "Assets/Resources/" + VehicleSetup.FitsResource + ".json";
+            var data = File.Exists(path) ? JsonUtility.FromJson<VehicleFitsData>(File.ReadAllText(path)) : null;
+            var models = (data?.models ?? new VehicleFitsData.Model[0]).Where(m => m != null && !result.ContainsKey(m.model)).ToList();
+            foreach (var kv in result)
+                models.Add(new VehicleFitsData.Model
+                {
+                    model = kv.Key,
+                    seats = kv.Value.Select(l =>
+                    {
+                        var sorted = l.OrderBy(x => x.cm).ThenBy(x => x.id).ToList();
+                        return new VehicleFitsData.SeatFit { ids = sorted.Select(x => x.id).ToArray(), cm = sorted.Select(x => x.cm).ToArray() };
+                    }).ToArray(),
+                });
+            bool packs = AssetDatabase.IsValidFolder("Assets/MotoInteractionAnimsFREE");
+            var outData = new VehicleFitsData
+            {
+                measured = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm") + (packs ? ", riders on the Asset Store riding clips" : ", riders on the procedural pose (no Asset Store riding pack on this PC)"),
+                models = models.OrderBy(m => m.model).ToArray(),
+            };
+            File.WriteAllText(path, JsonUtility.ToJson(outData, true));
+            AssetDatabase.ImportAsset(path);
+            VehicleSetup.ForgetFits();
+            Debug.Log($"[Nainital] fits written: {path} ({result.Count} vehicles this run, {outData.models.Length} in all)");
+        }
+
         static void Each(System.Action shoot)
         {
             if (!EditorApplication.isPlaying) throw new System.Exception("not playing (press Play in the VehicleSetup scene)");

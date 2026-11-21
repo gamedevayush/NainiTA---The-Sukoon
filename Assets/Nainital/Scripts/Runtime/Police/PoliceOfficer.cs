@@ -85,13 +85,23 @@ namespace Nainital
             Set(State.Seated);
             if (!cc) cc = GetComponent<CharacterController>();
             cc.enabled = false;
-            transform.SetParent(r.SeatParent, false);
-            transform.localPosition = r.SeatLocal(s);
-            transform.localRotation = Quaternion.identity;
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
-            rig.seated = !r.Bike;
-            rig.driving = !r.Bike && s == 0;
-            rig.riding = r.Bike;
+            // the unbranded set: the setup's seat (seat 1 = the one beside the driver), hands, feet, roof (VehicleParts)
+            var vp = r.GetComponent<VehicleParts>();
+            if (vp && vp.HasSetup)
+            {
+                vp.Sit(transform, rig, vp.SeatFor(s));
+                vp.OpenDoorFor(vp.SeatFor(s));
+            }
+            else
+            {
+                transform.SetParent(r.SeatParent, false);
+                transform.localPosition = r.SeatLocal(s);
+                transform.localRotation = Quaternion.identity;
+                rig.seated = !r.Bike;
+                rig.driving = !r.Bike && s == 0;
+                rig.riding = r.Bike;
+            }
             rig.aiming = false;
             rig.speed = 0f;
             if (gun) gun.drawn = false;
@@ -101,6 +111,13 @@ namespace Nainital
         {
             if (!ride) return;
             Vector3 door = ride.Door(seat);
+            var vp = ride.GetComponent<VehicleParts>();
+            if (vp && vp.HasSetup)
+            {
+                int vs = vp.SeatOf(transform);
+                vp.Leave(transform);
+                if (vs >= 0) door = vp.WayOut(vs, out _);
+            }
             Vector3 away = door - ride.transform.position;
             away.y = 0f;
             transform.SetParent(PoliceManager.Instance ? PoliceManager.Instance.transform : null, true);
@@ -142,6 +159,9 @@ namespace Nainital
             if (wasSeated && ride)
             {
                 // shot or crushed in the seat: he falls out beside the vehicle
+                var vp = ride.GetComponent<VehicleParts>();
+                if (vp) vp.Leave(transform);
+                rig.driving = rig.pillion = false;
                 transform.SetParent(PoliceManager.Instance ? PoliceManager.Instance.transform : null, true);
                 transform.position = Ground(ride.Door(seat));
                 cc.enabled = true;

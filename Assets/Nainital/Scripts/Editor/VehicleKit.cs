@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -126,11 +127,129 @@ namespace Nainital.EditorTools
             ExhaustMaterial();
             var lib = AssetDatabase.LoadAssetAtPath<VehicleLibrary>(LibraryPath);
             if (!lib) { lib = ScriptableObject.CreateInstance<VehicleLibrary>(); AssetDatabase.CreateAsset(lib, LibraryPath); }
+            var bikes = BuildBikes();
+            // the unbranded set (owner 19 Nov: "bilkul bhi kisi company se match na khaaye"; 21 Nov: in the game in place of
+            // the branded ones): when it is in the project it is the whole traffic; of the old models only those with no
+            // stand-in yet stay (the 108 ambulance, never in traffic)
+            var fresh = BuildNew(out var freshBikes);
+            if (fresh.Count > 0)
+            {
+                entries.RemoveAll(e => !KeepOld.Contains(e.name));
+                entries.InsertRange(0, fresh);
+                bikes = freshBikes;
+            }
             lib.entries = entries.ToArray();
-            lib.bikes = BuildBikes().ToArray();
+            lib.bikes = bikes.ToArray();
             EditorUtility.SetDirty(lib);
             AssetDatabase.SaveAssets();
-            Debug.Log($"[Nainital] vehicles: {entries.Count} prefabs + {lib.bikes.Length} two-wheelers -> {Dir}/Prefabs, library {LibraryPath}");
+            Debug.Log($"[Nainital] vehicles: {entries.Count} prefabs ({fresh.Count} of the unbranded set) + {lib.bikes.Length} two-wheelers, library {LibraryPath}");
+        }
+
+        /// <summary>Old (branded) models kept in the library beside the unbranded set: no stand-in for them yet.</summary>
+        static readonly HashSet<string> KeepOld = new HashSet<string> { "Ambulance108" };
+
+        /// <summary>What each model of the unbranded set is in the town: kind, white hill taxi or not, how common, and its
+        /// own top speed (m/s) / mass (kg) where the kind's do not fit. Two-wheelers: how common.</summary>
+        static readonly Dictionary<string, (CarType type, bool taxi, float weight, float maxSpeed, float mass)> NewRoles =
+            new Dictionary<string, (CarType, bool, float, float, float)>
+        {
+            { "car_hatch_small", (CarType.Hatchback, false, 1f, 0f, 0f) },
+            { "car_tallboy", (CarType.Hatchback, false, 1f, 0f, 0f) },
+            { "car_sedan_compact", (CarType.Sedan, false, 1f, 0f, 0f) },
+            { "car_mpv_compact", (CarType.Suv, true, 1.3f, 0f, 0f) },        // the hill taxis
+            { "car_mpv_large", (CarType.Suv, true, 1.1f, 0f, 0f) },
+            { "car_suv_boxy", (CarType.Suv, true, 1f, 0f, 0f) },
+            { "car_suv_muscular", (CarType.Suv, false, 0.9f, 0f, 0f) },
+            { "car_van", (CarType.Suv, false, 0.5f, 0f, 0f) },
+            { "car_pickup", (CarType.Pickup, false, 1f, 0f, 0f) },
+            { "truck_light", (CarType.Pickup, false, 0.6f, 0f, 0f) },
+            { "bus_roadways", (CarType.Bus, false, 0.6f, 0f, 0f) },
+            { "bus_tourist", (CarType.Bus, false, 1f, 0f, 0f) },
+            { "tuktuk_auto", (CarType.Hatchback, true, 0.25f, 12f, 450f) },   // ~45 km/h
+            { "tirri_erickshaw", (CarType.Hatchback, true, 0.25f, 7f, 500f) }, // ~25 km/h, battery
+        };
+        static readonly Dictionary<string, float> NewBikeWeights = new Dictionary<string, float>
+        {
+            { "bike_commuter100", 1.2f }, { "bike_commuter125", 1f }, { "bike_street160", 0.6f }, { "bike_dualsport", 0.4f },
+            { "scooty_family", 1f }, { "scooty_neoretro", 0.7f },
+        };
+        public const string NewDir = Dir + "/New";
+
+        /// <summary>The unbranded set (Vehicles/New, exported by Tools/newvehicles/export_unity.py; materials by
+        /// VehicleSetupWindow.FixMaterials): a prefab each (the FBX as it is - VehicleParts finds its parts by name; the
+        /// importer makes its mesh LODs), its size, its doors' own clip, its role. Cars / buses / three-wheelers go to the
+        /// library's entries, two-wheelers to its bikes.</summary>
+        static List<VehicleLibrary.Entry> BuildNew(out List<VehicleLibrary.Entry> bikes)
+        {
+            var cars = new List<VehicleLibrary.Entry>();
+            bikes = new List<VehicleLibrary.Entry>();
+            if (!AssetDatabase.IsValidFolder(NewDir)) return cars;
+            string prefabDir = NewDir + "/Prefabs";
+            Directory.CreateDirectory(prefabDir);
+            foreach (var g in AssetDatabase.FindAssets("t:Model", new[] { NewDir }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(g);
+                string name = Path.GetFileNameWithoutExtension(path);
+                var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (!model) continue;
+                var inst = (GameObject)Object.Instantiate(model);
+                inst.name = name;
+                var b = new Bounds();
+                bool first = true;
+                foreach (var r in inst.GetComponentsInChildren<Renderer>(true))
+                {
+                    r.shadowCastingMode = ShadowCastingMode.On;
+                    if (first) { b = r.bounds; first = false; } else b.Encapsulate(r.bounds);
+                }
+                var prefab = PrefabUtility.SaveAsPrefabAsset(inst, $"{prefabDir}/{name}.prefab");
+                Object.DestroyImmediate(inst);
+                // the doors the FBX's own clip moves (a baked clip carries flat keys for the other parts too)
+                AnimationClip clip = null;
+                var doors = new List<string>();
+                foreach (var c in AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>())
+                {
+                    if (c.name.StartsWith("__preview__")) continue;
+                    foreach (var bnd in AnimationUtility.GetCurveBindings(c))
+                    {
+                        string leaf = bnd.path.Substring(bnd.path.LastIndexOf('/') + 1);
+                        if (!leaf.StartsWith("Door_", System.StringComparison.OrdinalIgnoreCase) || doors.Contains(leaf)) continue;
+                        var cv = AnimationUtility.GetEditorCurve(c, bnd);
+                        if (cv != null && cv.keys.Length > 1 && Mathf.Abs(cv.keys[0].value - cv.keys[cv.keys.Length - 1].value) > 1e-3f) { doors.Add(leaf); clip = c; }
+                    }
+                }
+                var size = new Vector3(b.size.x, b.max.y, b.size.z);
+                if (VehicleSetup.TwoWheeler(name))
+                {
+                    bikes.Add(new VehicleLibrary.Entry
+                    {
+                        name = name, prefab = prefab, size = size, type = CarType.Hatchback, tint = false, wheelRadius = 0.3f, parts = true,
+                        weight = NewBikeWeights.TryGetValue(name, out var bw) ? bw : 1f,
+                    });
+                    continue;
+                }
+                (CarType type, bool taxi, float weight, float maxSpeed, float mass) role = NewRoles.TryGetValue(name, out var rr) ? rr : (CarType.Sedan, false, 1f, 0f, 0f);
+                cars.Add(new VehicleLibrary.Entry
+                {
+                    name = name, prefab = prefab, size = size, type = role.type, taxi = role.taxi, weight = role.weight, tint = false,
+                    parts = true, doorClip = clip, clipDoors = doors.ToArray(), maxSpeed = role.maxSpeed, mass = role.mass,
+                });
+            }
+            LampMaterial("M_LampHead", new Color(4f, 3.7f, 3.1f));
+            LampMaterial("M_LampTail", new Color(3f, 0.18f, 0.1f));
+            // the lamps the game builds from the setups at play time load these (Resources/VehicleFX)
+            foreach (var id in new[] { "M_LampHead", "M_LampTail" })
+            {
+                string dst = $"Assets/Resources/VehicleFX/{id}.mat";
+                var src = AssetDatabase.LoadAssetAtPath<Material>($"{Dir}/Materials/{id}.mat");
+                var m = AssetDatabase.LoadAssetAtPath<Material>(dst);
+                if (!m) { m = new Material(src); AssetDatabase.CreateAsset(m, dst); }
+                else m.CopyPropertiesFromMaterial(src);
+                m.enableInstancing = true;
+                EditorUtility.SetDirty(m);
+            }
+            cars.Sort((a, c) => string.CompareOrdinal(a.name, c.name));
+            bikes.Sort((a, c) => string.CompareOrdinal(a.name, c.name));
+            return cars;
         }
 
         /// <summary>The two-wheelers in Vehicles/Bikes (make_vehicle_lods.py output, no separate wheels): a prefab each with

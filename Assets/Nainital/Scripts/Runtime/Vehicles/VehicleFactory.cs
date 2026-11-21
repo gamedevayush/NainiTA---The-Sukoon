@@ -290,6 +290,7 @@ namespace Nainital
         /// </summary>
         public static GameObject CreateModel(VehicleLibrary.Entry e, CarType type, int paint, bool gameplay, string name)
         {
+            if (e.parts) return CreateParts(e, type, gameplay, name);
             var s = GetSpec(type);
             var root = new GameObject(name ?? e.name) { layer = VehicleLayer };
             var body = Object.Instantiate(e.prefab, root.transform, false);
@@ -403,6 +404,115 @@ namespace Nainital
                 root.AddComponent<CarController>().Setup(type, wheels, seat, lights);
                 root.AddComponent<VehicleDamage>();   // knocks: smoke, fire, blast
                 seat.localPosition = VehicleSeats.Root(root);   // the driver's seat of this model (needs the car's kind)
+            }
+            return root;
+        }
+
+        static Material lampHead, lampTail;
+
+        /// <summary>The lamp materials (unlit HDR warm white / red), kept in Resources/VehicleFX by VehicleKit.</summary>
+        public static void LampMaterials(out Material head, out Material tail)
+        {
+            if (!lampHead) lampHead = Resources.Load<Material>("VehicleFX/M_LampHead");
+            if (!lampTail) lampTail = Resources.Load<Material>("VehicleFX/M_LampTail");
+            head = lampHead;
+            tail = lampTail;
+        }
+
+        /// <summary>
+        /// A vehicle of the unbranded set (Vehicles/New): the model keeps its own parts where they are (VehicleParts spins
+        /// and steers them, opens its doors); CarController gets four empty suspension points at the tyres; the driver's
+        /// seat, the lamps and the head lights come from its approved Vehicle Setup.
+        /// </summary>
+        static GameObject CreateParts(VehicleLibrary.Entry e, CarType type, bool gameplay, string name)
+        {
+            var s = GetSpec(type);
+            var root = new GameObject(name ?? e.name) { layer = VehicleLayer };
+            var body = Object.Instantiate(e.prefab, root.transform, false);
+            body.name = "Body";
+            foreach (var t in body.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = VehicleLayer;
+            float L = e.size.z, W = e.size.x, H = e.size.y;
+            var parts = root.AddComponent<VehicleParts>();
+            parts.Init(body.transform, e.name, root.transform, e.doorClip, e.clipDoors);
+            var pts = parts.SuspensionPoints();
+            var wheels = new Transform[4];
+            for (int i = 0; i < 4; i++)
+            {
+                var w = new GameObject("Wheel" + i) { layer = VehicleLayer };
+                w.transform.SetParent(root.transform, false);
+                w.transform.localPosition = pts[i];
+                wheels[i] = w.transform;
+            }
+            parts.SetPivots(wheels);
+            float R = parts.wheelRadius;
+            var info = root.AddComponent<VehicleInfo>();
+            info.wheelRadius = R;
+            info.length = L;
+            info.width = W;
+            info.height = H;
+            info.model = e.name;
+            info.frontAxleZ = (pts[0].z + pts[1].z) * 0.5f;
+            info.rearAxleZ = (pts[2].z + pts[3].z) * 0.5f;
+            info.bodyWidth = W;
+            info.maxSpeed = e.maxSpeed;
+            info.mass = e.mass;
+            LampMaterials(out var hm, out var tm);
+            parts.BuildLamps(hm, tm, out var heads, out var tails);
+            if (heads.Length > 0) { var vl = root.AddComponent<VehicleLamps>(); vl.lamps = heads[0]; vl.more = heads; }
+            var fx = root.AddComponent<VehicleFX>();
+            fx.tails = tails;
+            fx.exhaust = Exhaust(root.transform, new Vector3(W * 0.25f, Mathf.Min(0.35f, R), -L * 0.5f));
+            var eng = new GameObject("Engine");
+            eng.transform.SetParent(root.transform, false);
+            fx.engine = eng.AddComponent<AudioSource>();
+            fx.engine.loop = true;
+            fx.engine.playOnAwake = false;
+            fx.engine.spatialBlend = 1f;
+            fx.engine.minDistance = 4f;
+            fx.engine.maxDistance = 55f;
+            fx.engine.rolloffMode = AudioRolloffMode.Linear;
+            fx.engine.dopplerLevel = 0.3f;
+            fx.engine.volume = 0f;
+            var seat = new GameObject("Seat").transform;
+            seat.SetParent(root.transform, false);
+            seat.localPosition = VehicleSeats.Root(root);
+            seat.localRotation = VehicleSeats.Turn(root);
+
+            // the body's width from the tyres (the model's box includes the mirrors: 2.1 m on an SUV, 2.9 on the bus)
+            float span = Mathf.Max(Mathf.Abs(pts[1].x - pts[0].x), Mathf.Abs(pts[3].x - pts[2].x)) + 0.3f;
+            var box = root.AddComponent<BoxCollider>();
+            float bottom = R * 0.9f;
+            box.center = new Vector3(0, (bottom + H) * 0.5f, 0);
+            box.size = new Vector3(Mathf.Min(W * 0.88f, span), H - bottom, L * 0.97f);
+            info.bodyWidth = box.size.x;
+
+            if (!Application.isPlaying)
+                foreach (var t in root.GetComponentsInChildren<Transform>(true)) t.gameObject.hideFlags = HideFlags.DontSave;
+
+            if (gameplay)
+            {
+                var rb = root.AddComponent<Rigidbody>();
+                rb.mass = e.mass > 0f ? e.mass : s.mass;
+                rb.isKinematic = true;
+                var lights = new Light[2];
+                bool has = parts.HeadLampPoints(out var hl, out var hr);
+                for (int i = 0; i < 2; i++)
+                {
+                    var lg = new GameObject("Headlight" + i);
+                    lg.transform.SetParent(root.transform, false);
+                    lg.transform.localPosition = has ? (i == 0 ? hl : hr) + Vector3.forward * 0.1f : new Vector3((i == 0 ? -1 : 1) * W * 0.3f, R + 0.45f, L * 0.5f + 0.1f);
+                    lg.transform.localRotation = Quaternion.Euler(6, 0, 0);
+                    var l = lg.AddComponent<Light>();
+                    l.type = LightType.Spot;
+                    l.range = 60f;
+                    l.spotAngle = 62f;
+                    l.intensity = 16f;
+                    l.color = new Color(1f, 0.95f, 0.85f);
+                    l.enabled = false;
+                    lights[i] = l;
+                }
+                root.AddComponent<CarController>().Setup(type, wheels, seat, lights);
+                root.AddComponent<VehicleDamage>();   // knocks: smoke, fire, blast
             }
             return root;
         }

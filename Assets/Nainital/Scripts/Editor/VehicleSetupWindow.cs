@@ -214,7 +214,9 @@ namespace Nainital.EditorTools
         void OnDisable() { if (instance == this) instance = null; EditorApplication.update -= Tick; EditorApplication.playModeStateChanged -= PlayChanged; }
         // the lamp / seat fields follow what is moved in the Scene view
         void OnInspectorUpdate() { if (Application.isPlaying && vehicle) Repaint(); }
-        void PlayChanged(PlayModeStateChange s) { if (s == PlayModeStateChange.EnteredPlayMode) { Refresh(); Show(index); } }
+        // only in its own scene: Play in the game scene with this window open put a setup vehicle and its people at the
+        // town's origin (21 Nov)
+        void PlayChanged(PlayModeStateChange s) { if (s == PlayModeStateChange.EnteredPlayMode && SceneManager.GetActiveScene().path == ScenePath) { Refresh(); Show(index); } }
 
         // ------------------------------------------------------------------ list
         void Refresh()
@@ -229,8 +231,9 @@ namespace Nainital.EditorTools
             items = items.OrderBy(i => i.name).ToList();
             if (showOld && VehicleLibrary.Instance)
             {
-                foreach (var e in VehicleLibrary.Instance.entries) if (e != null && e.prefab) items.Add(new Item { name = e.name, source = e.prefab });
-                foreach (var e in VehicleLibrary.Instance.bikes) if (e != null && e.prefab) items.Add(new Item { name = e.name, source = e.prefab });
+                // the library now lists the new set too (21 Nov): only the old models here
+                foreach (var e in VehicleLibrary.Instance.entries) if (e != null && e.prefab && !e.parts) items.Add(new Item { name = e.name, source = e.prefab });
+                foreach (var e in VehicleLibrary.Instance.bikes) if (e != null && e.prefab && !e.parts) items.Add(new Item { name = e.name, source = e.prefab });
             }
             index = Mathf.Clamp(index, 0, Mathf.Max(0, items.Count - 1));
         }
@@ -688,7 +691,9 @@ namespace Nainital.EditorTools
             for (int i = 0; i < data.seats.Length; i++)
             {
                 var s = data.seats[i];
-                var p = Person("Seat " + i + (i == 0 ? " (driver)" : ""), i > 0 && Random.value < 0.45f);
+                // the characters the game would seat here (VehicleFits: measured to fit this seat), else anyone
+                bool fem = i > 0 && Random.value < 0.45f;
+                var p = Person("Seat " + i + (i == 0 ? " (driver)" : ""), fem, VehicleSetup.SeatFit(Current, i) != null ? VehicleSetup.PickLook(Current, i, fem) : null);
                 p.transform.SetParent(vehicle.transform, false);
                 var h = p.AddComponent<SetupHandle>(); h.kind = SetupHandle.Kind.Seat; h.index = i;
                 seats.Add(p);
@@ -757,28 +762,41 @@ namespace Nainital.EditorTools
             VehicleSetup.Pose(p.GetComponentInChildren<HumanoidRig>(true), s.pose);
         }
 
-        static GameObject Person(string name, bool female)
+        static GameObject Person(string name, bool female, CharacterLibrary.Entry look = null)
         {
             var go = new GameObject(name) { layer = 9 };
             var rigGo = new GameObject("Rig") { layer = 9 };
             rigGo.transform.SetParent(go.transform, false);
             rigGo.SetActive(false);
             var rig = rigGo.AddComponent<HumanoidRig>();
+            if (look != null) female = look.Female;
             rig.female = female;
             rig.bodyType = female ? HumanoidRig.BodyType.Woman : HumanoidRig.BodyType.Man;
             var lib = CharacterLibrary.Instance;
-            var look = lib ? lib.Pick(female, false, null) : null;
+            if (look == null) look = lib ? lib.Pick(female, false, null) : null;
             if (look != null) CharacterLibrary.Apply(look, rig, null);
             rigGo.SetActive(true);
             return go;
         }
 
-        void Reroll(int i)
+        /// <summary>Bridge (VehicleSetupShots.RunFits): seat i's person becomes this character (a CharacterLibrary id),
+        /// hands and feet on the same targets.</summary>
+        public static void SetLook(int i, string id)
+        {
+            if (!instance || i < 0 || i >= instance.seats.Count || !instance.seats[i]) return;
+            var look = CharacterLibrary.Instance ? CharacterLibrary.Instance.Find(id) : null;
+            if (look != null) instance.Reroll(i, look);
+        }
+
+        /// <summary>How many seats the vehicle on show has.</summary>
+        public static int SeatsShown => instance ? instance.seats.Count : 0;
+
+        void Reroll(int i, CharacterLibrary.Entry look = null)
         {
             Collect();
             var old = seats[i];
             var rig = old.GetComponentInChildren<HumanoidRig>(true);
-            var p = Person(old.name, rig && !rig.female);
+            var p = Person(old.name, rig && !rig.female, look);
             p.transform.SetParent(vehicle.transform, false);
             var h = p.AddComponent<SetupHandle>(); h.kind = SetupHandle.Kind.Seat; h.index = i;
             // the new face keeps the hands and the feet where they were (the old one's IK targets)
@@ -787,6 +805,7 @@ namespace Nainital.EditorTools
             {
                 var nik = p.AddComponent<HandIK>();
                 nik.left = oik.left; nik.right = oik.right; nik.footLeft = oik.footLeft; nik.footRight = oik.footRight; nik.vehicle = oik.vehicle;
+                nik.maxBend = oik.maxBend;   // the seat's back limit (a rider's 12 deg) goes with the seat, not the face
             }
             seats[i] = p;
             Destroy(old);
@@ -1031,14 +1050,18 @@ namespace Nainital.EditorTools
             s.footR = c + R * half;
         }
 
-        /// <summary>Snap (seats a..b) onto the vehicle's own shape, measured by rays straight down through its meshes (every
-        /// surface, back faces too - VehicleSetupShots.AllHits):
-        /// a car / bus / auto: the FLOOR under the hips = the lowest surface seen from inside (a Tripo body is a shell: its
-        /// underbody's inside; 0.22 m in the compact sedan, 20 Nov); the hips go 0.27 m over it in a car, 0.42 m in a
-        /// chair-seat vehicle, never closer than 0.98 m under the roof (head room); each foot 0.08 m over the floor under it.
-        /// A two-wheeler: the hips 0.10 m over the top of the seat under them; the feet stay where they are (the pegs).
-        /// Only small moves are taken (hips within 0.25 m, feet within 0.6 m under the hips): a bus shell has no cabin
-        /// floor (its underbody is 0.5 m under the real one), so its seats keep their own height.</summary>
+        /// <summary>Snap (seats a..b) onto the vehicle's own shape the way Tools/vehicles/fit_vehicle_seats.py fits them
+        /// (docs/VEHICLES.md section 0 item 4, 21 Nov 2026), measured by rays straight down through its meshes every 5 cm
+        /// along the seat's line (every surface, back faces too - VehicleSetupShots.AllHits):
+        /// a cushion under the hips (the highest up-facing surface from 0.6 m under to 0.25 m over them, a run shorter than
+        /// 1.2 m along the seat's line): the hips HumanoidRig.NominalButt over it, 0.17 m in front of its rear edge (the
+        /// backrest's foot) - further forward while the floor is out of the shortest legs' reach (0.50 m) - and the feet on
+        /// the floor just past its front edge (a driver 10 cm further, on the pedals), ankles HumanoidRig.NominalSoleSeated
+        /// over it; no cushion (an empty Tripo shell): the hips 0.27 m (a car) / 0.42 m (chair seats) over the underbody's
+        /// inside, each foot on the floor under it; a two-wheeler: the hips NominalButt over the seat's top on the centre
+        /// line, the feet stay (the pegs). The sitting surface and the roof's inside are stored in the seat (surface /
+        /// roof: the game keeps each head under the roof). Per-model hand fixes (no seat in the model, two people in one
+        /// seat) are in the fitter's MOVES / OVR, not here: a vehicle the owner sets up anew should still go through it.</summary>
         void SnapSeats(int a, int b)
         {
             if (!vehicle) return;
@@ -1062,16 +1085,39 @@ namespace Nainital.EditorTools
             Physics.SyncTransforms();
             var V = vehicle.transform;
             bool two = VehicleSetup.TwoWheeler(Current), chair = ChairSeats();
-            float top = box.max.y + 0.5f, bottom = box.min.y + 0.05f;
-            List<RaycastHit> Column(Vector3 p) => VehicleSetupShots.AllHits(new Vector3(p.x, top, p.z), Vector3.down, top - box.min.y + 0.5f, temp);
-            float? Floor(Vector3 p)
+            const float NB = HumanoidRig.NominalButt, SOLE = HumanoidRig.NominalSoleSeated, REACH = 0.50f, DRIVE_EXTRA = 0.10f;
+            float top = V.InverseTransformPoint(box.max).y + 0.5f;
+            float zMin = V.InverseTransformPoint(box.min).z, zMax = V.InverseTransformPoint(box.max).z;
+            if (zMin > zMax) (zMin, zMax) = (zMax, zMin);
+            // every surface straight down at (x, z) of the vehicle's space: (height, back face, part)
+            var cache = new Dictionary<(int, int), List<(float y, bool back, string part)>>();
+            List<(float y, bool back, string part)> Col(float x, float z)
             {
-                var hs = Column(p).Where(h => h.point.y > bottom).ToList();
-                if (hs.Count == 0) return null;
-                var backs = hs.Where(h => Vector3.Dot(h.normal, Vector3.up) < 0f).ToList();
-                return (backs.Count > 0 ? backs : hs).Min(h => h.point.y);
+                var key = (Mathf.RoundToInt(x * 100f), Mathf.RoundToInt(z * 100f));
+                if (cache.TryGetValue(key, out var c)) return c;
+                c = new List<(float, bool, string)>();
+                foreach (var h in VehicleSetupShots.AllHits(V.TransformPoint(new Vector3(x, top, z)), -V.up, top + 1f, temp))
+                    c.Add((V.InverseTransformPoint(h.point).y, Vector3.Dot(h.normal, V.up) < 0f, h.collider.name));
+                cache[key] = c;
+                return c;
             }
-            float? Roof(Vector3 p) { var hs = Column(p); return hs.Count > 0 ? hs[0].point.y : (float?)null; }
+            List<float> Ups(List<(float y, bool back, string part)> hs, float lo, float hi) =>
+                hs.Where(h => !h.back && h.y >= lo && h.y <= hi && !h.part.StartsWith("Wheel")).Select(h => h.y).ToList();
+            float RoofIn(List<(float y, bool back, string part)> hs, float above)
+            {
+                var r = hs.Where(h => h.back && h.y > above).Select(h => h.y).ToList();
+                return r.Count > 0 ? r.Max() : -1f;
+            }
+            // the run of 5 cm steps along z (through z0) where an up surface stands within 3.5 cm of c
+            (float lo, float hi)? Run(float x, float z0, float c)
+            {
+                bool On(float z) => Col(x, z).Any(h => !h.back && Mathf.Abs(h.y - c) <= 0.035f);
+                if (!On(z0)) return null;
+                float lo = z0, hi = z0;
+                while (lo - 0.05f >= zMin && On(lo - 0.05f)) lo -= 0.05f;
+                while (hi + 0.05f <= zMax && On(hi + 0.05f)) hi += 0.05f;
+                return (lo, hi);
+            }
             int seated = 0, footed = 0;
             for (int i = Mathf.Max(0, a); i <= b && i < data.seats.Length && i < seats.Count; i++)
             {
@@ -1079,49 +1125,95 @@ namespace Nainital.EditorTools
                 var p = seats[i];
                 if (!p) continue;
                 float over = VehicleSetup.HipsOverRoot(s.pose);
-                float hipsY = p.transform.position.y + over, want = hipsY;
-                float? floorY = null;
+                float x = s.pos.x, z = s.pos.z, hips = s.pos.y + over;
+                int face = Mathf.Abs(Mathf.DeltaAngle(s.euler.y, 180f)) < 30f ? -1 : 1;
+                var hs = Col(x, z);
                 if (two)
                 {
-                    var hs = Column(p.transform.position);
-                    if (hs.Count > 0) want = hs[0].point.y + 0.10f;
-                    // behind the rider the first surface down can be a grab rail or a tail cowl (street160's lifted the
-                    // pillion to 1.10 m, 20 Nov): never more than 0.10 m over the rider's hips
-                    if (i > 0 && seats[0]) want = Mathf.Min(want, seats[0].transform.position.y + VehicleSetup.HipsOverRoot(data.seats[0].pose) + 0.10f);
+                    var tops = Col(0f, z).Where(h => !h.back && !h.part.StartsWith("Handle") && !h.part.StartsWith("Wheel")).Select(h => h.y).ToList();
+                    if (tops.Count == 0) continue;
+                    float surf = tops.Max();
+                    s.pos.y = surf + NB - over; s.surface = surf; s.roof = -1f;
+                    seated++;
+                    continue;
+                }
+                var cand = Ups(hs, hips - 0.6f, hips + 0.25f);
+                float? cushion = cand.Count > 0 ? cand.Max() : (float?)null;
+                var run = cushion.HasValue ? Run(x, z, cushion.Value) : null;
+                if (cushion.HasValue && run.HasValue && run.Value.hi - run.Value.lo > 1.2f) cushion = null;   // the floor itself
+                if (cushion.HasValue && run.HasValue)
+                {
+                    float cu = cushion.Value;
+                    float rear = face > 0 ? run.Value.lo : run.Value.hi, front = face > 0 ? run.Value.hi : run.Value.lo, depth = run.Value.hi - run.Value.lo;
+                    float? floorY = null;
+                    float fz = 0f;
+                    for (int k = 1; k < 14; k++)
+                    {
+                        float zz = front + face * 0.05f * k;
+                        var fl = Ups(Col(x, zz), cu - 0.9f, cu - 0.08f);
+                        if (fl.Count > 0) { fz = zz; floorY = fl.Max(); break; }
+                    }
+                    if (!floorY.HasValue) { floorY = cu - 0.42f; fz = front + face * 0.08f; }
+                    float floor = floorY.Value;
+                    float footZ = front + face * (0.07f + (s.pose == SeatPose.Drive ? DRIVE_EXTRA : 0f));
+                    if (face * (footZ - fz) < 0f) footZ = fz;   // not before the floor starts
+                    float hipsY = cu + NB, hz = rear + face * 0.17f;
+                    float Dist(float hz_) => Mathf.Sqrt((footZ - hz_) * (footZ - hz_) + (hipsY - 0.07f - (floor + SOLE)) * (hipsY - 0.07f - (floor + SOLE)) + 0.06f * 0.06f);
+                    while (Dist(hz) > REACH && face * (hz - rear) < depth * 0.6f) hz += face * 0.01f;
+                    if (Dist(hz) > REACH && s.pose == SeatPose.Drive)
+                        while (Dist(hz) > REACH && face * (footZ - front) > 0.04f) footZ -= face * 0.01f;
+                    if (Mathf.Abs(s.entry.z - s.pos.z) < 0.02f) s.entry.z = hz;
+                    s.pos.y = hipsY - over;
+                    s.pos.z = hz;
+                    s.surface = cu;
+                    s.roof = RoofIn(hs, hipsY + 0.3f);
+                    float spread = s.feet ? Mathf.Abs(s.footR.x - s.footL.x) * 0.5f : 0.15f;
+                    if (spread < 0.10f || spread > 0.22f) spread = 0.15f;
+                    s.feet = true;
+                    s.footL = new Vector3(x - face * spread, floor + SOLE, footZ);
+                    s.footR = new Vector3(x + face * spread, floor + SOLE, footZ);
+                    seated++; footed += 2;
                 }
                 else
                 {
-                    floorY = Floor(p.transform.position);
-                    if (floorY.HasValue)
-                    {
-                        want = floorY.Value + (chair ? 0.42f : 0.27f);
-                        var roof = Roof(p.transform.position);
-                        if (roof.HasValue) want = Mathf.Max(floorY.Value + 0.12f, Mathf.Min(want, roof.Value - 0.98f));
-                    }
-                }
-                if (Mathf.Abs(want - hipsY) <= 0.25f && want != hipsY)
-                {
-                    p.transform.position = new Vector3(p.transform.position.x, want - over, p.transform.position.z);
-                    s.pos = p.transform.localPosition;
-                    hipsY = want;
+                    // an empty shell: the floor = the underbody's inside under the hips
+                    var backs = hs.Where(h => h.back && h.y < hips).Select(h => h.y).ToList();
+                    if (backs.Count == 0) continue;
+                    float fl = backs.Min();
+                    float want = fl + (chair ? 0.42f : 0.27f);
+                    s.pos.y = want - over;
+                    s.surface = want - NB;
+                    s.roof = RoofIn(hs, want + 0.3f);
                     seated++;
-                }
-                if (two || i >= feet.Count) continue;
-                foreach (var f in new[] { feet[i].l, feet[i].r })
-                {
-                    if (!f) continue;
-                    Vector3 fp = f.transform.position;
-                    float? fy = Floor(fp) ?? floorY;
-                    if (!fy.HasValue) continue;
-                    float y = fy.Value + 0.08f;
-                    if (y < hipsY - 0.6f || y > hipsY - 0.05f) continue;   // no cabin floor modelled there: leave it
-                    f.transform.position = new Vector3(fp.x, y, fp.z);
-                    footed++;
+                    if (!s.feet) DefaultFeet(s);
+                    foreach (bool left in new[] { true, false })
+                    {
+                        Vector3 f = left ? s.footL : s.footR;
+                        var frow = Col(f.x, f.z);
+                        var fu = frow.Where(h => !h.back && h.y < want - 0.1f && !h.part.StartsWith("Wheel")).Select(h => h.y).ToList();
+                        var fb = frow.Where(h => h.back && h.y < want).Select(h => h.y).ToList();
+                        float fy = fu.Count > 0 ? fu.Max() : fb.Count > 0 ? fb.Min() : fl;
+                        f.y = fy + SOLE;
+                        if (left) s.footL = f; else s.footR = f;
+                        footed++;
+                    }
                 }
             }
             foreach (var mc in temp) Destroy(mc);
+            // the people and the markers onto the new numbers (Collect reads the scene back)
+            for (int i = Mathf.Max(0, a); i <= b && i < data.seats.Length && i < seats.Count; i++)
+            {
+                if (!seats[i]) continue;
+                Seat(i);
+                if (i < entries.Count && entries[i]) entries[i].transform.localPosition = data.seats[i].entry;
+                if (i < feet.Count && feet[i].l && feet[i].r)
+                {
+                    feet[i].l.transform.position = vehicle.transform.TransformPoint(data.seats[i].footL);
+                    feet[i].r.transform.position = vehicle.transform.TransformPoint(data.seats[i].footR);
+                }
+            }
             Collect();
-            status = $"Snap: {seated} people set on the seat height, {footed} feet on the floor (move a marker and Snap again if one went wrong)";
+            status = $"Snap (the fitter's rule): {seated} people on their seats, {footed} feet on the floor - surface / roof stored";
         }
 
         /// <summary>Handlebar / steering wheel back to straight (the preview turns them every frame from the slider).</summary>

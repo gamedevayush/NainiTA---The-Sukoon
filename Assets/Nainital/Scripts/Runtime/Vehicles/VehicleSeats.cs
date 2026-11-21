@@ -40,7 +40,21 @@ namespace Nainital
             return hip;
         }
 
-        /// <summary>The sitter's root for seat 0 / 1 (hips HipAboveRoot over it).</summary>
-        public static Vector3 Root(GameObject vehicle, int seat = 0) => Hip(vehicle, seat) - Vector3.up * HipAboveRoot;
+        /// <summary>The sitter's root for seat 0 / 1 (hips HipAboveRoot over it). A vehicle of the unbranded set: its
+        /// approved setup's seat (the driver's; 1 = the seat beside him).</summary>
+        public static Vector3 Root(GameObject vehicle, int seat = 0)
+        {
+            var vp = vehicle.GetComponent<VehicleParts>();
+            if (vp && vp.HasSetup) return vp.SeatLocal(vp.SeatFor(seat));
+            return Hip(vehicle, seat) - Vector3.up * HipAboveRoot;
+        }
+
+        /// <summary>The sitter's turn for seat 0 / 1 (vehicle space).</summary>
+        public static Quaternion Turn(GameObject vehicle, int seat = 0)
+        {
+            var vp = vehicle.GetComponent<VehicleParts>();
+            var s = vp ? vp.SeatData(vp.SeatFor(seat)) : null;
+            return s != null ? Quaternion.Euler(s.euler) : Quaternion.identity;
+        }
     }
 }

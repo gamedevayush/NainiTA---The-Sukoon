@@ -154,6 +154,163 @@ namespace Nainital.EditorTools
             EditorApplication.update += Tick;
         }
 
+        // ------------------------------------------------------------------ the unbranded set in the game (21 Nov 2026)
+        static readonly System.Collections.Generic.List<GameObject> lineup = new System.Collections.Generic.List<GameObject>();
+
+        /// <summary>Every vehicle of the library in the game as the traffic makes it (VehicleFactory / BikeRide with their
+        /// VehicleParts), in a row along the road nearest the player, held still, each with people in its seats the way
+        /// the game seats them (PedestrianManager.MakeSeated: characters measured to fit) - a car full, a bus its first
+        /// eight, a two-wheeler rider and pillion; the traffic is cleared and stopped first. Then call VehicleTest.LineupShots.
+        /// Bridge (the Nainital scene in Play): call VehicleTest.Lineup</summary>
+        public static void Lineup()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            var tm = Object.FindAnyObjectByType<TrafficManager>();
+            if (tm) tm.enabled = false;
+            foreach (var t in Object.FindObjectsByType<TrafficCar>(FindObjectsSortMode.None)) Object.Destroy(t.gameObject);
+            foreach (var t in Object.FindObjectsByType<TrafficBike>(FindObjectsSortMode.None)) Object.Destroy(t.gameObject);
+            foreach (var g in lineup) if (g) Object.Destroy(g);
+            lineup.Clear();
+            var lib = VehicleLibrary.Instance;
+            var pm = PedestrianManager.Instance;
+            var mat = tm ? tm.material : null;
+            // where: Bridge/arg.txt "x,z" (an open level place - The Flats: -60,20), else along the nearest road
+            Vector3 at, f;
+            var xz = Arg().Split(',');
+            if (xz.Length == 2 && float.TryParse(xz[0], out float ax) && float.TryParse(xz[1], out float az))
+            {
+                var ter = Terrain.activeTerrain;
+                at = new Vector3(ax, ter ? ter.SampleHeight(new Vector3(ax, 0f, az)) + ter.transform.position.y : 0f, az);
+                f = Vector3.right;
+            }
+            else
+            {
+                if (!RoadRoute.ReadyAny()) throw new System.Exception("no road network");
+                int k = RoadRoute.Nearest(p.transform.position, 300f);
+                at = RoadRoute.Pos(k); f = RoadRoute.Heading(k);
+            }
+            f.y = 0f; f.Normalize();
+            Vector3 side = Vector3.Cross(Vector3.up, f);
+            float along = 0f, rowLen = 55f;
+            int row = 0;
+            var log = new StringBuilder("[Nainital] lineup:");
+            void Place(GameObject go, float len)
+            {
+                if (along + len + 3f > rowLen) { row++; along = 0f; }   // rows 14 m apart
+                along += len * 0.5f + 1.5f;
+                Vector3 pos = Ground(at + f * along - side * (row * 14f));
+                go.transform.SetPositionAndRotation(pos + Vector3.up * 0.05f, Quaternion.LookRotation(f));
+                along += len * 0.5f + 1.5f;
+                var rb = go.GetComponent<Rigidbody>();
+                if (rb) { rb.isKinematic = true; rb.linearVelocity = Vector3.zero; }
+                lineup.Add(go);
+            }
+            for (int i = 0; i < lib.entries.Length; i++)
+            {
+                var e = lib.entries[i];
+                if (e == null || !e.prefab || !e.parts) continue;
+                var go = VehicleFactory.Create(e.type, Px.CarWhite, mat, true, "Lineup " + e.name, i);
+                var car = go.GetComponent<CarController>();
+                if (car) car.enabled = false;
+                Place(go, e.size.z);
+                var vp = go.GetComponent<VehicleParts>();
+                int n = vp ? Mathf.Min(vp.SeatCount, e.type == CarType.Bus ? 8 : vp.SeatCount) : 0;
+                var who = new StringBuilder();
+                for (int s = 0; s < n; s++)
+                {
+                    var w = pm.MakeSeated(vp, s);
+                    if (w) { lineup.Add(w.gameObject); who.Append(s == 0 ? "" : ", ").Append(w.lookId); }
+                }
+                log.Append($"\n  {e.name}: {who}");
+            }
+            foreach (var e in lib.bikes)
+            {
+                if (e == null || !e.prefab || !e.parts) continue;
+                var go = BikeRide.Create(e, "Lineup " + e.name);
+                var ride = go.GetComponent<BikeRide>();
+                Place(go, e.size.z);
+                ride.Place(go.transform.position, f);
+                var vp = ride.Parts;
+                var who = new StringBuilder();
+                for (int s = 0; vp && s < Mathf.Min(2, vp.SeatCount); s++)
+                {
+                    var w = pm.MakeSeated(vp, s);
+                    if (w) { lineup.Add(w.gameObject); who.Append(s == 0 ? "" : ", ").Append(w.lookId); }
+                }
+                log.Append($"\n  {e.name}: {who}");
+            }
+            // the player beside the first row, looking at it
+            Vector3 mid = at + f * (rowLen * 0.5f);
+            p.GetComponent<CharacterMotor>().Teleport(Ground(mid + side * 9f) + Vector3.up * 0.2f);
+            p.transform.rotation = Quaternion.LookRotation(-side);
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SnapBehind();
+            Physics.SyncTransforms();
+            Debug.Log(log.ToString());
+        }
+
+        /// <summary>The row made by Lineup, one picture per vehicle (front three-quarter from its right, a little high, and
+        /// the left side), six to a sheet: Shots/lineup_N.png. Bridge: call VehicleTest.LineupShots</summary>
+        public static void LineupShots()
+        {
+            Need();
+            var cars = lineup.FindAll(g => g && (g.GetComponent<VehicleParts>()));
+            const int w = 640, h = 420, per = 6;
+            for (int sheet = 0; sheet * per < cars.Count; sheet++)
+            {
+                var tex = new Texture2D(w * 2, h * per, TextureFormat.RGB24, false);
+                for (int j = 0; j < per; j++)
+                {
+                    int idx = sheet * per + j;
+                    for (int v = 0; v < 2; v++)
+                    {
+                        Color32[] px;
+                        if (idx < cars.Count) px = Shot(cars[idx], v, w, h);
+                        else { px = new Color32[w * h]; }
+                        tex.SetPixels32(v * w, (per - 1 - j) * h, w, h, px);
+                    }
+                }
+                tex.Apply();
+                string path = Path.GetFullPath(Path.Combine(Application.dataPath, $"../Shots/lineup_{sheet}.png"));
+                File.WriteAllBytes(path, tex.EncodeToPNG());
+                Object.DestroyImmediate(tex);
+                Debug.Log("[Nainital] lineup shot " + path);
+            }
+        }
+
+        static Color32[] Shot(GameObject g, int view, int w, int h)
+        {
+            var b = new Bounds(g.transform.position, Vector3.zero);
+            foreach (var r in g.GetComponentsInChildren<Renderer>()) b.Encapsulate(r.bounds);
+            var go = new GameObject("LineupCam");
+            var cam = go.AddComponent<Camera>();
+            cam.enabled = false;
+            cam.fieldOfView = 32f;
+            Transform t = g.transform;
+            Vector3 dir = view == 0 ? (t.forward * 1.2f + t.right * 1.0f + Vector3.up * 0.45f) : (-t.right + Vector3.up * 0.18f);
+            float d = b.extents.magnitude / Mathf.Sin(16f * Mathf.Deg2Rad);
+            cam.transform.position = b.center + dir.normalized * d;
+            cam.transform.LookAt(b.center);
+            cam.nearClipPlane = 0.2f;
+            cam.farClipPlane = d * 3f;
+            var rt = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32);
+            rt.antiAliasing = 4;
+            cam.targetTexture = rt;
+            cam.Render();
+            var prev = RenderTexture.active;
+            RenderTexture.active = rt;
+            var tex = new Texture2D(w, h, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
+            tex.Apply();
+            RenderTexture.active = prev;
+            cam.targetTexture = null;
+            RenderTexture.ReleaseTemporary(rt);
+            Object.DestroyImmediate(go);
+            var px = tex.GetPixels32();
+            Object.DestroyImmediate(tex);
+            return px;
+        }
+
         static GameObject seatCar;
         static Vector3 seatAt;
         static NpcWalker seatDriver;

@@ -18,13 +18,13 @@ MonoBehaviour:
   muzzle: {fileID: 2100000, guid: b340880f2018a674aa65b319cd9923c9, type: 2}
   policeLetters: {fileID: 4300000, guid: 2f3f8a2529f021046ab2663636ff40a1, type: 2}
   ambulanceLetters: {fileID: 4300000, guid: 3e8eae27f0ab43d4894f5a5ac2feb2c3, type: 2}
-  policeRoof: {x: 0, y: 1.860406, z: -0.59725004}
+  policeRoof: {x: 0, y: 2.0290625, z: -0.8917957}
   ambulanceRoof: {x: 0, y: 2.9645116, z: 0.4983637}
-  policeRoofWidth: 1.5011343
+  policeRoofWidth: 1.386963
   ambulanceRoofWidth: 1.2823846
-  policeCarModel: Bolero
+  policeCarModel: car_suv_boxy
   ambulanceModel: Ambulance108
-  bikeModel: Splendor
+  bikeModel: bike_commuter125
   officerIds:
   - police_1
   - police_2

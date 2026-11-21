@@ -106,7 +106,7 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    - On the iPhone, allow the app in **Settings → General → VPN & Device Management**.
    - With a free Apple ID the app works for 7 days. Re-install it from Sideloadly to refresh.
 
-## Work in progress (last updated 21 Nov 2026, 03:00)
+## Work in progress (last updated 21 Nov 2026, afternoon)
 
 **Next PC, in this order (21 Nov 2026):**
 
@@ -115,9 +115,11 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 2. **Nainital > 2. Build World** (~17 min) - `world.json` changed on 19-21 Nov (Street View fit + Mall Road joins).
    After a build, reopen `Scenes/Nainital.unity` before taking screenshots from a script (the forest is not drawn in
    them otherwise).
-3. Vehicles: **all 20 are set up and approved by the owner (21 Nov) and fitted to each model's shape** - open items
-   (small cabins vs tall characters, a few hands / feet short, the tool's Snap rule) are in **`docs/VEHICLES.md` section 0**;
-   do those first. **Nainital > Vehicle Setup**, Play, to look at them. Blender source: `Tools/newvehicles/NewVehicles_v06.blend`;
+3. Vehicles: **the unbranded set is now the game's traffic, parked cars and police** (21 Nov afternoon), people seated
+   from the approved setups with hands / feet on their targets; what is left is in **`docs/VEHICLES.md` section 0.2**
+   (re-run `VehicleSetupShots.RunFits` for the two-wheelers on a PC with the riding pack; the three small cabins).
+   After pulling: **Nainital > 7. Import vehicles** is already done in git (the library); just Build World.
+   **Nainital > Vehicle Setup**, Play, to look at them. Blender source: `Tools/newvehicles/NewVehicles_v06.blend`;
    after editing it run `blender -b NewVehicles_v06.blend -P export_unity.py -- Assets\Nainital\Vehicles\New`, then
    `call VehicleSetupWindow.FixMaterials`. Turn Auto Keying OFF in Blender (it broke v05). Details: `docs/VEHICLES.md` 9.0.
 4. More Street View routes (Brave extension "Street View 360 Saver", `C:\Users\<you>\tools\streetview-360` on the main PC;
@@ -129,11 +131,22 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    Animset FREE" (SpectraMotions) and "Human Basic Motions FREE" (Kevin Iglesias), then **Nainital > 6b. Build character
    animator**. Without them riders keep the old procedural pose. Never commit `Assets/MotoInteractionAnimsFREE/` or
    `Assets/Kevin Iglesias/` (the repo is public).
-5. Open: car doors, `Steering` objects and `Dmg_*` keys on the new vehicles; the game using the approved setups; Mall
+5. Open: car doors, `Steering` objects and `Dmg_*` keys on the new vehicles (the game drives them once modelled); Mall
    Road heights (Lower Mall 4-6 m over the water, real ~1.5 m - needs `process_data.py` and the raw data); real shop
    names along the routes.
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
+
+### Changed on 21 Nov (afternoon): the unbranded vehicles in the game, the hand-off list done
+
+Owner: "jo baaki kaam hai vo poora krlo..ek dam precisely perfect krdo". Details and numbers: `docs/VEHICLES.md` 0.1.
+
+| What | Where |
+|---|---|
+| Traffic, parked cars, police car / bike are the unbranded set (14 vehicles + 6 two-wheelers; only the 108 ambulance stays old); mesh LODs, 1K textures on phones | `Editor/VehicleKit.cs` (`BuildNew`), `Resources/VehicleLibrary.asset`, `Vehicles/New/Prefabs`, `Editor/NewVehicleImport.cs`, `Editor/PoliceKitBuilder.cs` |
+| Wheels, handlebar, steering, doors, dents, lamps and seats of a vehicle driven from its setup; drivers, passengers, riders, pillions, police and the player seated with hands / feet on their targets | `Runtime/Vehicles/VehicleParts.cs` (new), `VehicleFactory.cs`, `BikeRide.cs`, `TrafficCar.cs`, `TrafficBike.cs`, `Characters/NpcWalker.cs`, `PedestrianManager.cs`, `Player/PlayerController.cs`, `Police/PoliceOfficer.cs` |
+| Who fits which seat, measured (every character in every seat) - the game seats only those | `VehicleSetupShots.RunFits` -> `Assets/Resources/VehicleFits.json`, `VehicleSetup.PickLook` |
+| Hand-off items: grips on the real bar ends (street160, scooty_family), car drivers' pedals, bus_tourist driver out of his seat block, the auto's / e-rickshaw's steering wheel centred in Blender, scooty_family headlight, the tool's Snap on the fitter's rule | `Tools/vehicles/fit_vehicle_seats.py` (OVR, `feetAhead`, `LAMPS`), `Tools/newvehicles/fix_v06_bars.py`, `VehicleSetupWindow.SnapSeats` |
 
 ### Changed on 21 Nov (early morning): the owner's 20 vehicle setups checked and fitted to the models
 

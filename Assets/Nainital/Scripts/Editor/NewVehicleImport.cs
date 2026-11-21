@@ -11,6 +11,32 @@ namespace Nainital.EditorTools
     /// </summary>
     class NewVehicleImport : AssetPostprocessor
     {
+        /// <summary>In the game (21 Nov 2026) the set is the town's traffic: 25-31k triangles a vehicle, so the importer
+        /// makes mesh LODs (Unity 6 Mesh LOD: the renderer drops to a coarser index buffer as the vehicle gets small on
+        /// screen; no LOD Group).</summary>
+        void OnPreprocessModel()
+        {
+            if (!assetPath.Replace('\\', '/').StartsWith(VehicleSetupWindowPaths.NewDir + "/")) return;
+            var mi = (ModelImporter)assetImporter;
+            mi.generateMeshLods = true;
+        }
+
+        /// <summary>Phones and tablets: the 2K textures at 1K (twenty vehicles' colour / normal / ORM maps).</summary>
+        void OnPreprocessTexture()
+        {
+            if (!assetPath.Replace('\\', '/').StartsWith(VehicleSetupWindowPaths.NewDir + "/Textures/")) return;
+            var ti = (TextureImporter)assetImporter;
+            foreach (var platform in new[] { "Android", "iPhone" })
+            {
+                var s = ti.GetPlatformTextureSettings(platform);
+                if (s.overridden && s.maxTextureSize == 1024) continue;
+                s.overridden = true;
+                s.maxTextureSize = 1024;
+                s.format = TextureImporterFormat.ASTC_6x6;
+                ti.SetPlatformTextureSettings(s);
+            }
+        }
+
         void OnPostprocessModel(GameObject root)
         {
             if (!assetPath.Replace('\\', '/').StartsWith(VehicleSetupWindowPaths.NewDir + "/")) return;

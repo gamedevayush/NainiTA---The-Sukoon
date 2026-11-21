@@ -38,6 +38,8 @@ namespace Nainital
         /// <summary>A townsperson in the driving seat of an AI car (TrafficCar); not part of the crowd count.</summary>
         public NpcWalker MakeDriver(TrafficCar car)
         {
+            var vp = car.GetComponent<VehicleParts>();
+            if (vp && vp.HasSetup) return MakeSeated(vp, 0);
             NpcWalker w = null;
             while (pool.Count > 0 && !w) w = pool.Dequeue();
             if (!w) w = Create();
@@ -56,6 +58,35 @@ namespace Nainital
             w.ResetState();
             w.gameObject.SetActive(true);
             w.EnterBike(bike, seatLocal);
+            return w;
+        }
+
+        /// <summary>A townsperson in seat n of a vehicle of the unbranded set (driver, rider, passenger, pillion): a
+        /// character measured to fit that seat (VehicleSetup.PickLook: under its roof, hands and feet on their targets),
+        /// from the pool when one wears that look, else a new one. Not part of the crowd count.</summary>
+        public NpcWalker MakeSeated(VehicleParts parts, int seat)
+        {
+            var s = parts.SeatData(seat);
+            if (s == null) return null;
+            bool wheel = s.pose == SeatPose.Drive || s.pose == SeatPose.Ride;
+            // at a wheel mostly men (a scooty: a third women); passengers like the crowd
+            float pf = !wheel ? 0.45f : (parts.model ?? "").Contains("scooty") ? 0.35f : 0.08f;
+            var look = VehicleSetup.PickLook(parts.model, seat, Random.value < pf);
+            NpcWalker w = null;
+            if (look != null)
+            {
+                for (int n = pool.Count; n > 0; n--)
+                {
+                    var p = pool.Dequeue();
+                    if (!p) continue;
+                    if (!w && p.lookId == look.id) w = p;
+                    else pool.Enqueue(p);
+                }
+            }
+            if (!w) w = Create(look);
+            w.ResetState();
+            w.gameObject.SetActive(true);
+            w.EnterSeat(parts, seat);
             return w;
         }
 
@@ -155,10 +186,10 @@ namespace Nainital
             return lo;
         }
 
-        NpcWalker Create()
+        NpcWalker Create(CharacterLibrary.Entry forced = null)
         {
-            bool female = Random.value < 0.45f;
-            bool child = Random.value < 0.12f;
+            bool female = forced != null ? forced.Female : Random.value < 0.45f;
+            bool child = forced != null ? forced.Child : Random.value < 0.12f;
             var go = new GameObject("Pedestrian") { layer = 9 };
             go.transform.SetParent(transform, false);
             var cc = go.AddComponent<CharacterController>();
@@ -187,13 +218,14 @@ namespace Nainital
                                  : (female ? HumanoidRig.BodyType.Woman : HumanoidRig.BodyType.Man);
             // rigged townspeople when the library is built: about 1 in 5 is elderly, 1 in 8 a child
             var lib = CharacterLibrary.Instance;
-            var look = lib ? lib.Pick(female, child ? true : (bool?)false, child ? (bool?)null : Random.value < 0.22f) : null;
+            var look = forced ?? (lib ? lib.Pick(female, child ? true : (bool?)false, child ? (bool?)null : Random.value < 0.22f) : null);
             if (look != null) CharacterLibrary.Apply(look, rig, cc);
             rigGo.SetActive(true);
             var hp = go.AddComponent<Health>();   // before the walker, which looks for it
             hp.max = hp.current = 60f;
             var w = go.AddComponent<NpcWalker>();
             w.pooled = true;
+            w.lookId = look != null ? look.id : null;
             w.npcName = look != null ? look.displayName : Names[Random.Range(0, Names.Length)];
             w.speed = HumanoidRig.WalkSpeedFor(rig.bodyType) * Random.Range(0.85f, 1.15f);
             return w;

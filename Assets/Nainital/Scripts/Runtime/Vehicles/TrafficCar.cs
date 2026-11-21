@@ -79,6 +79,70 @@ namespace Nainital
             mode = Mode.Drive;
             var pm = PedestrianManager.Instance;
             if (pm) driver = pm.MakeDriver(this);
+            SeatPassengers();
+        }
+
+        // ------------------------------------------------------------------ passengers (the unbranded set's setups)
+        readonly List<NpcWalker> passengers = new List<NpcWalker>();
+        static readonly List<TrafficCar> carrying = new List<TrafficCar>();
+        static int MaxPassengers => Application.isMobilePlatform ? 10 : 28;
+
+        /// <summary>How many passengers all the traffic carries now.</summary>
+        static int PassengersOut()
+        {
+            int n = 0;
+            for (int i = carrying.Count - 1; i >= 0; i--)
+            {
+                if (!carrying[i]) { carrying.RemoveAt(i); continue; }
+                foreach (var w in carrying[i].passengers) if (w) n++;
+            }
+            return n;
+        }
+
+        /// <summary>Some of the other seats taken (owner, 21 Nov: "traffic passengers by capacity"): a car mostly one or
+        /// two, a taxi one more, a bus 3-10; each a character measured to fit its seat (PedestrianManager.MakeSeated).
+        /// Every traffic vehicle together carries no more than MaxPassengers (a phone: 10).</summary>
+        void SeatPassengers()
+        {
+            var vp = GetComponent<VehicleParts>();
+            var pm = PedestrianManager.Instance;
+            if (!vp || !vp.HasSetup || !pm) return;
+            int cap = vp.SeatCount - 1;
+            if (cap <= 0) return;
+            int n;
+            if (type == CarType.Bus) n = Random.Range(3, 11);
+            else
+            {
+                float r = Random.value;
+                n = r < 0.35f ? 0 : r < 0.7f ? 1 : r < 0.88f ? 2 : 3 + Random.Range(0, 2);
+                if (type == CarType.Taxi) n++;
+            }
+            n = Mathf.Min(n, cap, MaxPassengers - PassengersOut());
+            for (int k = 0; k < n; k++)
+            {
+                int s = vp.FreePassengerSeat();
+                if (s < 0) break;
+                var w = pm.MakeSeated(vp, s);
+                if (!w) break;
+                passengers.Add(w);
+            }
+            if (passengers.Count > 0 && !carrying.Contains(this)) carrying.Add(this);
+        }
+
+        /// <summary>Everyone in the back gets out at their own door and walks off (flee: runs a few steps first).</summary>
+        void Unload(bool flee)
+        {
+            var vp = GetComponent<VehicleParts>();
+            foreach (var w in passengers)
+            {
+                if (!w) continue;
+                int s = vp ? vp.SeatOf(w.transform) : -1;
+                Vector3 face = transform.right;
+                Vector3 at = vp && s >= 0 ? vp.WayOut(s, out face) : transform.position + transform.right * (spec.width * 0.5f + 0.8f);
+                w.LeaveCar(Ground(at), face);
+                if (flee) w.Flee(face, 3f);
+            }
+            passengers.Clear();
         }
 
         /// <summary>Where the driver sits: right-hand drive, low in the seat (the walker's root; hips 0.51 m above it).</summary>
@@ -270,15 +334,21 @@ namespace Nainital
             if (!driver) return;
             var d = driver;
             driver = null;
-            // out on the driver's side (right-hand drive) unless something stands there, then the other side
-            Vector3 side = transform.right;
-            Vector3 door = transform.position + side * (spec.width * 0.5f + 0.75f);
-            if (Physics.CheckCapsule(door + Vector3.up * 0.5f, door + Vector3.up * 1.5f, 0.32f, ~((1 << 9) | (1 << 2)), QueryTriggerInteraction.Ignore))
+            var vp = GetComponent<VehicleParts>();
+            Vector3 side = transform.right, door;
+            if (vp && vp.HasSetup) door = vp.WayOut(0, out side);   // at the setup's way in, its door opening
+            else
             {
-                side = -side;
+                // out on the driver's side (right-hand drive) unless something stands there, then the other side
                 door = transform.position + side * (spec.width * 0.5f + 0.75f);
+                if (Physics.CheckCapsule(door + Vector3.up * 0.5f, door + Vector3.up * 1.5f, 0.32f, ~((1 << 9) | (1 << 2)), QueryTriggerInteraction.Ignore))
+                {
+                    side = -side;
+                    door = transform.position + side * (spec.width * 0.5f + 0.75f);
+                }
             }
             d.LeaveCar(Ground(door), side);
+            Unload(false);   // the passengers get out too: the player is taking the car
             if (AudioManager.Instance) AudioManager.Instance.CarExit(transform.position);
             string[] lines = { "Arey! Meri gaadi!", "Bhai sahab, ye kya kar rahe ho?", "Le jao, le jao... police ko bataunga!", "Oye! Ruk!" };
             GameEvents.ShowToast(d.npcName + ": \"" + lines[Random.Range(0, lines.Length)] + "\"", 2.5f);
@@ -298,14 +368,21 @@ namespace Nainital
             {
                 var d = driver;
                 driver = null;
-                d.LeaveCar(Ground(transform.position + transform.right * (spec.width * 0.5f + 0.9f)), transform.right);
-                d.Flee(transform.right, 4f);
+                var vp = GetComponent<VehicleParts>();
+                Vector3 side = transform.right;
+                Vector3 at = vp && vp.HasSetup ? vp.WayOut(0, out side) : transform.position + transform.right * (spec.width * 0.5f + 0.9f);
+                d.LeaveCar(Ground(at), side);
+                d.Flee(side, 4f);
             }
+            Unload(true);
         }
 
         void OnDestroy()
         {
             if (driver) Destroy(driver.gameObject);
+            foreach (var w in passengers) if (w) Destroy(w.gameObject);
+            passengers.Clear();
+            carrying.Remove(this);
         }
 
         // ------------------------------------------------------------------ driving

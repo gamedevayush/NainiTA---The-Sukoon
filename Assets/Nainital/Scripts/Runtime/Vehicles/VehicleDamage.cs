@@ -50,6 +50,8 @@ namespace Nainital
             if (dv < 2.5f || cooldown > 0f) return;
             cooldown = 0.6f;
             Vector3 at = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
+            var vp = GetComponent<VehicleParts>();
+            if (vp) vp.Dent(at, dv);   // the Dmg_* shape key of the side that was hit (when the model has them)
             var au = AudioManager.Instance;
             if (au) au.PlayAt(au.Clip("crash_1"), at, Mathf.Clamp01(0.35f + dv * 0.06f), Random.Range(0.85f, 1.15f), 90f);
             Hit(dv > 9f ? 2 : 1);

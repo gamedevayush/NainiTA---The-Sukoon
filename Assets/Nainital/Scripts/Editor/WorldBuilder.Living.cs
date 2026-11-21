@@ -304,7 +304,7 @@ namespace Nainital.EditorTools
                 {
                     Vector3 p = ctx.busStand + ctx.busStandRot * new Vector3(-9f + b * 4.6f, 0, 0.5f);
                     p.y = ctx.H(new Vector2(p.x, p.z));
-                    Add(p, ctx.busStandRot, CarType.Bus, b % 2 == 0 ? Px.BusWhite : Px.BusBlue, lib ? Named(b % 2 == 0 ? "TouristBus" : "TouristCoach") : -1);
+                    Add(p, ctx.busStandRot, CarType.Bus, b % 2 == 0 ? Px.BusWhite : Px.BusBlue, lib ? Named(b % 2 == 0 ? "bus_roadways" : "bus_tourist") : -1);
                 }
                 for (int t = 0; t < 3; t++)
                 {

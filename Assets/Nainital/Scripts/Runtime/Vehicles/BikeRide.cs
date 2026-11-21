@@ -16,6 +16,11 @@ namespace Nainital
         public Transform model;      // the visual (leans); riders sit under it
         public float Speed { get; private set; }
         public bool Crashed { get; private set; }
+        /// <summary>The handlebar's angle now, degrees (+ = right): what the turn rate at this speed needs (a bike turns at
+        /// speed * tan(steer) / wheelbase). VehicleParts turns the handlebar and the front wheel by it.</summary>
+        public float Steer { get; private set; }
+        /// <summary>The model's parts and seats (the unbranded set; null for the old Splendor / scooty).</summary>
+        public VehicleParts Parts { get; private set; }
         public Vector3 Forward => new Vector3(transform.forward.x, 0f, transform.forward.z).normalized;
         /// <summary>Thrown by the player's car: (the car's velocity, the car).</summary>
         public event System.Action<Vector3, GameObject> OnCrash;
@@ -50,6 +55,22 @@ namespace Nainital
             info.width = Mathf.Min(e.size.x, 0.8f);
             info.height = e.size.y;
             info.wheelRadius = 0.3f;
+            info.model = e.name;
+            if (e.parts)
+            {
+                // the unbranded set: wheels spin, the handlebar steers with Wheel_F under it, the rider sits where the
+                // setup says (on the leaning body), the setup's lamps (the headlight on the handlebar turns with it)
+                var parts = root.AddComponent<VehicleParts>();
+                parts.Init(body.transform, e.name, lean);
+                b.Parts = parts;
+                info.wheelRadius = parts.wheelRadius;
+                var s0 = parts.SeatData(0);
+                if (s0 != null && s0.surface > 0f) b.seatTop = s0.surface;
+                VehicleFactory.LampMaterials(out var hm, out var tm);
+                parts.BuildLamps(hm, tm, out var heads, out var tails);
+                if (heads.Length > 0) { var vl = root.AddComponent<VehicleLamps>(); vl.lamps = heads[0]; vl.more = heads; }
+                if (tails.Length > 0) root.AddComponent<VehicleFX>().tails = tails;
+            }
             return root;
         }
 
@@ -60,8 +81,9 @@ namespace Nainital
             yaw = transform.eulerAngles.y;
         }
 
-        /// <summary>Where a rider's root sits (bike space): astride the seat, a little behind the middle.</summary>
-        public Vector3 SeatLocal => new Vector3(0f, seatTop + 0.05f - 0.51f, -length * 0.1f);
+        /// <summary>Where a rider's root sits (bike space): the setup's rider seat, else astride the seat a little behind
+        /// the middle.</summary>
+        public Vector3 SeatLocal => Parts && Parts.HasSetup ? Parts.SeatLocal(0) : new Vector3(0f, seatTop + 0.05f - 0.51f, -length * 0.1f);
 
         /// <summary>Place it on the ground at p facing f, standing still.</summary>
         public void Place(Vector3 p, Vector3 f)
@@ -114,6 +136,10 @@ namespace Nainital
             rb.MoveRotation(heading * Quaternion.Euler(pitch, 0f, 0f));
             lean = Mathf.MoveTowards(lean, Mathf.Clamp(-yawRate * Speed * 0.03f, -30f, 30f), 90f * dt);
             if (model) model.localRotation = Quaternion.Euler(0f, 0f, lean);
+            // the handlebar for this turn rate: tan(steer) = yaw rate * wheelbase / speed (walked round: full lock)
+            float wb = length * 0.66f;
+            float want2 = Mathf.Atan2(yawRate * Mathf.Deg2Rad * wb, Mathf.Max(Speed, 0.6f)) * Mathf.Rad2Deg;
+            Steer = Mathf.MoveTowards(Steer, Mathf.Clamp(want2, -35f, 35f), 120f * dt);
         }
 
         /// <summary>Standing on its side stand (parked, the rider off): a slight lean to the left.</summary>
@@ -122,6 +148,7 @@ namespace Nainital
             Speed = 0f;
             yawRate = 0f;
             lean = 9f;
+            Steer = -20f;   // on its side stand the handlebar is turned to the left
             if (model) model.localRotation = Quaternion.Euler(0f, 0f, lean);
         }
 

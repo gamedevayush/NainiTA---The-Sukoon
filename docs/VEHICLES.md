@@ -54,7 +54,8 @@ The owner's own setups as they were: `Tools/vehicles/setups_before_fit_21nov/` (
 (43 people), car_mpv_compact, car_van, the suv_boxy / suv_muscular passengers, tirri and the pillions of commuter125,
 dualsport, street160 and both scooties: feet and hands 0-4 cm. The seat of the trousers sits on the surface by
 construction of the fit (0 cm) except where the roof rule pushes a tall character down (suv_boxy rear up to 6 cm, tirri 4,
-and item 1). Heads clear the roof everywhere (>= 3 cm). **Still open - do these next, in this order:**
+and item 1). Heads clear the roof everywhere (>= 3 cm). The list that was open then (items 1-8 below, kept for the
+record) **was done on 21 Nov afternoon - section 0.1; what is still open: section 0.2.**
 1. **Small cabins vs tall characters (owner to decide)**: the roofs of car_hatch_small, car_tallboy, car_mpv_large,
    car_pickup, truck_light and tuktuk_auto are too low for the taller characters (head top 0.75-1.0 m over the hips,
    headroom over a correct hips height 0.72-0.80 m). The roof rule keeps every head 3 cm inside, so those characters sink
@@ -79,6 +80,54 @@ and item 1). Heads clear the roof everywhere (>= 3 cm). **Still open - do these 
    vehicle's forward). Snapped heads at ~180 deg are fine (the quad is two-sided). Set it to 180 in its Rotation field.
 8. Then the game must read the approved setups (section 5, "After the owner's OK"): seats with `surface` / `roof`
    (set `HumanoidRig.seatRoof`), lamps by `on`, HandIK feet / hands / bend.
+
+### 0.1 Done on 21 Nov 2026, afternoon (PC "AYUSH", 2nd pass; owner: "jo baaki kaam hai vo poora krlo..ek dam precisely perfect krdo")
+
+Measured the same way as above (ProfileZ again on this PC first: the fitter re-ran from the owner's backup and gave the
+committed setups back with 0 differences, so every change below is only the new overrides).
+
+| Item | What was done | Measured after |
+|---|---|---|
+| 1 small cabins | **Option (c), measured**: `call VehicleSetupShots.RunFits` seats every character of the CharacterLibrary in every seat of all 20 vehicles as the game would (its own seat fit, the roof rule, HandIK) and records per seat its worst miss (feet, hands, the seat of the trousers off the cushion) -> `Assets/Resources/VehicleFits.json`. The game (`VehicleSetup.PickLook`, used by `PedestrianManager.MakeSeated`) seats the wanted sex first (drivers mostly men, a scooty a third women), then those within 4 cm, else within 2 cm of the best of them; no child at a wheel / handlebar. | Most seats: 15-22 of 22 characters fit. **car_hatch_small, car_tallboy, tuktuk_auto: no grown man fits** (their cushions are modelled 0.60 m up, a real small car's ~0.45; roofs low): only children and the small women fit; men there sink 10-14 cm (hidden by the body from outside) - the best of the men is seated, not a woman every time. Real fix if wanted: lower those cushions / raise those roofs in Blender, export, fitter, RunFits. |
+| 2 hands | bike_street160: grips onto the bar's real ends (+-0.38, 1.03, 0.39; RunBar: ends +-0.44 at y 1.00-1.10, z 0.40), rider to the front of the seat dip (z -0.20), Bend 18. scooty_family: its right hand was on the cowl (0.19, 1.10, 0.17) - grips onto the bar ends (+-0.30, 0.98, 0.36), rider forward to z -0.15. Truck: 0 cm on this PC. | Hands on the grips (<= 4 cm) for the characters long-armed enough: street160 8 of 22, scooty_family 12, dualsport 8, commuter125 12, commuter100 16 (the town's 12 own characters have 0.18-0.39 m arms); RunFits seats only those |
+| 3 feet | car_sedan_compact / car_suv_muscular drivers: feet 0.50 m ahead of the root (were 0.62) on the floor there (fitter key `feetAhead`). The short-legged riders: RunFits leaves them off the high bikes. | drivers 0 cm |
+| 4 Snap | `VehicleSetupWindow.SnapSeats` now follows the fitter (cushion run along the seat line every 5 cm, hips NominalButt over the cushion 0.17 m ahead of its rear edge - further while the floor is out of 0.50 m reach - feet past its front edge, drivers 10 cm further; an empty shell: 0.27 / 0.42 over the underbody; a two-wheeler on its seat's top) and stores `surface` / `roof`. Per-model hand fixes stay in the fitter's MOVES / OVR: **on the 20 fitted vehicles run the fitter, not Snap** (Snap would undo those fixes); Snap is for a new vehicle, then add its fixes to the fitter. | Snap vs the committed setups: sedan, van, commuter125, neoretro 0 cm; truck, bus_roadways 2-4 cm along the seat (the 5 cm sampling step); mpv_large, suv_boxy, tirri differ where the fitter has hand fixes |
+| 5 bus_tourist driver | He sat INSIDE the closed block that is the driver's seat (backrest top 1.92, underside 1.33, z 3.29-3.59; `Tools/newvehicles/diag/cut_render.py` side cut). Now: back against its front face (hips z 3.71), hips 1.45 (0.12 over its underside), feet on the cab floor (0.91) at z 3.95. | feet / hands 0 cm, 21 of 22 fit |
+| 6 auto / e-rickshaw steering | Renders from the driver's seat (`diag/bar_render.py`) showed it is a small **round steering wheel** on a column, not half a T-bar - mirroring it made two wheels, so it is **moved onto the centre line** instead (`Tools/newvehicles/fix_v06_bars.py`, saved into `NewVehicles_v06.blend`, both FBX exported). Wrists on its rim at ten-to-two (printed by the script, in the fitter's OVR). | 0 cm |
+| 7 scooty_family headlight | euler (0, 180, 0) (it lay flat, facing down) - fitter `LAMPS` | - |
+| 8 the game | see below | In the Nainital scene (world rebuilt on this PC): all 20 in a row on The Flats (`VehicleTest.Lineup -85,20`), people in every seat, day and night shots (`Shots/lineup_*.png`): wheels on the ground, drivers' hands on the wheels / grips, lamps lit at night (four bikes' headlights on their handlebars). Live traffic 50 s: 15 cars + 8 bikes, all of the new set, 1-5 people each with HandIK, no errors. The player took a traffic sedan (driver and passengers got out; he sat in the setup seat, hands and feet 0 cm) and got out at its entry point. Police car (car_suv_boxy, lettering, light bar, two constables) and police bike (bike_commuter125) spawned with their crews seated. |
+
+**The game now uses the unbranded set (item 8, section 5 "After the owner's OK"):**
+- `Nainital > 7. Import vehicles` (`VehicleKit.Build` -> `BuildNew`): the 14 vehicles + 6 two-wheelers of `Vehicles/New`
+  become `Resources/VehicleLibrary` (prefabs in `Vehicles/New/Prefabs`, the FBX as they are; roles: the MPVs and the boxy
+  SUV are the white hill taxis, the auto / e-rickshaw rare taxis with their own top speed and mass). Of the branded models
+  only `Ambulance108` stays (no stand-in yet, never in traffic). The importer makes **mesh LODs** (Unity 6 Mesh LOD,
+  11 levels) and phones get the textures at 1K (`NewVehicleImport`).
+- `VehicleParts` (new, `Runtime/Vehicles`): wheels spin about their own axles, a car's front wheels steer, the handlebar
+  turns about its own raked axis with Wheel_F under it, a `Steering` object 3x the angle (from `CarController.SteerAngle`
+  / `BikeRide.Steer`), the wheels bounce with the suspension, doors open on their hinge or by the buses' own clip while
+  someone gets in / out, a hit dents the `Dmg_*` key of that side (when the models get them), the setup's lamps (a bike's
+  headlight on its handlebar turns with it). `Sit(person, rig, seat)`: the setup seat's pose, place, head under its roof,
+  hands on the wheel / grips and feet on the floor / pegs (HandIK, Bend).
+- Traffic: driver + passengers (a car mostly 0-2, a taxi one more, a bus 3-10; all traffic together at most 28, a phone
+  10), each a character that fits its seat; they get out at their own doors when the player takes the car or it burns.
+  Two-wheelers: rider + a pillion one time in three. The player sits in the setup's driver seat (hands, feet, door) and
+  gets out at its entry point. Police: `car_suv_boxy` and `bike_commuter125` (lettering and light bar re-measured,
+  `Nainital > 7b`), officers in the setup's seats. Parked vehicles of an older scene are mapped to the new set by kind
+  (no rebuild needed); the bus stand asks for `bus_roadways` / `bus_tourist` by name.
+- Check in the game: `call VehicleTest.Lineup` (the Nainital scene in Play: every vehicle in a row by the nearest road,
+  people seated as the traffic would) then `call VehicleTest.LineupShots` -> `Shots/lineup_N.png`.
+
+### 0.2 Still open
+1. **Riders were measured on the procedural pose here** (this PC has no Asset Store riding pack): on the main PC (packs
+   in) run `call VehicleSetupShots.RunFits` with arg.txt `bike_commuter100,bike_commuter125,bike_dualsport,bike_street160,scooty_family,scooty_neoretro`
+   (Play in the VehicleSetup scene first) and commit `Assets/Resources/VehicleFits.json`. Re-run RunFits for a vehicle
+   whenever its setup changes or a character is added.
+2. The three small cabins (item 1 above): remodel or accept.
+3. Car doors, `Steering` objects and the five `Dmg_*` shape keys are still not in the models (the game drives them as soon
+   as the models have them).
+4. The 108 ambulance has no unbranded stand-in (`VehicleKit.KeepOld`).
+5. Owner's look in the game; phone FPS with the new traffic (20-23k-triangle bodies; mesh LOD drops them with distance).
 
 ## 1. Why there is a new set
 
@@ -244,7 +293,7 @@ owner added two free packs (Standard Asset Store EULA) to his Unity account and 
 - Check (vsetup sheets, 20 Nov 22:04): every rider plays AS_Idle_Riding with both hands on the grips (0 cm), pillions the
   passenger loop, car drivers Driving with hands on the wheel.
 
-**After the owner's OK (not done yet):** the game must read these setups - `VehicleSeats` (seats), `VehicleLamps`
+**After the owner's OK (done 21 Nov afternoon - section 0.1; the doors / Dmg keys wait for the models):** the game must read these setups - `VehicleSeats` (seats), `VehicleLamps`
 (lamps), traffic passengers by capacity, HandIK on drivers/riders, `BikeRide` steering the handlebar with the wheel under
 it, doors on getting in/out, the `Dmg_*` key on the side that was hit - and the new FBX must go into `VehicleKit` /
 `Resources/VehicleLibrary` (LODs, colliders) in place of the branded ones.

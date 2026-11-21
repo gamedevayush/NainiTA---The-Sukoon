@@ -74,6 +74,23 @@ namespace Nainital
         }
     }
 
+    /// <summary>
+    /// Which of the town's characters fit each seat of each setup (Resources/VehicleFits.json, measured by the Vehicle
+    /// Setup tool's VehicleSetupShots.RunFits: every character in every seat, as it sits in the game): per character the
+    /// worst of its feet off their targets, its hands off the wheel / the grips, and how far the roof rule sank it into
+    /// the cushion, in cm. The owner's call (21 Nov 2026, docs/VEHICLES.md section 0 item 1, option c): a tall character
+    /// is not seated under a low roof, a short-legged one not on a high bike - the game picks from those within
+    /// VehicleSetup.FitCm.
+    /// </summary>
+    [Serializable]
+    public class VehicleFitsData
+    {
+        public string measured;
+        public Model[] models = new Model[0];
+        [Serializable] public class Model { public string model; public SeatFit[] seats = new SeatFit[0]; }
+        [Serializable] public class SeatFit { public string[] ids = new string[0]; public int[] cm = new int[0]; }
+    }
+
     public enum SeatPose { Drive, Sit, Ride, Pillion, SideSaddle }
     public enum DoorHinge { Side, Top, Bottom }
 
@@ -151,6 +168,89 @@ namespace Nainital
 
         /// <summary>Steered by a handlebar, not a steering wheel.</summary>
         public static bool HandlebarSteered(string model) => TwoWheeler(model) || ThreeWheeler(model);
+
+        // ------------------------------------------------------------------ who fits a seat
+        /// <summary>A character fits a seat when its worst miss there is this many cm or less.</summary>
+        public const int FitCm = 4;
+        public const string FitsResource = "VehicleFits";
+        static VehicleFitsData fits;
+        static bool fitsLoaded;
+
+        public static VehicleFitsData Fits
+        {
+            get
+            {
+                if (!fitsLoaded)
+                {
+                    fitsLoaded = true;
+                    var t = Resources.Load<TextAsset>(FitsResource);
+                    fits = t ? JsonUtility.FromJson<VehicleFitsData>(t.text) : null;
+                }
+                return fits;
+            }
+        }
+
+        public static void ForgetFits() { fitsLoaded = false; fits = null; }
+
+        /// <summary>The measured fit of seat n of a model (null: not measured).</summary>
+        public static VehicleFitsData.SeatFit SeatFit(string model, int seat)
+        {
+            var f = Fits;
+            if (f == null || f.models == null) return null;
+            foreach (var m in f.models)
+                if (m != null && m.model == model) return seat >= 0 && seat < m.seats.Length ? m.seats[seat] : null;
+            return null;
+        }
+
+        /// <summary>
+        /// A look for seat n of this model: one of the characters measured to fit it (VehicleFits) that also suits the seat
+        /// - nobody under 18 at a wheel or a handlebar, the police only where asked for - of the wanted sex when one fits,
+        /// else of either; if none fits within FitCm, the best fitting ones. Weighted like the crowd (CharacterLibrary
+        /// weight). Without measures: CharacterLibrary.Pick as before.
+        /// </summary>
+        public static CharacterLibrary.Entry PickLook(string model, int seat, bool female, bool police = false)
+        {
+            var lib = CharacterLibrary.Instance;
+            if (!lib) return null;
+            var s = Get(model)?.seats is var ss && ss != null && seat >= 0 && seat < ss.Length ? ss[seat] : null;
+            bool wheel = s != null && (s.pose == SeatPose.Drive || s.pose == SeatPose.Ride);
+            var fit = SeatFit(model, seat);
+            bool Suits(CharacterLibrary.Entry e) =>
+                e != null && e.prefab && (police ? e.id.StartsWith("police") : !e.id.StartsWith("police") && e.weight > 0f) && !(wheel && e.Child);
+            if (fit == null || fit.ids.Length == 0)
+            {
+                if (police) foreach (var e in lib.entries) if (Suits(e)) return e;
+                return lib.Pick(female, wheel ? false : (bool?)null, null);
+            }
+            var cand = new List<(CharacterLibrary.Entry e, int cm)>();
+            for (int i = 0; i < fit.ids.Length && i < fit.cm.Length; i++)
+            {
+                var e = lib.Find(fit.ids[i]);
+                if (Suits(e)) cand.Add((e, fit.cm[i]));
+            }
+            if (cand.Count == 0) return lib.Pick(female, wheel ? false : (bool?)null, null);
+            // the wanted sex first (an auto's or a hatchback's driver is a man: 21 Nov, their roofs fit no grown man - the
+            // best of the men then, not a woman every time), then the best fitting of them: within FitCm, else within 2 cm
+            // of the best one
+            var group = cand.FindAll(c => police || c.e.Female == female);
+            if (group.Count == 0) group = cand;
+            int best = int.MaxValue;
+            foreach (var c in group) best = Mathf.Min(best, c.cm);
+            int limit = Mathf.Max(FitCm, best + 2);
+            float W(CharacterLibrary.Entry e) => Mathf.Max(0.05f, e.weight) * (e.Child ? 0.5f : 1f);   // children: as in the crowd
+            float total = 0f;
+            foreach (var c in group) if (c.cm <= limit) total += W(c.e);
+            float r = UnityEngine.Random.value * total;
+            CharacterLibrary.Entry last = null;
+            foreach (var c in group)
+            {
+                if (c.cm > limit) continue;
+                last = c.e;
+                r -= W(c.e);
+                if (r <= 0f) return c.e;
+            }
+            return last;
+        }
     }
 
     /// <summary>Clicks in the Scene view pick this object, not the mesh under it (the setup tool's seats, lamps, entry

@@ -138,6 +138,8 @@ namespace Nainital
                 var t = go.AddComponent<TrafficCar>();
                 t.type = type;
                 t.cruise = type == CarType.Bus || type == CarType.Pickup ? Random.Range(7f, 9f) : Random.Range(9f, 13f);
+                var vi = go.GetComponent<VehicleInfo>();
+                if (vi && vi.maxSpeed > 0f) t.cruise = Mathf.Min(t.cruise, vi.maxSpeed * Random.Range(0.75f, 0.9f));   // the auto, the e-rickshaw
                 t.Begin(network, r, i, Random.value < 0.5f ? 1 : -1);
                 var entry = go.AddComponent<TrafficCarEntry>();   // the player can take it over
                 entry.type = type;

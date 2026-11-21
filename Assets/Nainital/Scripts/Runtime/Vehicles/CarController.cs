@@ -30,6 +30,9 @@ namespace Nainital
         /// <summary>The driver is braking: pedal against the motion, or the handbrake (VehicleFX lights the tail lamps).</summary>
         public bool Braking { get; private set; }
         public float SpeedKmh => Speed * 3.6f;
+        /// <summary>The front wheels' steering angle now, degrees (+ = right): VehicleParts turns the model's wheels,
+        /// handlebar and steering wheel by it.</summary>
+        public float SteerAngle => steer;
 
         VehicleFactory.Spec spec;
         Rigidbody rb;
@@ -78,6 +81,9 @@ namespace Nainital
             spec = VehicleFactory.GetSpec(type);
             var info = GetComponent<VehicleInfo>();
             if (info) { spec.wheelRadius = info.wheelRadius; spec.width = info.width; spec.length = info.length; spec.height = info.height; }
+            // a model's own mass / top speed (the auto, the e-rickshaw): the engine scales with the mass it pulls
+            if (info && info.mass > 0f) { spec.engine *= info.mass / spec.mass; spec.mass = info.mass; }
+            if (info && info.maxSpeed > 0f) spec.maxSpeed = info.maxSpeed;
             radius = spec.width * 0.5f + 2f;
             rb = GetComponent<Rigidbody>();
             rb.mass = spec.mass;
@@ -129,13 +135,17 @@ namespace Nainital
             var p = driver;
             if (!p) return;
             Vector3 right = transform.right;
+            // out where the setup says the driver gets in (VehicleParts), else beside the car
+            var vp = GetComponent<VehicleParts>();
+            Vector3 entry = vp && vp.HasSetup ? vp.EntryWorld(0) + Vector3.up * 0.3f : transform.position + right * (spec.width * 0.5f + 0.9f) + Vector3.up * 0.3f;
             Vector3[] tries =
             {
+                entry,
                 transform.position + right * (spec.width * 0.5f + 0.9f) + Vector3.up * 0.3f,
                 transform.position - right * (spec.width * 0.5f + 0.9f) + Vector3.up * 0.3f,
                 transform.position + Vector3.up * (spec.height + 0.4f),
             };
-            Vector3 at = tries[2];
+            Vector3 at = tries[tries.Length - 1];
             foreach (var t in tries)
                 if (!Physics.CheckCapsule(t + Vector3.up * 0.4f, t + Vector3.up * 1.5f, 0.3f, ~((1 << 8) | (1 << 2)), QueryTriggerInteraction.Ignore)) { at = t; break; }
             driver = null;

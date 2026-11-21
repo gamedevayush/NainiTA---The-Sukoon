@@ -30,6 +30,11 @@ namespace Nainital.EditorTools
             kit.lampBlue = Lamp("M_LightBarBlue", new Color(0.35f, 0.75f, 8f));
             kit.lampWhite = Lamp("M_Tracer", new Color(5f, 4.4f, 3.2f));
             kit.muzzle = Muzzle();
+            // the unbranded set (21 Nov 2026): the police drive its boxy SUV and ride its 125 cc commuter once it is in the
+            // library (the ambulance has no stand-in yet)
+            var vlib = VehicleLibrary.Instance;
+            if (vlib && System.Array.Exists(vlib.entries, e => e != null && e.prefab && e.name == "car_suv_boxy")) kit.policeCarModel = "car_suv_boxy";
+            if (vlib && vlib.Bike("bike_commuter125") != null) kit.bikeModel = "bike_commuter125";
 
             string log = "";
             if (Measure(kit.policeCarModel, 0.44f, 0.58f, out var roof, out float roofW, out var side, false))
@@ -102,12 +107,14 @@ namespace Nainital.EditorTools
             roofW = 1f;
             side = default;
             string path = $"{VehicleKit.Dir}/Prefabs/{model}.prefab";
+            var entry = VehicleLibrary.Instance ? System.Array.Find(VehicleLibrary.Instance.entries, e => e != null && e.prefab && e.name == model) : null;
+            if (entry != null) path = AssetDatabase.GetAssetPath(entry.prefab);   // the unbranded set: Vehicles/New/Prefabs
             if (!File.Exists(path)) { Debug.LogWarning("[Nainital] police kit: no prefab " + path); return false; }
             var root = PrefabUtility.LoadPrefabContents(path);
             try
             {
                 MeshFilter mf = null;
-                foreach (var f in root.GetComponentsInChildren<MeshFilter>(true)) if (f.name.EndsWith("L0") && f.sharedMesh) mf = f;
+                foreach (var f in root.GetComponentsInChildren<MeshFilter>(true)) if ((f.name.EndsWith("L0") || f.name == "Body") && f.sharedMesh) mf = f;
                 if (!mf) { Debug.LogWarning("[Nainital] police kit: no L0 mesh in " + model); return false; }
                 var vs = mf.sharedMesh.vertices;
                 if (vs == null || vs.Length == 0) { Debug.LogWarning("[Nainital] police kit: unreadable mesh " + model); return false; }

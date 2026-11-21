@@ -18,6 +18,15 @@ namespace Nainital
             public float weight = 1f;   // how often it turns up among its kind
             public bool tint = true;    // body is plain white paint: the paint colour can be multiplied on
             public float wheelRadius;   // the model's tyre radius (hub height), 0 if its tyres are part of the body
+            /// <summary>From the unbranded set (Vehicles/New, 21 Nov 2026): named parts (Wheel_*, Handlebar, Door_*) and a
+            /// Vehicle Setup (seats, lamps) - VehicleParts drives them.</summary>
+            public bool parts;
+            /// <summary>The doors' own baked clip (the buses' fold / slide) and the doors it moves.</summary>
+            public AnimationClip doorClip;
+            public string[] clipDoors = new string[0];
+            /// <summary>Its own top speed (m/s) and mass (kg) where the kind's numbers do not fit (the auto, the
+            /// e-rickshaw); 0 = the kind's (VehicleFactory.GetSpec).</summary>
+            public float maxSpeed, mass;
         }
 
         public Entry[] entries = new Entry[0];

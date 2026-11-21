@@ -51,6 +51,10 @@ namespace Nainital
             rig.seated = true;
             rig.driving = true;
             rig.speed = 0;
+            // the unbranded set: the setup's driver's seat - hands on the wheel / grips, feet on the pedals, head under the
+            // roof - and the driver's door opens (VehicleParts)
+            var vp = c.GetComponent<VehicleParts>();
+            if (vp && vp.HasSetup) { vp.Sit(transform, rig, 0); vp.OpenDoorFor(0); }
             if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SetOverride(c.transform, c.type == CarType.Bus ? 13f : 7.5f);
         }
 
@@ -79,6 +83,8 @@ namespace Nainital
 
         public void ExitVehicle(Vector3 at)
         {
+            var vp = car ? car.GetComponent<VehicleParts>() : null;
+            if (vp) { vp.Leave(transform); vp.OpenDoorFor(0); }
             transform.SetParent(null, true);
             transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized + Vector3.forward * 1e-4f, Vector3.up);
             rig.seated = false;

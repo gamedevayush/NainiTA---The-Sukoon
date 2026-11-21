@@ -11,5 +11,7 @@ namespace Nainital
         /// mirrors (from the tyres' track): VehicleSeats places the driver from these.</summary>
         public string model;
         public float frontAxleZ, rearAxleZ, bodyWidth;
+        /// <summary>The model's own top speed (m/s) and mass (kg), 0 = the kind's (VehicleLibrary.Entry).</summary>
+        public float maxSpeed, mass;
     }
 }
