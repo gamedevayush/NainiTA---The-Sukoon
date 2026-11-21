@@ -368,6 +368,7 @@ namespace Nainital
             fx.engine.rolloffMode = AudioRolloffMode.Linear;
             fx.engine.dopplerLevel = 0.3f;
             fx.engine.volume = 0f;
+            root.AddComponent<VehicleSound>();   // its own engine, skids, brakes, knocks, horn (takes fx.engine)
             var seat = new GameObject("Seat").transform;
             seat.SetParent(root.transform, false);
             seat.localPosition = new Vector3(W * 0.2f, Mathf.Min(0.45f, H * 0.18f), L > 6.5f ? L * 0.38f : -0.1f);
@@ -473,6 +474,7 @@ namespace Nainital
             fx.engine.rolloffMode = AudioRolloffMode.Linear;
             fx.engine.dopplerLevel = 0.3f;
             fx.engine.volume = 0f;
+            root.AddComponent<VehicleSound>();   // its own engine, skids, brakes, knocks, horn (takes fx.engine)
             var seat = new GameObject("Seat").transform;
             seat.SetParent(root.transform, false);
             seat.localPosition = VehicleSeats.Root(root);

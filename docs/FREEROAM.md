@@ -31,8 +31,9 @@ Tripo: he left the settings to us ("apne hisaab se set krlena") - keep the polyc
 
 | # | Work | Status |
 |---|---|---|
-| 1 | Traffic unstick | next |
-| 2 | Night lighting, whole town | - |
+| 1 | Traffic unstick | done 22 Nov (docs/VEHICLES.md 0.2, "Traffic that stays stuck") |
+| 1b | Vehicle sounds (asked 22 Nov): real engine pull per vehicle, braking, heavy hits, one fixed horn per vehicle (not a random one each time), the horn together with the dipper | done 22 Nov (docs/VEHICLES.md 0.2, "Vehicle sounds"); waiting for the owner's ears on the mix |
+| 2 | Night lighting, whole town | next |
 | 3 | Phone: calls (police / ambulance / fire truck), camera | - |
 | 4 | Petrol pumps + fuel | - |
 | 5 | Shops + restaurants (seated people, ordering) | - |

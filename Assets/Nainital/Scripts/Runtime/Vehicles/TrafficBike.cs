@@ -101,7 +101,27 @@ namespace Nainital
             Vector3 left = Vector3.Cross(d.normalized, Vector3.up);
             float w = net.roads[road].width;
             float off = net.roads[road].oneWay != 0 ? w * 0.28f : Mathf.Max(1.5f, w * 0.36f);   // two-wheelers keep to the edge
-            return pts[i] + left * (off + pull * 0.6f);
+            return pts[i] + left * (off + pull * 0.6f - passOff);
+        }
+
+        // round a vehicle standing in the way that will not move (TrafficCar.WontMove), on its right (owner, 21 Nov 2026:
+        // "gaadi atke na")
+        Rigidbody passing;
+        float passOff, passWant, passT, waitT;
+
+        void StartPass(Rigidbody o, Vector3 pos)
+        {
+            var info = o.GetComponent<VehicleInfo>();
+            float bw = info ? info.width : (o.GetComponent<BikeRide>() ? 0.8f : 1.9f);
+            Vector3 right = Vector3.Cross(Vector3.up, bike.Forward);
+            float want = Vector3.Dot(o.position - pos, right) + bw * 0.5f + 0.9f;
+            if (want <= 0.3f) return;
+            var r = net.roads[road];
+            passWant = Mathf.Min(want, r.oneWay != 0 ? r.width * 0.55f : Mathf.Max(1.5f, r.width * 0.36f) * 2f);
+            passing = o;
+            passT = 0f;
+            waitT = 0f;
+            TrafficCar.Passes++;
         }
 
         void Advance()
@@ -170,12 +190,27 @@ namespace Nainital
             float bend = Vector3.Angle(bike.Forward, ahead);
             float target = Mathf.Lerp(cruise, 3.5f, Mathf.Clamp01(bend / 75f));
 
+            // going round a standing vehicle: until it is behind
+            if (passing)
+            {
+                passT += dt;
+                if (Vector3.Dot(passing.position - pos, bike.Forward) < -(bike.length * 0.5f + 3f) || passT > 12f) passing = null;
+            }
+            passOff = Mathf.MoveTowards(passOff, passing ? passWant : 0f, dt * 1.6f);
+
             // something in front
             float look = 4f + speed * 1.1f;
             Vector3 from = pos + Vector3.up * 0.8f + bike.Forward * (bike.length * 0.5f + 0.2f);
+            Rigidbody blocker = null;
             if (Physics.SphereCast(from, 0.45f, bike.Forward, out var hit, look, obstacleMask, QueryTriggerInteraction.Ignore) &&
-                !hit.collider.transform.IsChildOf(transform))
+                !hit.collider.transform.IsChildOf(transform) && !(passing && hit.rigidbody == passing && hit.distance > 0.5f))
+            {
                 target = hit.distance < 2.5f ? 0f : Mathf.Min(target, (hit.distance - 2f) * 0.8f);
+                int hl = hit.collider.gameObject.layer;
+                if (hl != 8 && hl != 9 && hit.rigidbody && hit.rigidbody.gameObject != gameObject) blocker = hit.rigidbody;
+            }
+            if (blocker && !passing && TrafficCar.WontMove(blocker)) { waitT += dt; if (waitT > 2f) StartPass(blocker, pos); }
+            else waitT = 0f;
 
             // an accident ahead: stop short; a siren behind: over to the left, slow
             if (IncidentManager.HoldAhead(pos, bike.Forward, out float hd)) target = Mathf.Min(target, Mathf.Max(0f, (hd - 8f) * 0.6f));
@@ -187,9 +222,13 @@ namespace Nainital
 
             if (speed < 0.3f) stuck += dt; else stuck = 0f;
             hornCd -= dt;
-            if (stuck > 2f && hornCd <= 0f && AudioManager.Instance) { AudioManager.Instance.HornAt(pos + Vector3.up, false); hornCd = Random.Range(5f, 10f); }
+            if (stuck > 2f && hornCd <= 0f) { VehicleSound.HornOf(gameObject, pos + Vector3.up, false); hornCd = Random.Range(5f, 10f); }   // its own horn
             dipperCd -= dt;   // held up: a flick of the headlight now and then
-            if (stuck > 2.5f && dipperCd <= 0f) { if (lampsRef && Random.value < 0.45f) { lampsRef.Flash(); TrafficCar.Dippers++; } dipperCd = Random.Range(3f, 7f); }
+            if (stuck > 2.5f && dipperCd <= 0f)   // the dipper, with the horn (owner, 22 Nov 2026)
+            {
+                if (lampsRef && Random.value < 0.45f) { lampsRef.Flash(); TrafficCar.Dippers++; VehicleSound.HornOf(gameObject, pos + Vector3.up, false); hornCd = Random.Range(5f, 10f); }
+                dipperCd = Random.Range(3f, 7f);
+            }
             if (stuck > 30f && !Seen()) Destroy(gameObject);
         }
 

@@ -187,7 +187,7 @@ namespace Nainital.EditorTools
         public static void JamReport()
         {
             Need();
-            int n = 0, standing = 0, person = 0, vehicle = 0, other = 0, clear = 0;
+            int n = 0, standing = 0, person = 0, vehicle = 0, other = 0, clear = 0, wrecked = 0;
             int mask = ~((1 << 2) | (1 << 4));
             var others = new System.Collections.Generic.List<string>();
             foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
@@ -195,6 +195,7 @@ namespace Nainital.EditorTools
                 var tc = t.GetComponent<TrafficCar>(); var tb = t.GetComponent<TrafficBike>();
                 if (!tc && !tb) continue;
                 n++;
+                if (tc && tc.Wrecked) { wrecked++; continue; }   // burnt out: not traffic any more
                 float sp = tc ? tc.Speed : t.GetComponent<BikeRide>().Speed;
                 if (sp > 0.5f) continue;
                 standing++;
@@ -214,7 +215,205 @@ namespace Nainital.EditorTools
                 }
                 if (what == "person") person++; else if (what == "vehicle") vehicle++; else if (what == "other") other++; else clear++;
             }
-            Debug.Log($"[Nainital] jam report: {n} traffic, {standing} standing - in front: person {person}, vehicle {vehicle}, other {other}, nothing {clear}" + (others.Count > 0 ? " | other: " + string.Join("; ", others) : ""));
+            Debug.Log($"[Nainital] jam report: {n} traffic, {wrecked} wrecked, {standing} standing - in front: person {person}, vehicle {vehicle}, other {other}, nothing {clear}" +
+                      $" | so far: back-offs {TrafficCar.BackOffs}, rams {TrafficCar.Rams}, hops {TrafficCar.Hops}, passes {TrafficCar.Passes}" + (others.Count > 0 ? " | other: " + string.Join("; ", others) : ""));
+        }
+
+        // ---------------------------------------------------------------- vehicle sounds (22 Nov 2026)
+        /// <summary>Every vehicle's sound: its kind, engine clip (loaded?), playing near the camera, speed / pitch / volume,
+        /// its own horn; vehicles without a VehicleSound; missing clips.</summary>
+        public static void SoundReport()
+        {
+            Need();
+            var cam = Camera.main;
+            int all = 0, without = 0, playing = 0, noClip = 0;
+            var kinds = new System.Collections.Generic.Dictionary<string, int>();
+            var lines = new System.Collections.Generic.List<string>();
+            var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            {
+                if (!t.GetComponent<CarController>() && !t.GetComponent<BikeRide>()) continue;
+                all++;
+                var vs = t.GetComponent<VehicleSound>();
+                if (!vs) { without++; continue; }
+                string k = vs.kind.ToString();
+                kinds[k] = kinds.TryGetValue(k, out var c) ? c + 1 : 1;
+                var eng = typeof(VehicleSound).GetField("eng", bf).GetValue(vs) as AudioSource;
+                var horn = typeof(VehicleSound).GetField("hornClip", bf).GetValue(vs) as AudioClip;
+                float hp = (float)typeof(VehicleSound).GetField("hornPitch", bf).GetValue(vs);
+                int gear = (int)typeof(VehicleSound).GetField("gear", bf).GetValue(vs);
+                if (!eng || !eng.clip || !horn) noClip++;
+                float d = cam ? Vector3.Distance(cam.transform.position, t.position) : -1f;
+                if (eng && eng.isPlaying)
+                {
+                    playing++;
+                    var cc = t.GetComponent<CarController>(); var br = t.GetComponent<BikeRide>();
+                    float sp = cc ? Mathf.Abs(cc.ForwardSpeed) : br ? br.Speed : 0f;
+                    lines.Add($"{t.name} [{k}] {eng.clip.name} {d:F0} m: {sp:F1} m/s gear {gear + 1} pitch {eng.pitch:F2} vol {eng.volume:F2} | horn {horn?.name} x{hp:F2}" + (cc ? $" slip {cc.Slip:F2}" : ""));
+                }
+            }
+            var ks = new System.Collections.Generic.List<string>();
+            foreach (var kv in kinds) ks.Add($"{kv.Key} {kv.Value}");
+            Debug.Log($"[Nainital] sound report: {all} vehicles, {without} without VehicleSound, {noClip} missing a clip, {playing} engines playing | kinds: {string.Join(", ", ks)}" +
+                      (lines.Count > 0 ? " | " + string.Join("; ", lines) : ""));
+        }
+
+        /// <summary>The player's car (take one first: PlayTest.TakeTraffic): 5 s flat out, 1.5 s flat out on full lock,
+        /// 2 s braking; every 0.25 s the speed, gear, engine pitch / volume, tyre slip and the skid's volume.</summary>
+        public static void DriveSound()
+        {
+            Need();
+            var c = CarController.Driving;
+            if (!c) throw new System.Exception("not driving (PlayTest.TakeTraffic first)");
+            var vs = c.GetComponent<VehicleSound>();
+            var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            // somewhere it can run: 50 m up the lane of a traffic car going well, facing the lane's way
+            TrafficCar lead = null;
+            foreach (var tc in Object.FindObjectsByType<TrafficCar>(FindObjectsSortMode.None))
+                if (tc.gameObject != c.gameObject && tc.Speed > 7f && tc.State.StartsWith("Drive")) { lead = tc; break; }
+            if (lead)
+            {
+                Vector3 at = lead.LaneAhead(50f, out var way);
+                var crb = c.GetComponent<Rigidbody>();
+                crb.linearVelocity = Vector3.zero; crb.angularVelocity = Vector3.zero;
+                c.transform.SetPositionAndRotation(Ground(at) + Vector3.up * 0.5f, Quaternion.LookRotation(way, Vector3.up));
+                Physics.SyncTransforms();
+            }
+            double t0 = EditorApplication.timeSinceStartup + 1.0, next = t0;   // a second to settle
+            var sb = new System.Text.StringBuilder($"[Nainital] drive sound {c.name} [{(vs ? vs.kind.ToString() : "-")}]:");
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying || !c) { EditorApplication.update -= Tick; GameInput.TouchMove = Vector2.zero; return; }
+                double t = EditorApplication.timeSinceStartup - t0;
+                if (t < 0) return;
+                GameInput.TouchMove = t < 5 ? new Vector2(0f, 1f) : t < 6.5 ? new Vector2(1f, 1f) : t < 8.5 ? new Vector2(0f, -1f) : Vector2.zero;
+                if (EditorApplication.timeSinceStartup < next) return;
+                next += 0.25;
+                var eng = vs ? typeof(VehicleSound).GetField("eng", bf).GetValue(vs) as AudioSource : null;
+                var skid = vs ? typeof(VehicleSound).GetField("skid", bf).GetValue(vs) as AudioSource : null;
+                int gear = vs ? (int)typeof(VehicleSound).GetField("gear", bf).GetValue(vs) : 0;
+                sb.Append($" | {t:F2}s {c.ForwardSpeed:F1}m/s g{gear + 1} p{(eng ? eng.pitch : 0f):F2} v{(eng ? eng.volume : 0f):F2} {(eng && eng.isPlaying ? "" : "OFF ")}slip {c.Slip:F2} skid {(skid ? skid.volume : 0f):F2}");
+                if (t > 9) { EditorApplication.update -= Tick; GameInput.TouchMove = Vector2.zero; Debug.Log(sb.ToString() + $" | knocks {VehicleSound.Knocks}, last {VehicleSound.LastKnock}"); }
+            }
+            EditorApplication.update += Tick;
+        }
+
+        /// <summary>The player's car thrown sideways at 12 m/s (the tyres must slide): slip and the skid's volume every
+        /// 0.1 s for 1.5 s.</summary>
+        public static void SkidTest()
+        {
+            Need();
+            var c = CarController.Driving;
+            if (!c) throw new System.Exception("not driving");
+            var vs = c.GetComponent<VehicleSound>();
+            var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var crb = c.GetComponent<Rigidbody>();
+            crb.linearVelocity = c.transform.right * 12f + c.transform.forward * 4f;
+            double t0 = EditorApplication.timeSinceStartup, next = t0;
+            var sb = new System.Text.StringBuilder($"[Nainital] skid test {c.name}:");
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying || !c) { EditorApplication.update -= Tick; return; }
+                double t = EditorApplication.timeSinceStartup - t0;
+                if (EditorApplication.timeSinceStartup < next) return;
+                next += 0.1;
+                var skid = vs ? typeof(VehicleSound).GetField("skid", bf).GetValue(vs) as AudioSource : null;
+                sb.Append($" | {t:F1}s v{crb.linearVelocity.magnitude:F1} slip {c.Slip:F2} skid {(skid ? skid.volume : 0f):F2}{(skid && skid.isPlaying ? "" : " off")}");
+                if (t > 1.5) { EditorApplication.update -= Tick; Debug.Log(sb.ToString()); }
+            }
+            EditorApplication.update += Tick;
+        }
+
+        // ---------------------------------------------------------------- getting unstuck (21 Nov 2026)
+        static TrafficCar testCar;
+        static GameObject testWall;
+        static Vector3 testStart, testWallAt, testWallFwd;
+        static Rigidbody testParked;
+
+        static TrafficCar NearestDriving(Vector3 to, TrafficCar not = null)
+        {
+            TrafficCar best = null; float bd = float.MaxValue;
+            foreach (var tc in Object.FindObjectsByType<TrafficCar>(FindObjectsSortMode.None))
+            {
+                if (tc == not || !tc.HasDriver || tc.Wrecked || tc.PullingUp || tc.Speed < 2f || !tc.State.StartsWith("Drive")) continue;
+                float d = (tc.transform.position - to).sqrMagnitude;
+                if (d < bd) { bd = d; best = tc; }
+            }
+            return best;
+        }
+
+        /// <summary>A wall across the road just ahead of the nearest moving traffic car (arg "full": the whole road and
+        /// more, "half": its own lane only). Then WedgeReport now and then, WedgeClear at the end.</summary>
+        public static void WedgeTest()
+        {
+            Need();
+            WedgeClear();
+            bool full = (Arg() ?? "").Trim() != "half";
+            var p = PlayerController.Instance;
+            testCar = NearestDriving(p.transform.position);
+            if (!testCar) throw new System.Exception("no moving traffic car");
+            var t = testCar.transform;
+            Vector3 f = Vector3.ProjectOnPlane(t.forward, Vector3.up).normalized;
+            var info = testCar.GetComponent<VehicleInfo>();
+            float len = info ? info.length : 4.4f;
+            testStart = t.position;
+            testWallFwd = f;
+            testWallAt = Ground(t.position + f * (len * 0.5f + 1.6f + testCar.Speed * 0.6f));
+            testWall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            testWall.name = "TestWall";
+            testWall.transform.SetPositionAndRotation(testWallAt + Vector3.up * 1f + (full ? Vector3.zero : Vector3.Cross(Vector3.up, f) * 0f), Quaternion.LookRotation(f, Vector3.up));
+            testWall.transform.localScale = new Vector3(full ? 24f : 2.4f, 2f, 0.4f);
+            Physics.SyncTransforms();
+            Debug.Log($"[Nainital] wedge test ({(full ? "full road" : "its lane")}): {testCar.name} at {t.position:F0} doing {testCar.Speed:F1} m/s, wall {(testWallAt - t.position).magnitude:F1} m ahead");
+        }
+
+        /// <summary>The wedge test car: its state, how far it got, whether it is past the wall.</summary>
+        public static void WedgeReport()
+        {
+            Need();
+            if (!testCar) { Debug.Log("[Nainital] wedge report: test car gone (left / hopped out of sight / destroyed)"); return; }
+            Vector3 pos = testCar.transform.position;
+            float past = Vector3.Dot(pos - testWallAt, testWallFwd);
+            Debug.Log($"[Nainital] wedge report: {testCar.name} {testCar.State}, speed {testCar.Speed:F1}, {(pos - testStart).magnitude:F0} m from start, " +
+                      $"{(past > 0f ? $"PAST the wall by {past:F1} m" : $"{-past:F1} m short of the wall")}, this car: most tries {testCar.MostTries}, rams {testCar.RamsHere}, passes {testCar.PassesHere} | all: back-offs {TrafficCar.BackOffs}, rams {TrafficCar.Rams}, hops {TrafficCar.Hops}, passes {TrafficCar.Passes}");
+        }
+
+        public static void WedgeClear()
+        {
+            if (testWall) Object.Destroy(testWall);
+            testWall = null;
+            if (testParked) Object.Destroy(testParked.gameObject);
+            testParked = null;
+        }
+
+        /// <summary>A traffic car left standing in the lane of another (its driver gone, as if abandoned), 16 m ahead of it.
+        /// Then WedgeReport (the moving one is the test car) - it should go round on the right.</summary>
+        public static void PassTest()
+        {
+            Need();
+            WedgeClear();
+            var p = PlayerController.Instance;
+            testCar = NearestDriving(p.transform.position);
+            if (!testCar) throw new System.Exception("no moving traffic car");
+            var other = NearestDriving(testCar.transform.position + testCar.transform.forward * 60f, testCar);
+            if (!other) throw new System.Exception("no second traffic car");
+            var go = other.gameObject;
+            var entry = go.GetComponent<TrafficCarEntry>();
+            if (entry) Object.DestroyImmediate(entry);   // (it needs the TrafficCar)
+            Object.DestroyImmediate(other);   // takes its driver and passengers: an empty car
+            var cc = go.GetComponent<CarController>();
+            if (cc) { cc.aiThrottle = 0f; cc.aiSteer = 0f; cc.aiHandbrake = 1f; }
+            var t = testCar.transform;
+            Vector3 at = testCar.LaneAhead(22f, out var f);
+            testParked = go.GetComponent<Rigidbody>();
+            testParked.linearVelocity = Vector3.zero;
+            testParked.angularVelocity = Vector3.zero;
+            go.transform.SetPositionAndRotation(Ground(at) + Vector3.up * 0.4f, Quaternion.LookRotation(f, Vector3.up));
+            Physics.SyncTransforms();
+            testStart = t.position;
+            testWallAt = go.transform.position;
+            testWallFwd = f;
+            Debug.Log($"[Nainital] pass test: {go.name} left standing in the lane {(at - t.position).magnitude:F0} m ahead of {testCar.name} ({testCar.Speed:F1} m/s)");
         }
 
         // ---------------------------------------------------------------- the player on a bike (21 Nov 2026)

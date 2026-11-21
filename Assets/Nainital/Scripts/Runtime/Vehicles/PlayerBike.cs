@@ -132,7 +132,7 @@ namespace Nainital
             }
             if (wall < float.MaxValue) target = Mathf.Min(target, Mathf.Max(0f, wall - 0.6f) * 1.5f);
             Bike.Drive(aim, target, dt, Mathf.Abs(mv.x) > 0.3f);
-            if (GameInput.HornPressed && AudioManager.Instance) AudioManager.Instance.HornAt(transform.position + Vector3.up, false);
+            if (GameInput.HornPressed) VehicleSound.HornOf(gameObject, transform.position + Vector3.up, false);   // this bike's own horn
         }
 
         void Update()

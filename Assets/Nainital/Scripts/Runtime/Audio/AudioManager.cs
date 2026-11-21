@@ -141,7 +141,12 @@ namespace Nainital
 
             GameEvents.Hit += (p, blocked) => PlayAt(One(blocked ? "block" : "punch") ?? One("punch"), p, blocked ? 0.5f : 0.9f, Random.Range(0.92f, 1.08f));
             GameEvents.Splash += p => PlayAt(One("splash"), p, 0.9f, Random.Range(0.95f, 1.05f));
-            GameEvents.Horn += p => PlayAt(One("horn"), p, 0.9f, 1f);
+            GameEvents.Horn += p =>   // the player's car: its own horn (VehicleSound), the same one every time
+            {
+                var c = CarController.Driving;
+                var vs = c ? c.GetComponent<VehicleSound>() : null;
+                if (vs) vs.Horn(); else PlayAt(One("horn"), p, 0.9f, 1f);
+            };
             GameEvents.Banner += (t, s, c) => { if (t.Contains("PASSED")) s2D.PlayOneShot(One("jingle"), 0.7f * masterVolume); };
         }
 
@@ -393,7 +398,7 @@ namespace Nainital
 
             // the player's own vehicle
             var car = CarController.Driving;
-            if (car)
+            if (car && !car.GetComponent<VehicleSound>())   // (a car with its own VehicleSound plays its own engine)
             {
                 sEngine.transform.position = car.transform.position;
                 float spd01 = Mathf.Clamp01(car.Speed / 30f);

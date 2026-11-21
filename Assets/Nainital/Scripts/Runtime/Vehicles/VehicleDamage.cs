@@ -50,10 +50,28 @@ namespace Nainital
             if (dv < 2.5f || cooldown > 0f) return;
             cooldown = 0.6f;
             Vector3 at = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
+            // a traffic car working its way out of a tight spot (backing out, ramming through: TrafficCar.Wedged) bumps
+            // the walls again and again - those bumps are not crashes: a thud, no count towards smoke and fire (five
+            // traffic cars on road 90 caught fire that way, 22 Nov 2026); a real knock (over 6 m/s) still counts
+            // the sound of it by how hard (VehicleSound: a clank / a crunch / a crash with glass); two vehicles hitting
+            // each other: one of them sounds it, not both
+            var vs = GetComponent<VehicleSound>();
+            var otherDmg = c.rigidbody ? c.rigidbody.GetComponent<VehicleDamage>() : null;
+            bool sound = !otherDmg || otherDmg.Wrecked || GetInstanceID() < otherDmg.GetInstanceID();
+            var escaping = GetComponent<TrafficCar>();
+            if (escaping && (escaping.Tries > 0 || escaping.Ramming) && dv < 6f)
+            {
+                if (vs) vs.Knock(Mathf.Min(dv, 3f), at, false);
+                return;
+            }
             var vp = GetComponent<VehicleParts>();
             if (vp) vp.Dent(at, dv);   // the Dmg_* shape key of the side that was hit (when the model has them)
             var au = AudioManager.Instance;
-            if (au) au.PlayAt(au.Clip("crash_1"), at, Mathf.Clamp01(0.35f + dv * 0.06f), Random.Range(0.85f, 1.15f), 90f);
+            if (sound)
+            {
+                if (vs) vs.Knock(dv, at, otherDmg);
+                else if (au) au.PlayAt(au.Clip("crash_1"), at, Mathf.Clamp01(0.35f + dv * 0.06f), Random.Range(0.85f, 1.15f), 90f);
+            }
             Hit(dv > 9f ? 2 : 1);
             var tc = GetComponent<TrafficCar>();
             if (tc && !Burning) tc.Shaken();

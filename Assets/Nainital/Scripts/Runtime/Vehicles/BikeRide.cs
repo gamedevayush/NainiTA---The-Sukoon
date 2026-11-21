@@ -71,6 +71,7 @@ namespace Nainital
                 if (heads.Length > 0) { var vl = root.AddComponent<VehicleLamps>(); vl.lamps = heads[0]; vl.more = heads; parts.BuildIndicators(hm, out vl.indL, out vl.indR); }
                 if (tails.Length > 0) root.AddComponent<VehicleFX>().tails = tails;
             }
+            root.AddComponent<VehicleSound>();   // its own engine (it had none), horn, the fall
             return root;
         }
 
@@ -233,7 +234,9 @@ namespace Nainital
             rb.isKinematic = false;
             rb.linearVelocity = v * 0.4f + carVelocity * 0.75f + Vector3.up * 2.5f;
             rb.angularVelocity = new Vector3(Random.Range(-3f, 3f), Random.Range(-2f, 2f), Random.Range(-6f, 6f));
-            if (AudioManager.Instance) AudioManager.Instance.PlayAt(AudioManager.Instance.Clip("crash_1"), transform.position, 0.8f, 1.15f, 90f);
+            var vs = GetComponent<VehicleSound>();
+            if (vs) vs.Fall(carVelocity.magnitude, transform.position);
+            else if (AudioManager.Instance) AudioManager.Instance.PlayAt(AudioManager.Instance.Clip("crash_1"), transform.position, 0.8f, 1.15f, 90f);
             OnCrash?.Invoke(carVelocity, by);
         }
     }

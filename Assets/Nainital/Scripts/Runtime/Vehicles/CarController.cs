@@ -29,6 +29,10 @@ namespace Nainital
         public VehicleFactory.Spec Spec => spec;
         /// <summary>The driver is braking: pedal against the motion, or the handbrake (VehicleFX lights the tail lamps).</summary>
         public bool Braking { get; private set; }
+        /// <summary>How hard the tyres are sliding, 0-1 (sideways, locked or handbraked: VehicleSound's skid).</summary>
+        public float Slip { get; private set; }
+        /// <summary>The pedal this step, -1..1 (the player's or the AI's): the engine's load (VehicleSound).</summary>
+        public float Throttle { get; private set; }
         public float SpeedKmh => Speed * 3.6f;
         /// <summary>The front wheels' steering angle now, degrees (+ = right): VehicleParts turns the model's wheels,
         /// handlebar and steering wheel by it.</summary>
@@ -208,6 +212,8 @@ namespace Nainital
             float springK = massPerWheel * 9.81f / TravelDown;
             float damper = 2f * 0.45f * Mathf.Sqrt(springK * massPerWheel);
             int grounded = 0;
+            float slipNow = 0f;
+            Throttle = mv.y;
             for (int i = 0; i < 4; i++)
             {
                 bool front = i < 2;
@@ -245,6 +251,12 @@ namespace Nainital
                     }
                     if (handbrake && (!driving || !front)) longF += -Mathf.Clamp(vLong * 4f, -1f, 1f) * massPerWheel * 7f;
 
+                    // the tyre sliding: sideways faster than it grips, braking hard, the handbrake on a rolling rear wheel
+                    float want = new Vector2(latF, longF).magnitude;
+                    float sw = Mathf.Clamp01((Mathf.Abs(vLat) - 1.2f) / 3f);
+                    if (maxF > 1f && want > maxF * 1.3f) sw = Mathf.Max(sw, Mathf.Clamp01((want / maxF - 1.3f) * 0.5f) * Mathf.Clamp01(Mathf.Abs(vLong) / 4f + Mathf.Abs(vLat) / 3f));
+                    if (!front && handbrake && driving && Mathf.Abs(vLong) > 3f) sw = Mathf.Max(sw, Mathf.Clamp01(Mathf.Abs(vLong) / 10f));
+                    slipNow = Mathf.Max(slipNow, sw);
                     Vector2 f = Vector2.ClampMagnitude(new Vector2(latF, longF), maxF);
                     rb.AddForceAtPosition(right * f.x + fwd * f.y, hit.point + up * (spec.wheelRadius * 0.6f));
                     wheelOffset[i] = TravelUp - (hit.distance - spec.wheelRadius);
@@ -256,6 +268,7 @@ namespace Nainital
                 }
             }
 
+            Slip = Mathf.MoveTowards(Slip, grounded > 0 ? slipNow : 0f, dt * 6f);
             if (grounded == 0) rb.AddTorque(-rb.angularVelocity * spec.mass * 0.3f);   // calmer in the air
             else rb.AddForce(-up * rb.linearVelocity.magnitude * spec.mass * 0.03f);   // a little downforce
 
