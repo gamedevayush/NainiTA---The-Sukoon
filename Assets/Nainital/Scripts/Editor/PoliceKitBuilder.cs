@@ -31,10 +31,12 @@ namespace Nainital.EditorTools
             kit.lampWhite = Lamp("M_Tracer", new Color(5f, 4.4f, 3.2f));
             kit.muzzle = Muzzle();
             // the unbranded set (21 Nov 2026): the police drive its boxy SUV and ride its 125 cc commuter once it is in the
-            // library (the ambulance has no stand-in yet)
+            // library; the 108 ambulance is its white panel van (owner, 21 Nov evening: "baaki solve krdo" - the branded
+            // Ambulance108 was the last old model in the game), lettered and lit by this kit
             var vlib = VehicleLibrary.Instance;
             if (vlib && System.Array.Exists(vlib.entries, e => e != null && e.prefab && e.name == "car_suv_boxy")) kit.policeCarModel = "car_suv_boxy";
             if (vlib && vlib.Bike("bike_commuter125") != null) kit.bikeModel = "bike_commuter125";
+            if (vlib && System.Array.Exists(vlib.entries, e => e != null && e.prefab && e.name == "car_van")) kit.ambulanceModel = "car_van";
 
             string log = "";
             if (Measure(kit.policeCarModel, 0.44f, 0.58f, out var roof, out float roofW, out var side, false))

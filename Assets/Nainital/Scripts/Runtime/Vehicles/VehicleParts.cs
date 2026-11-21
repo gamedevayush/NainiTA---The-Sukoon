@@ -48,6 +48,11 @@ namespace Nainital
         readonly List<(Transform t, Quaternion rest)> bars = new List<(Transform, Quaternion)>(), steerings = new List<(Transform, Quaternion)>();
         readonly List<Door> doors = new List<Door>();
         readonly List<(SkinnedMeshRenderer r, int i, string side)> dents = new List<(SkinnedMeshRenderer, int, string)>();
+        // no Dmg_* keys (the unbranded set): the body's own mesh, copied on the first knock and pushed in where it was hit
+        MeshFilter bodyMesh;
+        Mesh dentMesh;
+        Vector3[] dentVerts;
+        float[] dentMoved;
         Vector3[] pivotRest;
         float spin;
         bool clipDirty = true;
@@ -71,6 +76,7 @@ namespace Nainital
             bike = GetComponent<BikeRide>();
             rb = GetComponent<Rigidbody>();
             wheels.Clear(); bars.Clear(); steerings.Clear(); doors.Clear(); dents.Clear();
+            bodyMesh = null; dentVerts = null; dentMoved = null;
             var saved = new Dictionary<string, VehicleSetupData.Door>();
             if (setup != null) foreach (var d in setup.doors) if (d != null && !string.IsNullOrEmpty(d.name)) saved[d.name] = d;
             float rSum = 0f;
@@ -102,6 +108,7 @@ namespace Nainital
                     }
                     doors.Add(new Door { t = t, rest = t.localRotation, d = d, byClip = byClip });
                 }
+                if (n == "Body" && !bodyMesh) { var bmf = t.GetComponent<MeshFilter>(); if (bmf && bmf.sharedMesh) bodyMesh = bmf; }
                 var sk = t.GetComponent<SkinnedMeshRenderer>();
                 if (sk && sk.sharedMesh)
                     for (int i = 0; i < sk.sharedMesh.blendShapeCount; i++)
@@ -271,7 +278,7 @@ namespace Nainital
         /// <summary>A knock at a world point: the Dmg_* shape key of that side (Front / Rear / Left / Right / Top) a bit deeper.</summary>
         public void Dent(Vector3 worldPoint, float dv)
         {
-            if (dents.Count == 0) return;
+            if (dents.Count == 0) { DentMesh(worldPoint, dv); return; }
             Vector3 p = Frame.InverseTransformPoint(worldPoint);
             var info = GetComponent<VehicleInfo>();
             float hl = info ? info.length * 0.5f : 2f, hw = info ? info.width * 0.5f : 0.9f, h = info ? info.height : 1.6f;
@@ -280,6 +287,70 @@ namespace Nainital
             foreach (var (r, i, s) in dents)
                 if (r && s == side) r.SetBlendShapeWeight(i, Mathf.Min(100f, r.GetBlendShapeWeight(i) + dv * 9f));
         }
+
+        const float MaxDent = 0.18f;
+
+        /// <summary>A knock on a model without Dmg_* keys (owner, 21 Nov 2026: "takkar par hi dent" - shape keys would keep
+        /// every traffic body skinned, a cost every frame on a phone): the body mesh is copied on the first knock (the FBX
+        /// are Read/Write, NewVehicleImport) and pushed in around the point that was hit - wider and deeper the harder the
+        /// knock, crumpled by noise, at most MaxDent at any point however often it is hit. Nothing costs until a hit.</summary>
+        void DentMesh(Vector3 worldPoint, float dv)
+        {
+            if (!bodyMesh) return;
+            if (dentVerts == null)
+            {
+                var src = bodyMesh.sharedMesh;
+                if (!src || !src.isReadable) return;
+                dentMesh = Instantiate(src);
+                dentMesh.name = src.name + "_dented";
+                dentMesh.MarkDynamic();
+                bodyMesh.sharedMesh = dentMesh;
+                dentVerts = dentMesh.vertices;
+                dentMoved = new float[dentVerts.Length];
+            }
+            var bt = bodyMesh.transform;
+            float s = Mathf.Max(1e-4f, bt.lossyScale.x);
+            Vector3 p = bt.InverseTransformPoint(worldPoint);
+            // the contact is on the box collider, 10-20 cm proud of the skin: dent round the skin's nearest point
+            float best = float.MaxValue;
+            Vector3 near = p;
+            foreach (var v in dentVerts) { float d2 = (v - p).sqrMagnitude; if (d2 < best) { best = d2; near = v; } }
+            p = near;
+            Bounds b = dentMesh.bounds;
+            // inward: toward the body's middle line at that height (front, rear, sides); straight down on the roof
+            Vector3 dir = new Vector3(b.center.x, p.y, b.center.z) - p;
+            bool roof = p.y > b.max.y - 0.25f / s;
+            dir = roof || dir.sqrMagnitude < 1e-6f ? Vector3.down : dir.normalized;
+            float r = Mathf.Clamp(0.3f + dv * 0.02f, 0.3f, 0.65f) / s;
+            float depth = Mathf.Clamp(dv * 0.02f, 0.03f, 0.12f);   // a 15 m/s knock (dv ~5) ~10 cm at the centre
+            bool any = false;
+            for (int i = 0; i < dentVerts.Length; i++)
+            {
+                Vector3 v = dentVerts[i];
+                float d = (v - p).magnitude;
+                if (d >= r) continue;
+                float f = 1f - d / r;
+                f = f * f * (3f - 2f * f);
+                float crumple = 0.65f + 0.7f * Mathf.PerlinNoise(v.x * 9f * s + v.z * 5f * s, v.y * 9f * s + v.z * 3f * s);
+                float amt = Mathf.Min(depth * f * crumple, MaxDent - dentMoved[i]);
+                if (amt <= 0f) continue;
+                dentVerts[i] = v + dir * (amt / s);
+                dentMoved[i] += amt;
+                any = true;
+            }
+            if (!any) return;
+            dentMesh.vertices = dentVerts;
+            dentMesh.RecalculateNormals();
+            int n = 0; float deep = 0f;
+            foreach (var m in dentMoved) { if (m > 0.005f) n++; if (m > deep) deep = m; }
+            DentedVerts = n; DentDeepest = deep;
+        }
+
+        /// <summary>How many body vertices a knock has moved more than 5 mm, and the deepest (m) - for the checks.</summary>
+        public int DentedVerts { get; private set; }
+        public float DentDeepest { get; private set; }
+
+        void OnDestroy() { if (dentMesh) Destroy(dentMesh); }
 
         // ------------------------------------------------------------------ seats
         public VehicleSetupData.Seat SeatData(int i) => HasSetup && i >= 0 && i < SeatCount ? setup.seats[i] : null;

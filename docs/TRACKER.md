@@ -440,3 +440,32 @@ dikkat ho ya kuch change ho to push instruction pe daaldena..sab push krdo with 
   9-10, commuter100 riders 7 / 12; Snap still on the old rule; the tourist driver by eye.
 - Not touched: the `car rescued (under the ground)` spam; scooty_family's headlight quad turned 254 deg (double-sided,
   the beam uses the vehicle's forward - harmless but looks thin from the front).
+
+## 21 Nov 2026 (20:00-22:00, main PC) - parked cars out of the lake, unbranded ambulance, dents where hit
+Owner pulled da6c08d (the other PC's afternoon pass), then: "iphone build ko chodke baaki solve krdo". His own edits to
+bike_commuter100.json / bus_roadways.json (20:38) kept.
+- RunFits for the six two-wheelers with the riding pack in (riders 7-12 of 22, pillions 9-20).
+- Owner: "double lights ki vehicle me mesh to 2 hain lights ki, but actual me 1 hi light hai" - the tool's night preview
+  lit only the first lamp of a mirrored pair; the twin gets its own light (`VehicleSetupWindow.Glow`).
+- The 19 Nov "car rescued (under the ground) at (0, 750.5, 0)" spam, found: EVERY parked vehicle (53) ended in the lake.
+  VehicleFactory makes the body at the origin; ParkedVehicles / CheatCodes moved the transform without
+  Physics.SyncTransforms, so the first FixedUpdate read the origin (under the terrain, the lake), Rescue lifted the car
+  THERE and it fell through again and again. Sync added; Rescue skips an unsynced body. 2.5 min: 53 -> 0 rescues, 52/53
+  parked within 3 m of their place (`PlayTest.ParkedReport`). Police spawns already synced.
+- 108 ambulance -> the white car_van (PoliceKitBuilder; letters / light bar measured on it); the accident sequence ran to
+  the end with it.
+- Owner's choices (asked): dents at the hit point at play time, not Dmg_* keys (phone cost); doors only if a perfect cut
+  is possible; small cabins as they are; Mall Road raw data later (process_data needs ~20 GB RAM, this PC 15.9).
+- Dents: VehicleParts.DentMesh (mesh copied on the first knock, pushed in round the skin's nearest point; the contact is
+  on the box collider 10-20 cm out - first try moved 16 vertices 0.8 cm, after snapping to the skin 219 / 253 vertices,
+  9-13 cm at 15 m/s). FBX Read/Write (NewVehicleImport), reimported (`VehicleTest.ReimportNew`).
+- Doors: untextured renders (diag/door_seams.py) - no door seams in the geometry, so not cut. Steering: the wheels are
+  Tripo fragments mixed with the dashboard (diag/steering_pieces.py), so not separated.
+- Trap (again): PowerShell variables are case-insensitive - a loop `$t` overwrote the tools path `$T`.
+- 22:30 owner: "auto me seesha alag krna pdega..andar ka dikh nahi raha". The windscreen is painted opaque on the Body.
+  First renders seemed to show no change after cutting - the blend was saved with the tuktuk's mesh in EDIT MODE, so
+  scripts read / rendered stale data (fix: mode_set OBJECT first). Rays (diag/glass_rays.py) found the slab; three cuts:
+  the first took the roof lip and the cab's curved corners, the second bit teeth into the roof lip (white gaps on the
+  yellow roof), the third (|x| <= 0.50, y 1.08-1.52, |n.z| >= 0.6, |n.x| < 0.45) is clean. Glass -> M_VehicleGlass
+  (alpha 0.22 / smooth 0.92 looked like a pale blue panel; now 0.15 / 0.7). NewVehicles_v07.blend; tuktuk re-exported,
+  FixMaterials, VehicleKit.Build. Tool: VehicleSetupWindow.NightArg (the night preview was left on and darkened sheets).

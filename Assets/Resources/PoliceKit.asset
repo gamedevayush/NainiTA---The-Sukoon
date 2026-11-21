@@ -19,11 +19,11 @@ MonoBehaviour:
   policeLetters: {fileID: 4300000, guid: 2f3f8a2529f021046ab2663636ff40a1, type: 2}
   ambulanceLetters: {fileID: 4300000, guid: 3e8eae27f0ab43d4894f5a5ac2feb2c3, type: 2}
   policeRoof: {x: 0, y: 2.0290625, z: -0.8917957}
-  ambulanceRoof: {x: 0, y: 2.9645116, z: 0.4983637}
+  ambulanceRoof: {x: 0, y: 2.29, z: 0.08006808}
   policeRoofWidth: 1.386963
-  ambulanceRoofWidth: 1.2823846
+  ambulanceRoofWidth: 1.2767273
   policeCarModel: car_suv_boxy
-  ambulanceModel: Ambulance108
+  ambulanceModel: car_van
   bikeModel: bike_commuter125
   officerIds:
   - police_1

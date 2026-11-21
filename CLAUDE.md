@@ -12,9 +12,9 @@ Unity 6000.4.1f1 open-world Nainital. Public repo, Git LFS. The owner talks Hing
 
 ## Where to start
 - `README.md` "Work in progress": the next-PC steps and what changed, by date. `docs/TRACKER.md`: the day-by-day log.
-- Vehicles / the Vehicle Setup tool: `docs/VEHICLES.md` - **section 0.2 is the open list** (0.1: what the 21 Nov
-  afternoon pass did); tick items off there and put anything new that is wrong or changed into it (owner: "agar koi
-  dikkat ho ya kuch change ho to push instruction pe daaldena").
+- Vehicles / the Vehicle Setup tool: `docs/VEHICLES.md` - **section 0.3 is the open list** (0.1 / 0.2: what the 21 Nov
+  afternoon and evening passes did); tick items off there and put anything new that is wrong or changed into it (owner:
+  "agar koi dikkat ho ya kuch change ho to push instruction pe daaldena").
 - On the 20 fitted vehicles change seats with `Tools/vehicles/fit_vehicle_seats.py` (its MOVES / OVR hold hand fixes),
   not the tool's Snap (Snap follows the fitter's automatic rule only and would undo them).
 - A vehicle setup changed (tool, fitter) -> run `call VehicleSetupShots.RunFits` for it (Play in the VehicleSetup scene):

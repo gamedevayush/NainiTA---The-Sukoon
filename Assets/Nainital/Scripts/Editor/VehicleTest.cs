@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -35,6 +36,23 @@ namespace Nainital.EditorTools
             return p;
         }
 
+        /// <summary>Re-imports every FBX of Vehicles/New (after a NewVehicleImport setting changed: Read/Write for the dents,
+        /// 21 Nov 2026), then logs how many came in readable. Not in Play. Bridge: call VehicleTest.ReimportNew</summary>
+        public static void ReimportNew()
+        {
+            if (EditorApplication.isPlaying) throw new System.Exception("leave Play first");
+            int n = 0, readable = 0;
+            foreach (var g in AssetDatabase.FindAssets("t:Model", new[] { "Assets/Nainital/Vehicles/New" }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(g);
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                n++;
+                var m = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Mesh>().FirstOrDefault(x => x.name.StartsWith("Body"));
+                if (m && m.isReadable) readable++;
+            }
+            Debug.Log($"[Nainital] reimported {n} vehicle FBX, {readable} with a readable Body mesh");
+        }
+
         public static void Crash()
         {
             Need();
@@ -48,9 +66,10 @@ namespace Nainital.EditorTools
             Vector3 r = Vector3.Cross(Vector3.up, f);
             if (a) Object.Destroy(a);
             if (b) Object.Destroy(b);
-            a = VehicleFactory.Create(CarType.Suv, Px.CarWhite, mat, true, "Test parked Bolero", Model("Bolero"));
+            // the unbranded set since 21 Nov (the old Bolero / WagonR are gone from the library)
+            a = VehicleFactory.Create(CarType.Suv, Px.CarWhite, mat, true, "Test parked SUV", Model("car_suv_boxy"));
             a.transform.SetPositionAndRotation(Ground(at) + Vector3.up * 0.3f, Quaternion.LookRotation(r));
-            b = VehicleFactory.Create(CarType.Hatchback, Px.CarRed, mat, true, "Test WagonR", Model("WagonR"));
+            b = VehicleFactory.Create(CarType.Hatchback, Px.CarRed, mat, true, "Test hatch", Model("car_hatch_small"));
             int kb = RoadRoute.Nearest(at - f * 30f, 40f);
             Vector3 bp = kb >= 0 ? RoadRoute.Pos(kb) : at - f * 30f;
             Vector3 fb = (at - bp); fb.y = 0f; fb.Normalize();
@@ -100,7 +119,12 @@ namespace Nainital.EditorTools
             var ra = a.GetComponent<Rigidbody>();
             var rb = b.GetComponent<Rigidbody>();
             string s = $"t {Time.time - t0:F1}s  parked Bolero (mass {ra.mass}): peak {aPeakV:F1} m/s, rose {aRise:F2} m, spin {aSpin:F1} rad/s, moved {Vector3.Distance(a.transform.position, aStart):F1} m, now v {ra.linearVelocity.magnitude:F1} asleep {ra.IsSleeping()} kinematic {ra.isKinematic} up {Vector3.Dot(a.transform.up, Vector3.up):F2}\n" +
-                       $"            WagonR (mass {rb.mass}): after-hit peak {bPeakV:F1} m/s, rose {bRise:F2} m, spin {bSpin:F1} rad/s, now v {rb.linearVelocity.magnitude:F1} up {Vector3.Dot(b.transform.up, Vector3.up):F2}";
+                       $"            hatch (mass {rb.mass}): after-hit peak {bPeakV:F1} m/s, rose {bRise:F2} m, spin {bSpin:F1} rad/s, now v {rb.linearVelocity.magnitude:F1} up {Vector3.Dot(b.transform.up, Vector3.up):F2}";
+            foreach (var (go, nm) in new[] { (a, "SUV"), (b, "hatch") })
+            {
+                var vp = go.GetComponent<VehicleParts>();
+                s += $"\n            {nm} dent: {(vp ? vp.DentedVerts : -1)} body vertices moved, deepest {(vp ? vp.DentDeepest * 100f : 0f):F1} cm";
+            }
             Debug.Log("[Nainital] crash report\n" + s);
             File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../Bridge/vehicle_report.txt")), s);
         }

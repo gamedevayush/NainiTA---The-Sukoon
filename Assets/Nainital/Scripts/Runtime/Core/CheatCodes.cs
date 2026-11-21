@@ -171,6 +171,7 @@ namespace Nainital
             int paint = type == CarType.Taxi ? Px.CarWhite : VehicleFactory.CarPaints[Random.Range(0, VehicleFactory.CarPaints.Length)];
             var go = VehicleFactory.Create(type, paint, mat, true, "Cheat " + type);
             go.transform.SetPositionAndRotation(best, Quaternion.LookRotation(fwd));
+            Physics.SyncTransforms();   // made at the origin: the body must know where it is now (see ParkedVehicles)
             GameEvents.ShowToast("Cheat: " + type + " aa gayi - paas jaake " + (TouchControls.Instance ? "Use" : "E") + " dabao", 2.5f);
         }
     }

@@ -1,4 +1,4 @@
-# Unity cache and local files (Unity rebuilds these)
+﻿# Unity cache and local files (Unity rebuilds these)
 /[Ll]ibrary/
 /[Tt]emp/
 /[Oo]bj/
@@ -67,4 +67,5 @@ Tools/newvehicles/models/*.glb
 Tools/newvehicles/models/*_settings.png
 Tools/newvehicles/*.blend
 !Tools/newvehicles/NewVehicles_v06.blend
+!Tools/newvehicles/NewVehicles_v07.blend
 *.blend1

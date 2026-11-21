@@ -101,15 +101,42 @@ namespace Nainital.EditorTools
                 mat.SetFloat("_Smoothness", 0.35f);
                 EditorUtility.SetDirty(mat);
                 var imp = (ModelImporter)AssetImporter.GetAtPath(p);
+                // a part cut out as see-through glass in Blender (its material is named Glass: the auto's windscreen,
+                // Tools/newvehicles/fix_v07_glass.py) gets the shared tinted glass, everything else the model's own
+                Material For(string matName) => matName.StartsWith("Glass", System.StringComparison.OrdinalIgnoreCase) ? GlassMaterial(matDir) : mat;
                 foreach (var src in AssetDatabase.LoadAllAssetRepresentationsAtPath(p).OfType<Material>())
-                    imp.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), src.name), mat);
+                    imp.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), src.name), For(src.name));
                 foreach (var kv in imp.GetExternalObjectMap().ToList())
-                    if (kv.Key.type == typeof(Material)) imp.AddRemap(kv.Key, mat);
+                    if (kv.Key.type == typeof(Material)) imp.AddRemap(kv.Key, For(kv.Key.name));
                 imp.SaveAndReimport();
                 n++;
             }
             AssetDatabase.SaveAssets();
             Debug.Log("[Nainital] vehicle materials: " + n + " models remapped to URP Lit with their textures");
+        }
+
+        /// <summary>The vehicles' see-through glass (URP Lit, transparent, a light blue-grey tint, glossy): the driver shows
+        /// through it (owner, 21 Nov 2026: "auto me seesha alag krna pdega..andar ka dikh nahi raha").</summary>
+        static Material GlassMaterial(string matDir)
+        {
+            string mp = $"{matDir}/M_VehicleGlass.mat";
+            var g = AssetDatabase.LoadAssetAtPath<Material>(mp);
+            if (!g) { g = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(g, mp); }
+            // 0.92 smooth / 0.22 alpha read as a pale blue panel (it mirrored the sky): fainter and less glossy
+            g.SetColor("_BaseColor", new Color(0.55f, 0.65f, 0.72f, 0.15f));
+            g.SetFloat("_Metallic", 0f);
+            g.SetFloat("_Smoothness", 0.7f);
+            g.SetFloat("_Surface", 1f);   // transparent
+            g.SetFloat("_Blend", 0f);     // alpha
+            g.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            g.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            g.SetFloat("_ZWrite", 0f);
+            g.SetFloat("_Cull", 0f);      // both faces: the cut glass is a thin slab
+            g.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            g.SetOverrideTag("RenderType", "Transparent");
+            g.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            EditorUtility.SetDirty(g);
+            return g;
         }
 
         /// <summary>Every model in Vehicles/New side by side in an empty scene, photographed from the front-left to
@@ -195,6 +222,16 @@ namespace Nainital.EditorTools
             var V = instance.vehicle.transform;
             Debug.Log($"[Nainital] {instance.Current} steer {instance.steer:F0}: " + string.Join("; ", instance.heads.Concat(instance.tails).Where(g => g)
                 .Select(g => $"{g.name} on {(g.transform.parent == V ? "body" : g.transform.parent.name)} at {V.InverseTransformPoint(g.transform.position):F2}")));
+        }
+
+        /// <summary>Bridge: call VehicleSetupWindow.NightArg - the Night preview on / off (Bridge/arg.txt "on" / "off"),
+        /// for check sheets in daylight.</summary>
+        public static void NightArg()
+        {
+            if (!instance) throw new System.Exception("Vehicle Setup window not open");
+            instance.night = File.ReadAllText(Path.Combine(Application.dataPath, "../Bridge/arg.txt")).Trim().ToLowerInvariant() == "on";
+            instance.ApplyNight();
+            Debug.Log("[Nainital] vehicle setup night preview " + (instance.night ? "on" : "off"));
         }
 
         /// <summary>The data of seat i of the vehicle on show (null if none): VehicleSetupShots reads its measures.</summary>
@@ -873,21 +910,33 @@ namespace Nainital.EditorTools
             foreach (var g in heads.Concat(tails))
             {
                 if (!g) continue;
-                var old = g.transform.Find("Light");
-                if (old) Destroy(old.gameObject);
-                if (!night) continue;
                 bool head = g.GetComponent<SetupHandle>().kind == SetupHandle.Kind.Head;
-                var lo = new GameObject("Light");
-                lo.transform.SetParent(g.transform, false);
-                lo.transform.localScale = new Vector3(1f / Mathf.Max(0.01f, g.transform.localScale.x), 1f / Mathf.Max(0.01f, g.transform.localScale.y), 1f);
-                var L = lo.AddComponent<Light>();
-                if (head)
-                {
-                    L.type = LightType.Spot; L.range = 30f; L.spotAngle = 55f; L.intensity = 6f; L.color = new Color(1f, 0.95f, 0.85f);
-                    lo.transform.rotation = vehicle.transform.rotation * Quaternion.Euler(8f, 0f, 0f);
-                }
-                else { L.type = LightType.Point; L.range = 2.5f; L.intensity = 1.5f; L.color = new Color(1f, 0.1f, 0.05f); }
+                Glow(g.transform, g.transform.localScale, head);
+                // the mirrored twin is its own lamp: it gets its own light too (owner, 21 Nov: "double lights ki vehicle
+                // me mesh to 2 hain lights ki, but actual me 1 hi light hai" - only the first of a pair was lit). Its scale
+                // is copied in SetupMirror.LateUpdate, so the first lamp's is used here.
+                var twin = g.GetComponent<SetupMirror>();
+                if (twin && twin.twin) Glow(twin.twin, g.transform.localScale, head);
             }
+        }
+
+        /// <summary>The night preview's real light under one lamp quad (none by day): a spot along the vehicle for a
+        /// head lamp, a short red point for a tail lamp.</summary>
+        void Glow(Transform lamp, Vector3 scale, bool head)
+        {
+            var old = lamp.Find("Light");
+            if (old) Destroy(old.gameObject);
+            if (!night) return;
+            var lo = new GameObject("Light");
+            lo.transform.SetParent(lamp, false);
+            lo.transform.localScale = new Vector3(1f / Mathf.Max(0.01f, scale.x), 1f / Mathf.Max(0.01f, scale.y), 1f);
+            var L = lo.AddComponent<Light>();
+            if (head)
+            {
+                L.type = LightType.Spot; L.range = 30f; L.spotAngle = 55f; L.intensity = 6f; L.color = new Color(1f, 0.95f, 0.85f);
+                lo.transform.rotation = vehicle.transform.rotation * Quaternion.Euler(8f, 0f, 0f);
+            }
+            else { L.type = LightType.Point; L.range = 2.5f; L.intensity = 1.5f; L.color = new Color(1f, 0.1f, 0.05f); }
         }
 
         // ------------------------------------------------------------------ every frame (Play)

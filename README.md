@@ -119,8 +119,8 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    from the approved setups with hands / feet on their targets; what is left is in **`docs/VEHICLES.md` section 0.2**
    (re-run `VehicleSetupShots.RunFits` for the two-wheelers on a PC with the riding pack; the three small cabins).
    After pulling: **Nainital > 7. Import vehicles** is already done in git (the library); just Build World.
-   **Nainital > Vehicle Setup**, Play, to look at them. Blender source: `Tools/newvehicles/NewVehicles_v06.blend`;
-   after editing it run `blender -b NewVehicles_v06.blend -P export_unity.py -- Assets\Nainital\Vehicles\New`, then
+   **Nainital > Vehicle Setup**, Play, to look at them. Blender source: `Tools/newvehicles/NewVehicles_v07.blend` (v06 + the auto's glass);
+   after editing it run `blender -b NewVehicles_v07.blend -P export_unity.py -- Assets\Nainital\Vehicles\New`, then
    `call VehicleSetupWindow.FixMaterials`. Turn Auto Keying OFF in Blender (it broke v05). Details: `docs/VEHICLES.md` 9.0.
 4. More Street View routes (Brave extension "Street View 360 Saver", `C:\Users\<you>\tools\streetview-360` on the main PC;
    it saves `Downloads\StreetView360\route_*`): add the route and its stretches to `SEGMENTS` / `STREET_EDITS` in
@@ -136,6 +136,19 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
    names along the routes.
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
+
+### Changed on 21 Nov (evening): parked cars out of the lake, unbranded ambulance, dents where hit
+
+Owner: "iphone build ko chodke baaki solve krdo". Details and measurements: `docs/VEHICLES.md` section 0.2; still open: 0.3.
+
+| What | Where |
+|---|---|
+| Every parked vehicle was ending in the lake (the "car rescued at (0, 750.5, 0)" spam): physics sync after placing | `Runtime/Vehicles/ParkedVehicles.cs`, `CarController.Rescue`, `Core/CheatCodes.cs`; check `call PlayTest.ParkedReport` |
+| The 108 ambulance is the unbranded white van | `Editor/PoliceKitBuilder.cs` (Nainital > 7b) |
+| A knock dents the body where it was hit (no shape keys needed); vehicle FBX are Read/Write | `VehicleParts.DentMesh`, `Editor/NewVehicleImport.cs`; check `call VehicleTest.Crash` then `Report` |
+| Night preview lights both lamps of a pair | `Editor/VehicleSetupWindow.cs` `Glow` |
+| Riders refitted on the real riding clips | `Assets/Resources/VehicleFits.json` |
+| Bridge helpers: open a scene, reimport the vehicle FBX | `PlayTest.OpenScene` (arg: Nainital / VehicleSetup), `VehicleTest.ReimportNew` |
 
 ### Changed on 21 Nov (afternoon): the unbranded vehicles in the game, the hand-off list done
 

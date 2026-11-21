@@ -118,16 +118,29 @@ committed setups back with 0 differences, so every change below is only the new 
 - Check in the game: `call VehicleTest.Lineup` (the Nainital scene in Play: every vehicle in a row by the nearest road,
   people seated as the traffic would) then `call VehicleTest.LineupShots` -> `Shots/lineup_N.png`.
 
-### 0.2 Still open
-1. **Riders were measured on the procedural pose here** (this PC has no Asset Store riding pack): on the main PC (packs
-   in) run `call VehicleSetupShots.RunFits` with arg.txt `bike_commuter100,bike_commuter125,bike_dualsport,bike_street160,scooty_family,scooty_neoretro`
-   (Play in the VehicleSetup scene first) and commit `Assets/Resources/VehicleFits.json`. Re-run RunFits for a vehicle
-   whenever its setup changes or a character is added.
-2. The three small cabins (item 1 above): remodel or accept.
-3. Car doors, `Steering` objects and the five `Dmg_*` shape keys are still not in the models (the game drives them as soon
-   as the models have them).
-4. The 108 ambulance has no unbranded stand-in (`VehicleKit.KeepOld`).
-5. Owner's look in the game; phone FPS with the new traffic (20-23k-triangle bodies; mesh LOD drops them with distance).
+### 0.2 Done on 21 Nov 2026, evening (main PC; owner: "iphone build ko chodke baaki solve krdo")
+
+| Item | What was done | Measured |
+|---|---|---|
+| Riders on the real clips | `RunFits` for the six two-wheelers with the Asset Store riding pack in | riders 7-12 of 22 fit, pillions 9-20 (dualsport lowest) |
+| Parked cars in the lake | `ParkedVehicles` / `CheatCodes` set the transform after `VehicleFactory.Create` (body made at the origin) without `Physics.SyncTransforms`: the first `FixedUpdate` read the origin (the lake, under the terrain), `CarController.Rescue` put every parked car there and it fell through again and again - the old "car rescued (under the ground) at (0, 750.5, 0)" spam. Both sync now, and Rescue skips a body whose transform and physics disagree | 2.5 min of play: rescues 53 -> 0; `call PlayTest.ParkedReport`: 52/53 within 3 m of their place, 0 at the origin (one hatchback 6 m off - rolled?) |
+| 108 ambulance | the white `car_van` (`PoliceKitBuilder`: `ambulanceModel`), "108 AMBULANCE" letters and light bar measured on it | accident -> van came with the siren, crew took the body, left (`PoliceTest.Report`) |
+| Damage | owner chose "takkar par hi dent" over `Dmg_*` keys (keys keep every traffic body skinned, a cost every frame on a phone): `VehicleParts.DentMesh` copies the body mesh on the first knock and pushes it in round the skin's nearest point to the hit (wider / deeper the harder, crumpled by noise, at most 18 cm); `NewVehicleImport` makes the FBX Read/Write (~20 MB more on a phone). Models WITH `Dmg_*` keys still use them | `VehicleTest.Crash` (hatch at 15 m/s into a parked SUV): SUV 219 vertices, 9.4 cm; hatch 253, 13.3 cm |
+| Night preview | the tool lit only the first lamp of a mirrored pair (owner: "mesh to 2 hain, light 1"): the twin gets its own light | - |
+| Auto's windscreen | owner: "auto me seesha alag krna pdega..andar ka dikh nahi raha" - Tripo painted it opaque on the Body (a thin slab at z 0.93-1.08, y 1.1-1.5: `diag/glass_rays.py`). `Tools/newvehicles/fix_v07_glass.py` splits those faces (inside the pillars, under the roof lip, facing along the vehicle) into a `Glass` part with a `Glass` material -> **`NewVehicles_v07.blend`** (the current blend now; v06 kept); `FixMaterials` gives any `Glass*` material the shared transparent `M_VehicleGlass`; tuktuk FBX re-exported, Nainital > 7 rebuilt the prefabs. Trap: v06 was saved with the tuktuk's mesh in edit mode - scripts must switch to object mode first | 15 rays from the front: 8 meet the glass first, 7 the frame; day sheet: the driver shows through it, roof edge whole |
+| Doors | **not cut**: the owner wanted them only "agar perfect kat sko"; untextured renders (`Tools/newvehicles/diag/door_seams.py`) show door handles and window frames in the geometry but no door seams - the panel is one smooth surface, so any cut would be a guess | - |
+| `Steering` | **not separated**: the wheels are not loose pieces - Tripo left 20-90-vertex fragments mixed with the dashboard's (`diag/steering_pieces.py`), none on sedan / mpv_compact / suv_muscular / van | - |
+| Small cabins | owner: keep as is (`RunFits` already seats only those who fit) | - |
+
+### 0.3 Still open
+1. **Mall Road heights** (Lower Mall 4-6 m over the water, real ~1.5 m): the owner wants it later. Fresh raw data needs
+   ~20 GB RAM for `process_data.py` (the main PC has 15.9 GB), an Earth Engine project, and redoing the Street View fit
+   and `fix_mall_road`; a targeted fix of the Lower Mall heights in the current `world.json` + Build World is the cheap way.
+2. Doors / `Steering`: only by hand in Blender (or new models whose doors and wheel are separate parts).
+3. Look at a dent close up in the game (the checks are numbers; the crash shot was too far) and the owner's look / phone
+   FPS with the new traffic.
+4. One parked hatchback ends 6 m from its place (a slope?).
+5. Re-run `RunFits` for a vehicle whenever its setup changes or a character is added.
 
 ## 1. Why there is a new set
 

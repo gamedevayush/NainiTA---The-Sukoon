@@ -19,6 +19,9 @@ namespace Nainital.EditorTools
             if (!assetPath.Replace('\\', '/').StartsWith(VehicleSetupWindowPaths.NewDir + "/")) return;
             var mi = (ModelImporter)assetImporter;
             mi.generateMeshLods = true;
+            // a knock dents the body in the game (VehicleParts.DentMesh copies and moves its vertices): the mesh must stay
+            // readable in the build (owner, 21 Nov 2026: "takkar par hi dent")
+            mi.isReadable = true;
         }
 
         /// <summary>Phones and tablets: the 2K textures at 1K (twenty vehicles' colour / normal / ORM maps).</summary>

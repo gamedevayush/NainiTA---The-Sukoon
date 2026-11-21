@@ -165,6 +165,9 @@ namespace Nainital
             var t = Terrain.activeTerrain;
             if (!t) return;
             Vector3 p = rb.position;
+            // moved by its transform and not synced to the physics yet (a spawner that forgot Physics.SyncTransforms):
+            // the body still reads where it was made, not where it is - nothing to rescue
+            if ((transform.position - p).sqrMagnitude > 1f) return;
             float g = t.SampleHeight(p) + t.transform.position.y;
             bool under = p.y < g - 1.5f;
             bool wild = rb.linearVelocity.sqrMagnitude > 75f * 75f;
@@ -176,7 +179,7 @@ namespace Nainital
             rb.rotation = Quaternion.LookRotation(f.sqrMagnitude > 0.01f ? f.normalized : Vector3.forward, Vector3.up);
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
-            Debug.Log($"[Nainital] car rescued ({(under ? "under the ground" : "too fast")}) at {rb.position:F1}");
+            Debug.Log($"[Nainital] car rescued ({(under ? "under the ground" : "too fast")}) at {rb.position:F1}: {name} (parent {(transform.parent ? transform.parent.name : "-")}, ai {ai}, driver {(driver ? "player" : "-")}, ground {g:F1}, hit {top:F1})");
         }
 
         // ------------------------------------------------------------------ physics

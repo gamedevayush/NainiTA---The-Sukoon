@@ -41,6 +41,42 @@ namespace Nainital.EditorTools
             EditorApplication.isPlaying = true;
         }
 
+        /// <summary>Opens a scene by name (Bridge/arg.txt, e.g. Nainital or VehicleSetup; Assets/Nainital/Scenes) - not in
+        /// Play. The open one is not saved: the tool scenes rebuild themselves. Bridge: call PlayTest.OpenScene</summary>
+        public static void OpenScene()
+        {
+            if (EditorApplication.isPlaying) throw new System.Exception("leave Play first");
+            string n = File.ReadAllText(Path.Combine(Application.dataPath, "../Bridge/arg.txt")).Trim();
+            string path = "Assets/Nainital/Scenes/" + n + ".unity";
+            if (!File.Exists(path)) throw new System.Exception("no scene " + path);
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene(path, UnityEditor.SceneManagement.OpenSceneMode.Single);
+            Debug.Log("[Nainital] opened " + path);
+        }
+
+        /// <summary>Every parked vehicle against its place in the scene (ParkedVehicles.positions): how many stand within
+        /// 3 m of it, the farthest off, and how many are near the world origin (the lake: the 21 Nov rescue loop). Bridge:
+        /// call PlayTest.ParkedReport</summary>
+        public static void ParkedReport()
+        {
+            Need();
+            int n = 0, ok = 0, origin = 0; float worst = 0f; string worstName = "-";
+            foreach (var pv in Object.FindObjectsByType<ParkedVehicles>(FindObjectsSortMode.None))
+            {
+                var sp = pv.transform.Find("Spawned");
+                if (!sp || pv.positions == null) continue;
+                for (int i = 0; i < sp.childCount && i < pv.positions.Length; i++)
+                {
+                    var c = sp.GetChild(i);
+                    float d = Vector3.Distance(new Vector3(c.position.x, 0f, c.position.z), new Vector3(pv.positions[i].x, 0f, pv.positions[i].z));
+                    n++;
+                    if (d < 3f) ok++;
+                    if (new Vector2(c.position.x, c.position.z).magnitude < 5f) origin++;
+                    if (d > worst) { worst = d; worstName = c.name; }
+                }
+            }
+            Debug.Log($"[Nainital] parked report: {ok}/{n} within 3 m of their place, {origin} at the world origin, farthest {worstName} {worst:F1} m");
+        }
+
         public static void End()
         {
             EditorApplication.isPlaying = false;

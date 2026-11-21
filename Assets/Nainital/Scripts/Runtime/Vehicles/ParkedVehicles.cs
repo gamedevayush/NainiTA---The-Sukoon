@@ -41,6 +41,10 @@ namespace Nainital
                 go.transform.SetParent(spawned, false);
                 go.transform.SetPositionAndRotation(positions[i], rotations[i]);
             }
+            // the bodies were made at the origin: tell the physics where they are now, or the first FixedUpdate reads the
+            // origin (the lake, 750 m under the terrain there), CarController.Rescue puts the car back there and it falls
+            // through the lake again and again - every parked car of the town ended in the lake (21 Nov 2026)
+            if (Application.isPlaying) Physics.SyncTransforms();
         }
 
         void OnDisable()
