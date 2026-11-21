@@ -138,6 +138,8 @@ namespace Nainital.EditorTools
                 Halo(shopPos[i] + Vector3.up * 0.25f, new Color(c.r * 1.8f, c.g * 1.8f, c.b * 1.8f, 1f), 0.45f);
                 if ((i & 1) == 0) Streak(shopPos[i], new Color(c.r, c.g, c.b, 0.8f), 0.4f);   // every other one: the shops sit in rows
             }
+            // the bulbs by the doors: a small warm halo each (no lake streak: they are small)
+            foreach (var pl in ctx.porchLights) Halo(pl, new Color(2.2f, 1.6f, 0.95f, 1f), 0.28f);
             var root = new GameObject("Lamp glow (night)").transform;
             root.SetParent(parent, false);
             int idx = 0;
@@ -165,7 +167,7 @@ namespace Nainital.EditorTools
                 mr.receiveShadows = false;
                 idx++;
             }
-            Debug.Log($"[Nainital] lamp glow: {ctx.lampHeads.Count} lamp halos, {shopPos.Length} shop lights, {streaks} lake streaks, {idx} meshes");
+            Debug.Log($"[Nainital] lamp glow: {ctx.lampHeads.Count} lamp halos, {shopPos.Length} shop lights, {ctx.porchLights.Count} porch bulbs, {streaks} lake streaks, {idx} meshes");
         }
     }
 }

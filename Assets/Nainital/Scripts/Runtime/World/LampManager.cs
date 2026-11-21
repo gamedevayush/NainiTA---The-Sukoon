@@ -15,8 +15,13 @@ namespace Nainital
         public Color[] lampColors;               // one per lamp (sodium or LED)
         public Vector3[] shopLights;             // just outside each shop front, at the sign
         public Color[] shopColors;
-        public int poolSize = 56;
-        public float range = 30f;
+        /// <summary>The bulbs by house doors (WorldBuilder.BuildPorchLights): small warm lights, the nearest few lit for real.</summary>
+        public Vector3[] porchLights;
+        public float porchRange = 8f;
+        public float porchIntensity = 7f;
+        static readonly Color PorchColor = new Color(1f, 0.76f, 0.46f);
+        public int poolSize = 72;                // (56 left the street dark between lamps a little way off; a phone keeps 32)
+        public float range = 34f;
         public float intensity = 90f;            // street lamps (1.5x the earlier 60)
         public float shopRange = 11f;
         public float shopIntensity = 26f;
@@ -28,11 +33,14 @@ namespace Nainital
         float[] best;
         float timer;
 
-        int Count => (lampHeads?.Length ?? 0) + (shopLights?.Length ?? 0);
-        Vector3 Pos(int i) => i < lampHeads.Length ? lampHeads[i] : shopLights[i - lampHeads.Length];
-        bool IsShop(int i) => i >= lampHeads.Length;
+        int ShopCount => shopLights?.Length ?? 0;
+        int Count => (lampHeads?.Length ?? 0) + ShopCount + (porchLights?.Length ?? 0);
+        Vector3 Pos(int i) => i < lampHeads.Length ? lampHeads[i] : i < lampHeads.Length + ShopCount ? shopLights[i - lampHeads.Length] : porchLights[i - lampHeads.Length - ShopCount];
+        bool IsShop(int i) => i >= lampHeads.Length && i < lampHeads.Length + ShopCount;
+        bool IsPorch(int i) => i >= lampHeads.Length + ShopCount;
         Color Col(int i)
         {
+            if (IsPorch(i)) return PorchColor;
             if (!IsShop(i)) return lampColors != null && i < lampColors.Length ? lampColors[i] : color;
             int k = i - lampHeads.Length;
             return shopColors != null && k < shopColors.Length ? shopColors[k] : new Color(1f, 0.88f, 0.7f);
@@ -41,6 +49,8 @@ namespace Nainital
         void Start()
         {
             if (lampHeads == null) lampHeads = new Vector3[0];
+            poolSize = Mathf.Max(poolSize, 72);   // (the scene keeps the old 56 / 30 m it was built with)
+            range = Mathf.Max(range, 34f);
             if (Application.isMobilePlatform) poolSize = Mathf.Min(poolSize, 32);   // Forward+: many lights stay cheap
             pool = new Light[poolSize];
             nearest = new int[poolSize];
@@ -79,6 +89,7 @@ namespace Nainital
                 {
                     float d = (Pos(i) - c).sqrMagnitude;
                     if (IsShop(i)) d *= 1.6f;   // street lamps first, the nearer shop fronts too
+                    else if (IsPorch(i)) d *= 2.6f;   // a door's bulb only close by
                     if (d >= best[best.Length - 1]) continue;
                     int k = best.Length - 1;
                     while (k > 0 && best[k - 1] > d) { best[k] = best[k - 1]; nearest[k] = nearest[k - 1]; k--; }
@@ -90,10 +101,10 @@ namespace Nainital
                     int j = nearest[i];
                     if (j < 0) continue;
                     var l = pool[i];
-                    bool shop = IsShop(j);
-                    l.transform.position = Pos(j) + (shop ? Vector3.zero : Vector3.down * 0.4f);
+                    bool shop = IsShop(j), porch = IsPorch(j);
+                    l.transform.position = Pos(j) + (shop ? Vector3.zero : porch ? Vector3.down * 0.1f : Vector3.down * 0.4f);
                     l.color = Col(j);
-                    l.range = shop ? shopRange : range;
+                    l.range = shop ? shopRange : porch ? porchRange : range;
                 }
             }
             for (int i = 0; i < pool.Length; i++)
@@ -103,7 +114,8 @@ namespace Nainital
                 if (!en) continue;
                 // fade the farthest pooled lights so swapping is invisible
                 float fade = 1f - Mathf.Clamp01((i - pool.Length * 0.7f) / (pool.Length * 0.3f));
-                pool[i].intensity = (IsShop(nearest[i]) ? shopIntensity : intensity) * on * fade;
+                int j2 = nearest[i];
+                pool[i].intensity = (IsShop(j2) ? shopIntensity : IsPorch(j2) ? porchIntensity : intensity) * on * fade;
             }
         }
     }

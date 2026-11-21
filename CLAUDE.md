@@ -29,3 +29,8 @@ Unity 6000.4.1f1 open-world Nainital. Public repo, Git LFS. The owner talks Hing
   e-rickshaw, bike, scooty) everyone else in it gets out; traffic shows its indicator before a turn; stuck traffic may
   flash its dipper now and then; a townsperson in a vehicle's way steps aside. Keep these true in every vehicle change
   (checks: `VehicleTest.RideBike` / `RideReport`, `SignalReport`, `JamReport`, `ColliderReport`, `PushTest`).
+- **Free-roam batch (GTA-SA style, no missions; owner's answers 21 Nov 2026)**: `docs/FREEROAM.md` - his answer for
+  every feature, the order, the status, what is NOT wanted, and the next item's design. Work it in order; tick it there.
+- Play tests through the bridge: start Play with `call PlayTest.Begin` (skips the main menu; `VehicleSetupShots.Play`
+  opens the menu, which blocks all input). Night: `call NightCheck.Run` (arg hour). Sounds: `call VehicleTest.SoundReport`.
+- Tools' Python with numpy on the main PC: `C:\Users\Ayush Singth\AppData\Local\Programs\Python\Python310\python.exe -I`.

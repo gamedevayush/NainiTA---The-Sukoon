@@ -25,6 +25,8 @@ namespace Nainital.EditorTools
         public readonly List<Vector2[]> mallRoad = new List<Vector2[]>();
         public readonly System.Random rng = new System.Random(20261107);
         public readonly List<Vector3> lampHeads = new List<Vector3>();
+        /// <summary>A bulb by the door of houses facing a road (BuildPorchLights): small warm lights at night.</summary>
+        public readonly List<Vector3> porchLights = new List<Vector3>();
         public readonly List<string> zoneNames = new List<string>();
         public readonly List<Vector3> zoneCenters = new List<Vector3>();
         public readonly List<float> zoneRadii = new List<float>();
@@ -227,6 +229,7 @@ namespace Nainital.EditorTools
             Step("Landmarks", () => LandmarkBuilder.Build(ctx));
             Step("Promenade", () => BuildPromenade(ctx));
             Step("Road lamps", () => BuildRoadLamps(ctx));
+            Step("Porch lights (a bulb by the door)", () => BuildPorchLights(ctx));
             Step("Street details (signs, poles, wires, boats, gate)", () => BuildStreetDetails(ctx));
             Step("Mall Road (walls, railings, lamps, shops)", () => BuildMallRoad(ctx));
             Step("Lake embankment", () => BuildLakeEmbankment(ctx));   // after the Lower Mall bank is shaped
@@ -1029,44 +1032,7 @@ namespace Nainital.EditorTools
             return Outward(ctx.lake, best);
         }
 
-        // ------------------------------------------------------------------ road lamps
-        static void BuildRoadLamps(WorldCtx ctx)
-        {
-            var parent = new GameObject("Street Lights").transform;
-            parent.SetParent(ctx.worldRoot, false);
-            var mb = new MeshBuilder();
-            var col = new MeshBuilder();
-            int n = 0;
-            foreach (var r in ctx.world.roads)
-            {
-                if (IsMinor(r.kind) || r.kind == "service" || r.kind == "track" || IsMallDeck(r.name)) continue;
-                var pts = Resample(Geo.ToPoints(r.pts), 42f, false);
-                for (int i = 1; i < pts.Count - 1; i++)
-                {
-                    Vector2 p = pts[i];
-                    if (ctx.InLake(p) || ctx.LakeDistance(p) < 18f) continue;
-                    Vector2 tan = (pts[i + 1] - pts[i - 1]).normalized;
-                    float side = i % 2 == 0 ? 1f : -1f;
-                    if (!PoleSpot(ctx, p, new Vector2(-tan.y, tan.x) * side, r.width * 0.5f + 0.7f, out var lp, out var nrm)) continue;   // never on another road
-                    Vector3 basePos = new Vector3(lp.x, ctx.H(lp), lp.y);
-                    Quaternion rot = Quaternion.LookRotation(new Vector3(-nrm.x, 0, -nrm.y));
-                    using (PropKit.At(mb, basePos, rot))
-                    {
-                        Vector3 bulb = PropKit.RoadLamp(mb);
-                        ctx.lampHeads.Add(basePos + rot * bulb);
-                    }
-                    col.Box(basePos + Vector3.up * 2.8f, new Vector3(0.25f, 5.6f, 0.25f), Vector2.zero);
-                    if (++n % 120 == 0)
-                    {
-                        ctx.MeshObject("Street Lights " + n / 120, parent, mb, ctx.mats.atlas, col);
-                        mb = new MeshBuilder();
-                        col = new MeshBuilder();
-                    }
-                }
-            }
-            ctx.MeshObject("Street Lights last", parent, mb, ctx.mats.atlas, col);
-            Debug.Log($"[Nainital] lamps total: {ctx.lampHeads.Count}");
-        }
+        // ------------------------------------------------------------------ road lamps: WorldBuilder.NightLights.cs
 
         // ------------------------------------------------------------------ trees
         static void BuildTrees(WorldCtx ctx)
@@ -1284,6 +1250,7 @@ namespace Nainital.EditorTools
             ShopLights(ctx, out var shopPos, out var shopCol);
             lm.shopLights = shopPos;
             lm.shopColors = shopCol;
+            lm.porchLights = ctx.porchLights.ToArray();
             BuildLampGlow(ctx, lm.transform, lm.lampColors, shopPos, shopCol);
         }
 

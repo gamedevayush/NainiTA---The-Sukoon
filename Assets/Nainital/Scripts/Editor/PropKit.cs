@@ -43,6 +43,27 @@ namespace Nainital.EditorTools
             return new Vector3(0, 5.55f, 1.25f);
         }
 
+        /// <summary>A street light on a house wall where a lane has no room for a pole (a bracket out of the wall at local
+        /// origin, facing +z, the bulb 0.95 m out). Returns the bulb's local position.</summary>
+        public static Vector3 WallLamp(MeshBuilder mb)
+        {
+            Vector2 iron = S(Pal.IronBlack), grey = S(Pal.StoneGrey), bulb = S(Pal.LampBulb);
+            mb.Box(new Vector3(0, 0f, 0.03f), new Vector3(0.14f, 0.3f, 0.06f), iron);              // the plate on the wall
+            mb.Limb(new Vector3(0, 0.05f, 0.05f), new Vector3(0, 0.22f, 0.85f), 0.03f, 0.025f, 5, iron);
+            mb.Box(new Vector3(0, 0.2f, 0.95f), new Vector3(0.18f, 0.08f, 0.36f), grey);
+            mb.Box(new Vector3(0, 0.14f, 0.95f), new Vector3(0.13f, 0.04f, 0.28f), bulb);
+            return new Vector3(0, 0.1f, 0.95f);
+        }
+
+        /// <summary>A bulb in a little holder by a house's door (local origin on the wall, facing +z).</summary>
+        public static Vector3 PorchBulb(MeshBuilder mb)
+        {
+            Vector2 white = S(Pal.StoneGrey), bulb = S(Pal.LampBulb);
+            mb.Box(new Vector3(0, 0f, 0.03f), new Vector3(0.1f, 0.12f, 0.06f), white);
+            mb.Box(new Vector3(0, -0.04f, 0.11f), new Vector3(0.07f, 0.09f, 0.08f), bulb);
+            return new Vector3(0, -0.06f, 0.14f);
+        }
+
         public static void Bench(MeshBuilder mb)
         {
             Vector2 wood = S(Pal.WoodLight), iron = S(Pal.IronBlack);
