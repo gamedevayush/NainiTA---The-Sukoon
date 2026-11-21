@@ -82,6 +82,7 @@ namespace Nainital
         public void Build(HUD hud, Transform root)
         {
             Instance = this;
+            Loc.Changed += Relabel;
             this.hud = hud;
             this.root = root;
             if (!disc) { disc = Round(160, 0f); ring = Round(160, 0.09f); arrow = Arrow(96); }
@@ -137,7 +138,8 @@ namespace Nainital
             lockImg.raycastTarget = false;
             var lockTxt = hud.Txt("Label", lockImg.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(170, 64), 24, TextAnchor.MiddleCenter, Color.white);
             lockTxt.fontStyle = FontStyle.Bold;
-            lockTxt.text = "AUTO RUN";
+            lockTxt.text = Loc.T("AUTO RUN");
+            labels.Add((lockTxt, "AUTO RUN"));
             lockImg.gameObject.SetActive(false);
             var js = area.gameObject.AddComponent<Joystick>();
             js.baseRect = baseImg.rectTransform;
@@ -202,7 +204,7 @@ namespace Nainital
                 var t = hud.Txt("Head", box, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, y), new Vector2(620, 44), 28, TextAnchor.MiddleLeft, new Color(0.75f, 0.85f, 1f));
                 t.text = s;
             }
-            Head("Mausam" + (ws && !ws.autoCycle ? "  (aapka chuna hua)" : "  (apne aap badalta hai)"), -84);
+            Head(Loc.T("Mausam") + "  " + Loc.T(ws && !ws.autoCycle ? "(aapka chuna hua)" : "(apne aap badalta hai)"), -84);
             string[] wn = { "Saaf", "Baadal", "Kohra", "Baarish" };
             for (int i = 0; i < 4; i++)
             {
@@ -211,7 +213,7 @@ namespace Nainital
             }
             B("Apne aap badle", 0, -340, 580, () => { if (ws) ws.autoCycle = true; }, ws && ws.autoCycle);
             string now = dn ? $"{Mathf.FloorToInt(dn.timeOfDay):00}:{Mathf.FloorToInt(dn.timeOfDay % 1f * 60f):00}" : "--";
-            Head("Samay: " + now + (dn && dn.paused ? "  (ruka hua)" : ""), -394);
+            Head(Loc.T("Samay:") + " " + now + (dn && dn.paused ? "  " + Loc.T("(ruka hua)") : ""), -394);
             (string n, float h)[] presets = { ("Subah 6", 6f), ("Dopahar 12", 12f), ("Shaam 5:30", 17.5f), ("Raat 9", 21f), ("Aadhi raat", 0.05f), ("Bhor 4:30", 4.5f) };
             for (int i = 0; i < presets.Length; i++)
             {
@@ -234,7 +236,8 @@ namespace Nainital
             edge.raycastTarget = false;
             var t = hud.Txt("Label", img.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size, size), size >= 140 ? 30 : 25, TextAnchor.MiddleCenter, Color.white);
             t.fontStyle = FontStyle.Bold;
-            t.text = label;
+            t.text = Loc.T(label);
+            labels.Add((t, label));
             var hb = img.gameObject.AddComponent<HoldButton>();
             hb.onDown = () => { Haptics.Selection(); down?.Invoke(); };   // a tick under the thumb
             hb.onUp = up;
@@ -249,6 +252,15 @@ namespace Nainital
 
         int lastMode = -1;
 
+        // the language changed: every label that was set once is set again (Loc)
+        readonly List<(Text t, string key)> labels = new List<(Text, string)>();
+        void Relabel()
+        {
+            foreach (var (t, key) in labels) if (t) t.text = Loc.T(key);
+            lastMode = -1;   // the jump / block / use labels follow on the next update
+        }
+        void OnDestroy() { Loc.Changed -= Relabel; }
+
         /// <summary>The right-hand buttons change with what the player is doing: on foot (fight), flying the jetpack
         /// (Upar / Neeche / Utro) or driving (Brake = handbrake, Horn; the stick steers and accelerates).</summary>
         void Update()
@@ -260,9 +272,9 @@ namespace Nainital
             if (mode == lastMode) return;
             lastMode = mode;
             wasFlying = fly;
-            if (jumpLabel) jumpLabel.text = mode == 1 ? "Upar" : "Jump";
-            if (blockLabel) blockLabel.text = mode == 1 ? "Neeche" : "Block";
-            if (useLabel) useLabel.text = mode == 0 ? "Use" : "Utro";
+            if (jumpLabel) jumpLabel.text = Loc.T(mode == 1 ? "Upar" : "Jump");
+            if (blockLabel) blockLabel.text = Loc.T(mode == 1 ? "Neeche" : "Block");
+            if (useLabel) useLabel.text = Loc.T(mode == 0 ? "Use" : "Utro");
             foreach (var b in fightButtons) if (b) b.SetActive(mode == 0);
             if (jumpLabel) jumpLabel.transform.parent.gameObject.SetActive(mode != 2);
             if (blockLabel) blockLabel.transform.parent.gameObject.SetActive(mode != 2);
@@ -287,7 +299,7 @@ namespace Nainital
             var dim = hud.Img(name, root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(4000, 4000), new Color(0, 0, 0, 0.55f));
             var box = hud.Img("Box", dim.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, size, new Color(0.04f, 0.06f, 0.09f, 0.95f));
             var t = hud.Txt("Title", box.transform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -14), new Vector2(size.x - 40, 60), 40, TextAnchor.MiddleCenter, new Color(1f, 0.85f, 0.3f));
-            t.text = title;
+            t.text = Loc.T(title);
             dim.transform.SetAsLastSibling();
             return box.rectTransform;
         }

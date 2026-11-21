@@ -142,7 +142,11 @@ Start here when you pick the project up on another PC. Build the world first (**
 The owner's plan of 21 Nov 2026 with every answer he gave, the order and the status: `docs/FREEROAM.md`.
 Done so far: traffic that frees itself, vehicle sounds (22 Nov, below), the night lighting pass (22 Nov: every road among
 the houses lit, wall lamps, porch bulbs, a moonlit night ambient - **run Nainital > 2. Build World after pulling**; checks
-`call NightCheck.Run`). Next: the phone (design in `docs/FREEROAM.md` section 3).
+`call NightCheck.Run`). 22 Nov (late): the rest of the batch - the phone (calls 112/100/108/101, camera, glass UI,
+English / Hindi), the two petrol pumps + fuel, 13 shops + 5 sit-out restaurants, the house on Zoo Road, the fire
+station, stats + hunger + the open gym, the radio (own music folders), umbrellas in the rain; cows / dogs / cats wait for
+their models. Every piece: `docs/FREEROAM.md` ("The rest of the batch"); test steps: `Editor/FreeroamTest.cs`.
+**Run Nainital > 2. Build World after pulling** (the pumps, the shops' sit-outs, the house and the fire station are built).
 
 ### Changed on 21 Nov (night): ride bikes and scooties, indicators, dipper, no more jams for the townsfolk
 

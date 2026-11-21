@@ -64,9 +64,9 @@ namespace Nainital
                 t.transform.SetParent(go.transform, false);
                 t.transform.localPosition = Vector3.up * (height + 0.8f);
                 var tm = t.AddComponent<TextMesh>();
-                tm.font = GameAssets.Font;
-                tm.GetComponent<MeshRenderer>().sharedMaterial = GameAssets.Font.material;
-                tm.text = label;
+                tm.font = HudStyle.Bold;   // Rajdhani: English and Hindi (Loc)
+                tm.GetComponent<MeshRenderer>().sharedMaterial = HudStyle.Bold.material;
+                tm.text = Loc.T(label);
                 tm.fontSize = 64;
                 tm.characterSize = 0.06f;
                 tm.anchor = TextAnchor.MiddleCenter;

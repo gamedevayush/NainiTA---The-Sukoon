@@ -99,7 +99,7 @@ namespace Nainital
         void Build()
         {
             if (panel) return;
-            font = GameAssets.Font ? GameAssets.Font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            font = HudStyle.Regular;   // Rajdhani (Hindi too)
             var cgo = new GameObject("Bug Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             cgo.transform.SetParent(transform, false);
             canvas = cgo.GetComponent<Canvas>();
@@ -169,7 +169,7 @@ namespace Nainital
             t.fontSize = fontSize;
             t.color = c;
             t.alignment = TextAnchor.MiddleCenter;
-            t.text = s;
+            t.text = Loc.T(s);
             return t;
         }
 

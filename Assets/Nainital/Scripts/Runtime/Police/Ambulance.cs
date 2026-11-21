@@ -30,6 +30,21 @@ namespace Nainital
         float sYaw;
         const float StretcherSpeed = 1.5f, Top = 0.74f;
 
+        // the phone's 108 call for the player (EmergencyCalls, 22 Nov 2026): one medic walks to the player, dresses the
+        // wounds (health back to full) and the ambulance goes
+        bool forPlayer;
+        Medic helper;
+        Vector3 hPos;
+        int hPhase;
+        float hT;
+        Vector3 Target => forPlayer ? (PlayerController.Instance ? PlayerController.Instance.transform.position : transform.position) : incident.pos;
+
+        public void BeginForPlayer(Vector3 at)
+        {
+            forPlayer = true;
+            Begin(new IncidentManager.Incident { pos = at });
+        }
+
         public void Begin(IncidentManager.Incident inc)
         {
             incident = inc;
@@ -68,14 +83,21 @@ namespace Nainital
             switch (mode)
             {
                 case Mode.Drive: Driving(dt); break;
-                case Mode.Work: Working(dt); break;
+                case Mode.Work: if (forPlayer) Treating(dt); else Working(dt); break;
                 case Mode.Leave: Gone(); break;
             }
         }
 
         void Driving(float dt)
         {
-            float toInc = Vector3.Distance(transform.position, incident.pos);
+            if (forPlayer && modeT > 2f && Mathf.FloorToInt(modeT) % 5 == 0 && drive.HasGoal)
+            {
+                // the player moved: follow to the road nearest them now
+                int kk = RoadRoute.ReadyAny() ? RoadRoute.Nearest(Target, 120f) : -1;
+                Vector3 g = kk >= 0 ? RoadRoute.Pos(kk) : Target;
+                if ((g - parkGoal).sqrMagnitude > 20f * 20f) { parkGoal = g; drive.SetGoal(g, true); }
+            }
+            float toInc = Vector3.Distance(transform.position, Target);
             if (Mathf.Abs(drive.Speed) < 0.6f && toInc < 45f) nearSlowT += dt; else nearSlowT = 0f;
             bool there = drive.Arrived || toInc < 14f || nearSlowT > 2.5f || (modeT > 150f && toInc < 80f);
             if (!there) return;
@@ -86,6 +108,14 @@ namespace Nainital
             modeT = 0f;
             var pm = PoliceManager.Instance;
             Vector3 r = Rear;
+            if (forPlayer)
+            {
+                hPos = r + transform.right * 0.8f;
+                helper = pm.MakeMedic(hPos);
+                hPhase = 0;
+                hT = 0f;
+                return;
+            }
             front = pm.MakeMedic(r + transform.right * 0.6f);
             back = pm.MakeMedic(r - transform.right * 0.6f);
             stretcher = MakeStretcher();
@@ -153,6 +183,55 @@ namespace Nainital
                     if (phaseT > 1.2f) { stretcher.gameObject.SetActive(true); phase = 0; }
                     break;
             }
+        }
+
+        /// <summary>The 108 call for the player: walk over, dress the wounds, walk back, go.</summary>
+        void Treating(float dt)
+        {
+            hT += dt;
+            var p = PlayerController.Instance;
+            if (!helper || helper.Dead || !p) { if (helper && !helper.Dead) Destroy(helper.gameObject); Leave(); return; }
+            Vector3 pp = p.transform.position;
+            bool gone = (pp - transform.position).sqrMagnitude > 70f * 70f || p.CurrentMode != PlayerController.Mode.Normal;
+            switch (hPhase)
+            {
+                case 0:   // to the player
+                    if (gone || hT > 90f) { hPhase = 2; hT = 0f; break; }
+                    if (Walk(pp, 1.1f, dt)) { hPhase = 1; hT = 0f; }
+                    break;
+                case 1:   // bandages
+                    helper.Hold(hPos, pp - hPos, 0f);
+                    if (gone) { hPhase = 2; hT = 0f; break; }
+                    if (hT > 3.5f)
+                    {
+                        var h = p.Health;
+                        if (h) h.Heal(h.max);
+                        GameEvents.ShowToast("108: marham-patti ho gayi - health poori. \"Dhyaan rakhiye!\"", 3.5f);
+                        hPhase = 2;
+                        hT = 0f;
+                    }
+                    break;
+                case 2:   // back and away
+                    if (Walk(Rear, 0.5f, dt) || hT > 40f)
+                    {
+                        Destroy(helper.gameObject);
+                        Leave();
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>The helper walks towards p at a walking pace; true once within stopAt.</summary>
+        bool Walk(Vector3 p, float stopAt, float dt)
+        {
+            Vector3 to = p - hPos;
+            to.y = 0f;
+            float d = to.magnitude;
+            if (d <= stopAt) { helper.Hold(hPos, d > 0.01f ? to : transform.forward, 0f); return true; }
+            hPos += to / d * Mathf.Min(1.6f * dt, d - stopAt);
+            hPos.y = Ground(hPos).y;
+            helper.Hold(hPos, to, 1.6f);
+            return false;
         }
 
         void Finish()

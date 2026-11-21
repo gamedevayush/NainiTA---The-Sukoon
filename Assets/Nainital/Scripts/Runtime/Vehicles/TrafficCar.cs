@@ -538,6 +538,7 @@ namespace Nainital
                 if (person && hit.collider.GetComponent<CharacterController>() is CharacterController pc && pc.velocity.sqrMagnitude < 0.09f)
                     standingPerson = hit.collider.transform;   // someone standing in the road (a policeman at his post, the player)
             }
+            targetSpeed = AnimalManager.CowAhead(transform, spec.width, spec.length, look, targetSpeed, ref standingPerson);   // a cow in the lane: wait + honk, never round / through it (Characters/AnimalManager.cs)
 
             // a narrow road and a car coming the other way: over to the left and slow, like on a hill road
             oncoming = Mathf.MoveTowards(oncoming, Oncoming(pos) ? 1f : 0f, dt * 1.5f);

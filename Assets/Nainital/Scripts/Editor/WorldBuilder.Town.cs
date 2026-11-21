@@ -86,6 +86,10 @@ namespace Nainital.EditorTools
         internal static bool NearestMotorRoad(WorldCtx ctx, Vector2 p, float within, out Vector2 best, out Vector2 tangent) =>
             NearestRoadPoint(ctx, p, within, r => VehicleKinds.Contains(r.kind) && !IsMallDeck(r.name), out best, out tangent);
 
+        /// <summary>A road a cafe can open on: any motor road, Upper Mall Road included (LandmarkBuilder.Shops.cs).</summary>
+        internal static bool NearestEateryRoad(WorldCtx ctx, Vector2 p, float within, out Vector2 best, out Vector2 tangent) =>
+            NearestRoadPoint(ctx, p, within, r => (VehicleKinds.Contains(r.kind) && !IsMallDeck(r.name)) || r.name == MallUpper, out best, out tangent);
+
         static bool NearestRoadPoint(WorldCtx ctx, Vector2 p, float within, System.Func<RoadData, bool> keep, out Vector2 best, out Vector2 tangent)
         {
             best = default;

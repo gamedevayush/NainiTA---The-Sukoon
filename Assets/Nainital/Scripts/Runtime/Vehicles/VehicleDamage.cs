@@ -28,6 +28,30 @@ namespace Nainital
         static Material smokeMat, fireMat;
         static readonly int ColorId = Shader.PropertyToID("_BaseColor");
 
+        /// <summary>Every vehicle that can burn (the phone's 101 call and FireManager look here).</summary>
+        public static readonly System.Collections.Generic.List<VehicleDamage> All = new System.Collections.Generic.List<VehicleDamage>();
+        const float WreckBurn = 150f;
+        void OnEnable() => All.Add(this);
+        void OnDisable() => All.Remove(this);
+
+        /// <summary>Flames showing: burning before the blast, or a wreck still burning.</summary>
+        public bool OnFire => (Burning && !Wrecked) || (Wrecked && fire && fire.isEmitting);
+        public Vector3 FirePoint => transform.TransformPoint(bonnet);
+
+        /// <summary>The fire brigade's water (FireTruck): the flames go out; a car not yet blown up only smokes now.</summary>
+        public void Extinguish()
+        {
+            if (fire) fire.Stop();
+            if (fireLoop) fireLoop.Stop();
+            if (Burning && !Wrecked)
+            {
+                Burning = false;
+                if (fireLight) fireLight.intensity = 0f;
+                hits = Mathf.Min(hits, fireAt - 1);   // the next knock does not light it again at once
+            }
+            else if (fireLight) fireLight.intensity = Mathf.Min(fireLight.intensity, 2f);
+        }
+
         void Awake()
         {
             rb = GetComponent<Rigidbody>();
@@ -134,8 +158,9 @@ namespace Nainital
             {
                 wreckAge += dt;
                 if (fireLight) fireLight.intensity = Mathf.Max(0f, fireLight.intensity - dt * 2f);
-                if (wreckAge > 14f && fire && fire.isEmitting) fire.Stop();
-                if (wreckAge > 14f && fireLoop && fireLoop.isPlaying) fireLoop.Stop();
+                // a wreck burns on about 2.5 minutes (was 14 s), so a 101 fire tender called in time has work (FireTruck)
+                if (wreckAge > WreckBurn && fire && fire.isEmitting) fire.Stop();
+                if (wreckAge > WreckBurn && fireLoop && fireLoop.isPlaying) fireLoop.Stop();
                 var cam = Camera.main;   // a burnt shell is taken away once nobody is looking
                 if (wreckAge > 45f && cam && (cam.transform.position - transform.position).sqrMagnitude > 160f * 160f) Destroy(gameObject);
             }
@@ -203,7 +228,7 @@ namespace Nainital
         static Material SmokeMat() => smokeMat ? smokeMat : (smokeMat = Resources.Load<Material>("VehicleFX/M_Exhaust"));
         static Material FireMat() => fireMat ? fireMat : (fireMat = Resources.Load<Material>("VehicleFX/M_Fire") ?? SmokeMat());
 
-        static ParticleSystem Particles(Transform parent, Vector3 local, string name, Material mat, int max)
+        internal static ParticleSystem Particles(Transform parent, Vector3 local, string name, Material mat, int max)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -221,7 +246,7 @@ namespace Nainital
             return ps;
         }
 
-        static ParticleSystem Smoke(Transform parent, Vector3 local, bool wreck)
+        internal static ParticleSystem Smoke(Transform parent, Vector3 local, bool wreck)
         {
             var mat = SmokeMat();
             if (!mat) return null;
@@ -256,7 +281,7 @@ namespace Nainital
             return ps;
         }
 
-        static ParticleSystem Fire(Transform parent, Vector3 local)
+        internal static ParticleSystem Fire(Transform parent, Vector3 local)
         {
             var mat = FireMat();
             if (!mat) return null;

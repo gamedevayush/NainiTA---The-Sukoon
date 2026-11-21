@@ -1,0 +1,260 @@
+# Naini Sukoon - the built world's texts (places, boards, people, stalls, missions). Same format as strings.tsv;
+# build_loc.py reads every Tools/loc/strings*.tsv. Exact texts come from Bridge/loc_scene.tsv (call LocDump.Run).
+
+# ---------------------------------------------------------------- places
+All Saint's College	All Saints' College	ऑल सेंट्स कॉलेज
+BD Pandey District Hospital	BD Pandey District Hospital	बी.डी. पांडे ज़िला अस्पताल
+Bada Bazar	Bada Bazar	बड़ा बाज़ार
+Bandstand	Bandstand	बैंडस्टैंड
+Barapathar (pony stand)	Barapathar (pony stand)	बारापत्थर (घोड़ा स्टैंड)
+Boat House Club	Boat House Club	बोट हाउस क्लब
+Capitol Boat Stand	Capitol Boat Stand	कैपिटल बोट स्टैंड
+Capitol Cinema	Capitol Cinema	कैपिटल सिनेमा
+Chhota Mandir	Small Shrine	छोटा मंदिर
+Eco Cave Garden	Eco Cave Garden	इको केव गार्डन
+Government Girls Inter College, Nainital	Government Girls Inter College, Nainital	राजकीय बालिका इंटर कॉलेज, नैनीताल
+Government Primary School, Tallital	Government Primary School, Tallital	राजकीय प्राथमिक विद्यालय, तल्लीताल
+Gurudwara Sri Guru Singh Sabha	Gurudwara Sri Guru Singh Sabha	गुरुद्वारा श्री गुरु सिंह सभा
+Himalaya Darshan	Himalaya Darshan	हिमालय दर्शन
+Jama Masjid	Jama Masjid	जामा मस्जिद
+Khurpatal	Khurpatal	खुर्पाताल
+Khurpatal Lake View Point	Khurpatal Lake View Point	खुर्पाताल लेक व्यू पॉइंट
+Khurpatal View Point	Khurpatal View Point	खुर्पाताल व्यू पॉइंट
+Land's End	Land's End	लैंड्स एंड
+Longview Public School	Longview Public School	लॉन्गव्यू पब्लिक स्कूल
+Lover's Point	Lover's Point	लवर्स पॉइंट
+Lower Mall Road	Lower Mall Road	लोअर मॉल रोड
+Mall Road	Mall Road	मॉल रोड
+Mallital	Mallital	मल्लीताल
+Mallital Boat Stand	Mallital Boat Stand	मल्लीताल बोट स्टैंड
+Mallital Kotwali	Mallital Police Station	मल्लीताल कोतवाली
+Mansa Devi Mandir	Mansa Devi Temple	मनसा देवी मंदिर
+Naina Devi Mandir	Naina Devi Temple	नैना देवी मंदिर
+Naini Jheel	Naini Lake	नैनी झील
+Naini Peak (China Peak)	Naini Peak (China Peak)	नैना पीक (चाइना पीक)
+Nainital Gate	Nainital Gate	नैनीताल गेट
+Nainital Zoo	Nainital Zoo	नैनीताल चिड़ियाघर
+Pashan Devi Mandir	Pashan Devi Temple	पाषाण देवी मंदिर
+Raj Bhavan	Raj Bhavan	राजभवन
+Ropeway (Mallital)	Ropeway (Mallital)	रोपवे (मल्लीताल)
+Saint Joseph's College	St. Joseph's College	सेंट जोसेफ़्स कॉलेज
+Saint Mary's Convent College	St. Mary's Convent College	सेंट मेरीज़ कॉन्वेंट कॉलेज
+Sariyatal	Sariyatal	सरियाताल
+Sherwood College	Sherwood College	शेरवुड कॉलेज
+Snow View	Snow View	स्नो व्यू
+Snow View ropeway	Snow View ropeway	स्नो व्यू रोपवे
+St. Francis Church	St. Francis Church	सेंट फ़्रांसिस चर्च
+Suicide Point	Suicide Point	सुसाइड पॉइंट
+Tallital	Tallital	तल्लीताल
+Tallital Boat Stand	Tallital Boat Stand	तल्लीताल बोट स्टैंड
+Tallital Bus Stand	Tallital Bus Stand	तल्लीताल बस स्टैंड
+Tallital Bus Station	Tallital Bus Station	तल्लीताल बस स्टेशन
+Thandi Sadak	Thandi Sadak	ठंडी सड़क
+The Flats	The Flats	द फ़्लैट्स
+Tibetan Market	Tibetan Market	तिब्बती बाज़ार
+Tiffin Top (Dorothy's Seat)	Tiffin Top (Dorothy's Seat)	टिफ़िन टॉप (डोरोथी सीट)
+Tower 360	Tower 360	टावर 360
+Tower 360 (Snow View)	Tower 360 (Snow View)	टावर 360 (स्नो व्यू)
+Upper Mall Road	Upper Mall Road	अपर मॉल रोड
+Woodland Waterfall	Woodland Waterfall	वुडलैंड झरना
+NAINITAL	NAINITAL	नैनीताल
+Boat House Club 	Boat House Club	बोट हाउस क्लब
+Naini Peak	Naini Peak	नैना पीक
+St. Francis	St. Francis	सेंट फ़्रांसिस
+
+# ---------------------------------------------------------------- info boards (InfoSign bodies)
+1869 ka ladkiyon ka boarding school, pahadi par.	A girls' boarding school from 1869, on the hill.	1869 का लड़कियों का बोर्डिंग स्कूल, पहाड़ी पर।
+1869 ka mashhoor boarding school - Amitabh Bachchan yahin padhe the.	A famous boarding school from 1869 - Amitabh Bachchan studied here.	1869 का मशहूर बोर्डिंग स्कूल - अमिताभ बच्चन यहीं पढ़े थे।
+1878 se chal raha ladkiyon ka convent school.	A girls' convent school running since 1878.	1878 से चल रहा लड़कियों का कॉन्वेंट स्कूल।
+1880 ke bade landslide ke malbe se bana khula maidan. Aaj yahan khel, mele aur shaam ki raunak hoti hai.	An open ground formed from the debris of the great 1880 landslide. Today it hosts sports, fairs and lively evenings.	1880 के बड़े भूस्खलन के मलबे से बना खुला मैदान। आज यहाँ खेल, मेले और शाम की रौनक होती है।
+1888 mein bana boys' school - Nainital ke purane schoolon mein se ek.	A boys' school built in 1888 - one of Nainital's oldest schools.	1888 में बना लड़कों का स्कूल - नैनीताल के पुराने स्कूलों में से एक।
+1930s ka purana cinema hall (Assembly Hall), Mallital mein Flats ke kinare. Neeche Galaxy 12D, Chai Sutta Bar aur The Pahari Store.	An old 1930s cinema hall (Assembly Hall) in Mallital, by the Flats. Below it: Galaxy 12D, Chai Sutta Bar and The Pahari Store.	1930 के दशक का पुराना सिनेमा हॉल (असेंबली हॉल), मल्लीताल में फ़्लैट्स के किनारे। नीचे गैलेक्सी 12D, चाय सुट्टा बार और द पहाड़ी स्टोर।
+51 Shaktipeethon mein se ek. Manyata hai ki yahan Mata Sati ki aankhein giri thin. Purana mandir 1880 ke bade bhooskhalan (landslide) mein nasht ho gaya tha, baad mein dobara banaya gaya. Jheel ke uttari kinare, Mallital mein.	One of the 51 Shakti Peethas, where Goddess Sati's eyes are believed to have fallen. The old temple was destroyed in the great landslide of 1880 and later rebuilt. On the north shore of the lake, in Mallital.	51 शक्तिपीठों में से एक। मान्यता है कि यहाँ माता सती की आँखें गिरी थीं। पुराना मंदिर 1880 के बड़े भूस्खलन में नष्ट हो गया था, बाद में दोबारा बनाया गया। झील के उत्तरी किनारे, मल्लीताल में।
+Aapas mein judi pathreeli gufaon ka bagicha - gufaon ke naam jaanwaron par hain, jaise Tiger Cave aur Panther Cave.	A garden of interconnected rocky caves named after animals, like Tiger Cave and Panther Cave.	आपस में जुड़ी पथरीली गुफ़ाओं का बग़ीचा - गुफ़ाओं के नाम जानवरों पर हैं, जैसे टाइगर केव और पैंथर केव।
+Ayarpatta pahadi par. Angrez painter Dorothy Kellett ki yaad mein unke pati ne yahan seat banwayi thi. Picnic ke liye mashhoor.	On Ayarpatta hill. Her husband built this seat in memory of the English painter Dorothy Kellett. A popular picnic spot.	अयारपाटा पहाड़ी पर। अंग्रेज़ चित्रकार डोरोथी केलेट की याद में उनके पति ने यहाँ सीट बनवाई थी। पिकनिक के लिए मशहूर।
+Kaladhungi road ke hairpin ki nok par chai-maggi ke thele; wahan se ek kachcha raasta aur pathreeli seedhiyan cypress ke pedon ke beech ek khule kinare tak - neeche gehri ghaati aur door Khurpatal jheel.	Tea-and-Maggi carts at the tip of the Kaladhungi road hairpin; from there a dirt track and rocky steps run through the cypresses to an open edge - a deep valley below and Khurpatal lake in the distance.	कालाढूंगी रोड के हेयरपिन की नोक पर चाय-मैगी के ठेले; वहाँ से एक कच्चा रास्ता और पथरीली सीढ़ियाँ सरू के पेड़ों के बीच एक खुले किनारे तक - नीचे गहरी घाटी और दूर खुर्पाताल झील।
+Kaladhungi road ke mod par - Ghora Chaalak Seva Samiti ka adda. Yahin se ghode View Point, Tiger Top, Land's End, Forest Point, Tiffin Top aur Dorothy Seat ke 6 point tour par jaate hain (Rs 760). Chai ki dukaanon ke saath seedhiyan neeche Suicide Point tak.	On the Kaladhungi road bend - the pony owners' union stand. Ponies leave from here on the 6-point tour: View Point, Tiger Top, Land's End, Forest Point, Tiffin Top and Dorothy Seat (Rs 760). Steps beside the tea stalls lead down to Suicide Point.	कालाढूंगी रोड के मोड़ पर - घोड़ा चालक सेवा समिति का अड्डा। यहीं से घोड़े व्यू पॉइंट, टाइगर टॉप, लैंड्स एंड, फ़ॉरेस्ट पॉइंट, टिफ़िन टॉप और डोरोथी सीट के 6 पॉइंट टूर पर जाते हैं (Rs 760)। चाय की दुकानों के साथ सीढ़ियाँ नीचे सुसाइड पॉइंट तक।
+Khurpatal View Point ke theek upar, hairpin ke andar sadak kinare Maa Mansa Devi ka chhota sa mandir - safed shikhar, laal darwaza aur gende ki maalaayein. Raahgir rukkar maatha tekte hain.	Just above Khurpatal View Point, inside the hairpin by the road: a small shrine of Maa Mansa Devi - a white spire, a red door and marigold garlands. Passers-by stop to bow their heads.	खुर्पाताल व्यू पॉइंट के ठीक ऊपर, हेयरपिन के अंदर सड़क किनारे माँ मनसा देवी का छोटा-सा मंदिर - सफ़ेद शिखर, लाल दरवाज़ा और गेंदे की मालाएँ। राहगीर रुककर माथा टेकते हैं।
+Khurpatal jheel ke theek upar ka view point - hare paani ki chhoti jheel aur seedhidaar khet.	A viewpoint right above Khurpatal lake - a small green-water lake and terraced fields.	खुर्पाताल झील के ठीक ऊपर का व्यू पॉइंट - हरे पानी की छोटी झील और सीढ़ीदार खेत।
+Kilbury road par Nainital ka mashhoor view point. Saaf mausam mein yahan se Himalaya ki barfeeli chotiyan - Nanda Devi, Trishul aur Nanda Kot - dikhti hain.	Nainital's famous viewpoint on Kilbury road. On a clear day you can see the snowy Himalayan peaks - Nanda Devi, Trishul and Nanda Kot.	किलबरी रोड पर नैनीताल का मशहूर व्यू पॉइंट। साफ़ मौसम में यहाँ से हिमालय की बर्फ़ीली चोटियाँ - नंदा देवी, त्रिशूल और नंदा कोट - दिखती हैं।
+Kumaon ki sabse mashhoor jheel, lagbhag 1,938 m ki unchai par. Aankh (nain) jaise aakar ki - manyata hai ki Mata Sati ki aankh yahan giri thi. Lambai lagbhag 1.4 km. Uttari sira Mallital, dakshini sira Tallital.	Kumaon's most famous lake, at about 1,938 m. Shaped like an eye (nain) - legend says Goddess Sati's eye fell here. About 1.4 km long. The north end is Mallital, the south end Tallital.	कुमाऊँ की सबसे मशहूर झील, लगभग 1,938 m की ऊँचाई पर। आँख (नैन) जैसे आकार की - मान्यता है कि माता सती की आँख यहाँ गिरी थी। लंबाई लगभग 1.4 km। उत्तरी सिरा मल्लीताल, दक्षिणी सिरा तल्लीताल।
+Ladkiyon ka sarkari inter college.	A government girls' inter college.	लड़कियों का सरकारी इंटर कॉलेज।
+Lagbhag 2,270 m unchai. Mallital se ropeway (cable car) se pahunchte hain. Saaf mausam mein Nanda Devi samet Himalaya ki chotiyan dikhti hain.	About 2,270 m high, reached by ropeway (cable car) from Mallital. On clear days you can see Himalayan peaks including Nanda Devi.	लगभग 2,270 m ऊँचाई। मल्लीताल से रोपवे (केबल कार) से पहुँचते हैं। साफ़ मौसम में नंदा देवी समेत हिमालय की चोटियाँ दिखती हैं।
+Lover's Point se seedhiyan utarkar ek khula kinara - neeche gehri khaai aur saamne door tak ghaati. Railing ke peeche hi rahein.	Down the steps from Lover's Point, an open edge - a deep drop below and the valley stretching far ahead. Stay behind the railing.	लवर्स पॉइंट से सीढ़ियाँ उतरकर एक खुला किनारा - नीचे गहरी खाई और सामने दूर तक घाटी। रेलिंग के पीछे ही रहें।
+Mall Road ka purana Catholic church (1868) - pathar ki deewarein aur laal nukeeli meenar.	Mall Road's old Catholic church (1868) - stone walls and a pointed red spire.	मॉल रोड का पुराना कैथोलिक चर्च (1868) - पत्थर की दीवारें और लाल नुकीली मीनार।
+Mallital ka purana bazaar - woolen kapde, Nainital ki mashhoor rang-birangi candles aur khaane-peene ki dukaanein.	Mallital's old market - woollens, Nainital's famous colourful candles and food stalls.	मल्लीताल का पुराना बाज़ार - ऊनी कपड़े, नैनीताल की मशहूर रंग-बिरंगी मोमबत्तियाँ और खाने-पीने की दुकानें।
+Mallital ki safed sangmarmar ki masjid, Flats ke kinare. 1882 mein British fauj ke Muslim sipahiyon ke liye bani; ek oonchi meenar aur gumbad iski pehchaan hain.	Mallital's white marble mosque by the Flats. Built in 1882 for the Muslim soldiers of the British army; a tall minaret and a dome are its marks.	मल्लीताल की सफ़ेद संगमरमर की मस्जिद, फ़्लैट्स के किनारे। 1882 में ब्रिटिश फ़ौज के मुस्लिम सिपाहियों के लिए बनी; एक ऊँची मीनार और गुंबद इसकी पहचान हैं।
+Mallital mein Naina Devi mandir ke bilkul paas. Shaant mahaul, langar aur jheel ka sundar nazara.	Right next to Naina Devi temple in Mallital. Peaceful, with langar and a lovely view of the lake.	मल्लीताल में नैना देवी मंदिर के बिल्कुल पास। शांत माहौल, लंगर और झील का सुंदर नज़ारा।
+Mallital se Tallital tak jheel ke kinare ki sadak, sarkari naam Govind Ballabh Pant Marg. Shaam ko lights aur jheel mein unka pratibimb dekhne laayak hai.	The lakeside road from Mallital to Tallital, officially Govind Ballabh Pant Marg. Its evening lights reflected in the lake are worth seeing.	मल्लीताल से तल्लीताल तक झील के किनारे की सड़क, सरकारी नाम गोविंद बल्लभ पंत मार्ग। शाम को लाइटें और झील में उनका प्रतिबिंब देखने लायक़ है।
+Nainital Boat Club - British daur ka purana yacht club. Jheel mein tairti safed paal wali yachts isi ki pehchaan hain.	Nainital Boat Club - a historic yacht club from the British era. The white-sailed yachts on the lake are its trademark.	नैनीताल बोट क्लब - ब्रिटिश दौर का पुराना यॉट क्लब। झील में तैरती सफ़ेद पाल वाली यॉट इसी की पहचान हैं।
+Nainital ka sarkari zila aspataal (Mallital). Chot lagi ho ya tabiyat kharab, yahin aana.	Nainital's government district hospital (Mallital). Hurt or unwell? Come here.	नैनीताल का सरकारी ज़िला अस्पताल (मल्लीताल)। चोट लगी हो या तबीयत ख़राब, यहीं आना।
+Nainital ki sabse oonchi choti, lagbhag 2,615 m. Upar se poora shehar, jheel aur door Himalaya dikhte hain.	Nainital's highest peak, about 2,615 m. You can see the whole town, the lake and the distant Himalayas.	नैनीताल की सबसे ऊँची चोटी, लगभग 2,615 m। ऊपर से पूरा शहर, झील और दूर हिमालय दिखते हैं।
+Nainital se ~5 km, Kaladhungi road par ek chhoti si jheel. Paas mein Woodland jharna aur chai-maggi ki dukaanein.	A small lake ~5 km from Nainital on the Kaladhungi road. Nearby: the Woodland waterfall and tea-and-Maggi stalls.	नैनीताल से ~5 km, कालाढूंगी रोड पर एक छोटी-सी झील। पास में वुडलैंड झरना और चाय-मैगी की दुकानें।
+Pahadi raaste ka chhota mandir. Raahgir yahan ruk kar haath jodte hain.	A little wayside shrine on the hill path. Passers-by stop here and fold their hands.	पहाड़ी रास्ते का छोटा मंदिर। राहगीर यहाँ रुककर हाथ जोड़ते हैं।
+Police station. Kuch gadbad ho - chori, jhagda, gunde - to yahan report karo.	The police station. Trouble - theft, a fight, goons? Report it here.	पुलिस स्टेशन। कुछ गड़बड़ हो - चोरी, झगड़ा, गुंडे - तो यहाँ रिपोर्ट करो।
+Pt. G.B. Pant High Altitude Zoo - Sher ka Danda pahadi par, lagbhag 2,100 m unchai par, pahadi jaanwaron aur pakshiyon ka ghar.	Pt. G.B. Pant High Altitude Zoo on Sher ka Danda hill, about 2,100 m up - home to mountain animals and birds.	पं. जी.बी. पंत हाई एल्टीट्यूड ज़ू - शेर का डांडा पहाड़ी पर, लगभग 2,100 m ऊँचाई पर, पहाड़ी जानवरों और पक्षियों का घर।
+Sariyatal ke neeche, Kaladhungi road par gate (ticket Rs 50). Pathar ki seedhiyan cypress ke jungle mein do jharnon tak jaati hain - neeche ke kund mein log nahaate hain.	Below Sariyatal, a gate on the Kaladhungi road (ticket Rs 50). Stone steps run through a cypress forest to two waterfalls - people bathe in the pool below.	सरियाताल के नीचे, कालाढूंगी रोड पर गेट (टिकट Rs 50)। पत्थर की सीढ़ियाँ सरू के जंगल में दो झरनों तक जाती हैं - नीचे के कुंड में लोग नहाते हैं।
+Tallital ka sarkari primary school.	Tallital's government primary school.	तल्लीताल का सरकारी प्राथमिक स्कूल।
+Tallital ke paas ka public school.	A public school near Tallital.	तल्लीताल के पास का पब्लिक स्कूल।
+Thandi Sadak par chattan mein bana chhota sa mandir - chattan par sindoor se Maa ki aakriti. Shaant aur pavitra jagah.	A small shrine in the rock on Thandi Sadak - the Goddess's face is painted on the rock in sindoor. Quiet and sacred.	ठंडी सड़क पर चट्टान में बना छोटा-सा मंदिर - चट्टान पर सिंदूर से माँ की आकृति। शांत और पवित्र जगह।
+Uttarakhand Parivahan ka bus adda - Haldwani, Kathgodam, Delhi ki buses yahin se. Saamne jheel ke kinare Gandhi ji ki murti.	The Uttarakhand Roadways bus stand - buses to Haldwani, Kathgodam and Delhi leave from here. Gandhi ji's statue stands opposite, by the lake.	उत्तराखंड परिवहन का बस अड्डा - हल्द्वानी, काठगोदाम, दिल्ली की बसें यहीं से। सामने झील के किनारे गांधी जी की मूर्ति।
+Uttarakhand ke Rajyapal ka nivas. 1897-1900 ke beech Buckingham Palace ki tarz par Gothic shaili mein bana. Saath mein golf course bhi hai.	Residence of the Governor of Uttarakhand. Built 1897-1900 in Gothic style, modelled on Buckingham Palace. It also has a golf course.	उत्तराखंड के राज्यपाल का निवास। 1897-1900 के बीच बकिंघम पैलेस की तर्ज़ पर गॉथिक शैली में बना। साथ में गोल्फ़ कोर्स भी है।
+Yahan se Khurpatal jheel aur gehri ghaati ka shaandaar nazara milta hai.	A grand view of Khurpatal lake and the deep valley below.	यहाँ से खुर्पाताल झील और गहरी घाटी का शानदार नज़ारा मिलता है।
+Yahan se ghode Tiffin Top aur Land's End tak le jaate hain. Kaladhungi road par, Nainital se lagbhag 3 km.	Ponies take you from here to Tiffin Top and Land's End. On the Kaladhungi road, about 3 km from Nainital.	यहाँ से घोड़े टिफ़िन टॉप और लैंड्स एंड तक ले जाते हैं। कालाढूंगी रोड पर, नैनीताल से लगभग 3 km।
+Yahan se naav kiraye pe milti hai. Naav pe E dabao, W/joystick se chalao, A/D se mudo. Wapas kisi bhi jetty pe aakar E dabake utro.	Boats for hire. Press E at a boat, row with W/joystick, turn with A/D. Press E at any jetty to get off.	यहाँ से नाव किराये पर मिलती है। नाव पर E दबाओ, W/जॉयस्टिक से चलाओ, A/D से मुड़ो। वापस किसी भी जेटी पर आकर E दबाकर उतरो।
+
+# ---------------------------------------------------------------- people (names)
+Amma ji	Amma ji	अम्मा जी
+Bengali tourist	Bengali tourist	बंगाली टूरिस्ट
+Bhakt	Devotee	भक्त
+Bhutte wale bhaiya	Corn seller	भुट्टे वाले भैया
+Buzurg chacha	Old uncle	बुज़ुर्ग चाचा
+Chai wale	Tea seller	चाय वाले
+Chhota tourist	Little tourist	छोटा टूरिस्ट
+Chhoti bachchi	Little girl	छोटी बच्ची
+College student	College student	कॉलेज स्टूडेंट
+Dadi	Grandma	दादी
+Dukaandaar	Shopkeeper	दुकानदार
+Gaon ka ladka	Village boy	गाँव का लड़का
+Gaon ki didi	Village lady	गाँव की दीदी
+Gubbare wala	Balloon seller	गुब्बारे वाला
+Honeymoon couple wala	Honeymooner	हनीमून कपल वाला
+Honeymoon couple	Honeymoon couple	हनीमून कपल
+Kisaan bhaiya	Farmer	किसान भैया
+Kuli bhaiya	Porter	कुली भैया
+Kumaoni Amma	Kumaoni grandma	कुमाऊँनी अम्मा
+Kumaoni Aunty	Kumaoni aunty	कुमाऊँनी आंटी
+Kumaoni Dada	Kumaoni grandpa	कुमाऊँनी दादा
+Ladka	Boy	लड़का
+Local Didi	Local lady	लोकल दीदी
+Local bhaiya	Local guy	लोकल भैया
+Mistri ji	Mason	मिस्त्री जी
+Naav wale bhaiya	Boatman	नाव वाले भैया
+Pahadi Dada	Hill grandpa	पहाड़ी दादा
+Pandit ji	Priest	पंडित जी
+Photographer bhaiya	Photographer	फ़ोटोग्राफ़र भैया
+Retired uncle	Retired uncle	रिटायर्ड अंकल
+Sardar ji	Sardar ji	सरदार जी
+School bachcha	School kid	स्कूल का बच्चा
+School wali bachchi	Schoolgirl	स्कूल वाली बच्ची
+Tibetan dukaandaar	Tibetan shopkeeper	तिब्बती दुकानदार
+Tourist (Delhi se)	Tourist (from Delhi)	टूरिस्ट (दिल्ली से)
+Tourist (view dekh raha)	Tourist (enjoying the view)	टूरिस्ट (नज़ारा देखता)
+Tourist bhaiya	Tourist	टूरिस्ट भैया
+Tourist didi	Tourist lady	टूरिस्ट दीदी
+Raahgir	Passer-by	राहगीर
+Didi	Lady	दीदी
+Porter (kuli)	Porter	कुली
+Tourist	Tourist	टूरिस्ट
+Gang ka Boss	Gang boss	गैंग का बॉस
+Gunda	Thug	गुंडा
+Raat ka Gunda	Night thug	रात का गुंडा
+Constable	Constable	कांस्टेबल
+Police	Police	पुलिस
+
+# ---------------------------------------------------------------- people (lines)
+Aao ji, garam shawl dekh lo, Kashmir se aaya hai!	Come, have a look at these warm shawls - straight from Kashmir!	आओ जी, गरम शॉल देख लो, कश्मीर से आया है!
+Chai, adrak wali! Thand mein garam chai pi lo.	Tea, with ginger! Have some hot tea in this cold.	चाय, अदरक वाली! ठंड में गरम चाय पी लो।
+Garam garam bhutta! Nimbu masala laga ke doon?	Hot roasted corn! Shall I add lemon and masala?	गरम-गरम भुट्टा! नींबू मसाला लगाके दूँ?
+Gubbare lo, bachche ke liye!	Balloons - for the little one!	गुब्बारे लो, बच्चे के लिए!
+Jai Maa Naina Devi! Yahan sachche mann se jo maango, milta hai.	Jai Maa Naina Devi! Whatever you wish for with a true heart comes true here.	जय माँ नैना देवी! यहाँ सच्चे मन से जो माँगो, मिलता है।
+Jheel ke saath photo khinchwaoge? Mere bhai ka camera hai.	A photo with the lake? My brother has a camera.	झील के साथ फ़ोटो खिंचवाओगे? मेरे भाई का कैमरा है।
+Koyle pe sika hai bhaiya, ek baar kha ke dekho.	Roasted on coals, bhai - try it once.	कोयले पर सिका है भैया, एक बार खाके देखो।
+Maggi bana doon? Pahadon pe Maggi ka maza alag hai.	Shall I make you Maggi? Maggi tastes different in the hills.	मैगी बना दूँ? पहाड़ों पर मैगी का मज़ा अलग है।
+Momos bhi hain, steam wale, laal chutney ke saath.	We have momos too - steamed, with red chutney.	मोमोज़ भी हैं, स्टीम वाले, लाल चटनी के साथ।
+Naav chahiye saab? Ek ghanta, poori jheel ghuma dunga!	Need a boat, sir? One hour, I'll take you round the whole lake!	नाव चाहिए साब? एक घंटा, पूरी झील घुमा दूँगा!
+Nainital ki special candle le jao, ghar pe sab khush ho jayenge.	Take a special Nainital candle home, everyone will love it.	नैनीताल की ख़ास मोमबत्ती ले जाओ, घर पर सब ख़ुश हो जाएँगे।
+Navratri mein yahan bahut bada mela lagta hai.	A huge fair is held here during Navratri.	नवरात्रि में यहाँ बहुत बड़ा मेला लगता है।
+Pachees rupaye ka ek, do lo toh pachaas.	Twenty-five rupees each, two for fifty.	पच्चीस रुपये का एक, दो लो तो पचास।
+Prasad le lo beta, Maa ka aashirwad hai.	Take some prasad, child - it's the Mother's blessing.	प्रसाद ले लो बेटा, माँ का आशीर्वाद है।
+Sahi daam lagaunga, aap toh apne hi ho.	I'll give you a fair price, you're one of us.	सही दाम लगाऊँगा, आप तो अपने ही हो।
+Shaam ko jheel sabse sundar lagti hai, abhi le lo naav.	The lake is prettiest in the evening - take a boat now.	शाम को झील सबसे सुंदर लगती है, अभी ले लो नाव।
+Yacht wali sailing Boat Club se hoti hai, wo alag hai.	Yacht sailing is run by the Boat Club, that's separate.	यॉट वाली सेलिंग बोट क्लब से होती है, वो अलग है।
+Ye seeti wala khilona dekho, sab le jaate hain.	Look at this whistle toy - everyone takes one.	ये सीटी वाला खिलौना देखो, सब ले जाते हैं।
+Bhaiya, Naina Devi mandir yahan se seedha Mallital ki taraf hai.	Naina Devi temple is straight ahead towards Mallital.	भैया, नैना देवी मंदिर यहाँ से सीधा मल्लीताल की तरफ़ है।
+Shaam ko Mall Road pe lights dekhna, jheel mein reflection kamaal ka lagta hai!	See the Mall Road lights in the evening - the reflections on the lake are amazing!	शाम को मॉल रोड पर लाइटें देखना, झील में परछाईं कमाल की लगती है!
+Boating Tallital aur Mallital dono jagah se hoti hai.	You can go boating from both Tallital and Mallital.	बोटिंग तल्लीताल और मल्लीताल दोनों जगह से होती है।
+Snow View tak ropeway jaata hai, upar se Himalaya dikhta hai.	A ropeway goes up to Snow View - you can see the Himalayas from there.	स्नो व्यू तक रोपवे जाता है, ऊपर से हिमालय दिखता है।
+Thandi Sadak pe shaam ko walk karna, bahut shanti hai.	Take an evening walk on Thandi Sadak, it's very peaceful.	ठंडी सड़क पर शाम को टहलना, बहुत शांति है।
+Bada Bazar mein candles aur woollen kapde zaroor dekhna.	Do check out the candles and woollens in Bada Bazar.	बड़ा बाज़ार में मोमबत्तियाँ और ऊनी कपड़े ज़रूर देखना।
+Tiffin Top (Dorothy's Seat) tak trek karo, view mast hai.	Trek up to Tiffin Top (Dorothy's Seat) - the view is great.	टिफ़िन टॉप (डोरोथी सीट) तक ट्रेक करो, नज़ारा मस्त है।
+Raat mein gali-mohallon mein sambhal ke, kuch gunde ghoomte hain!	Be careful in the back lanes at night, some thugs roam around!	रात में गली-मोहल्लों में सँभल के, कुछ गुंडे घूमते हैं!
+Momos khaye? Mall Road pe best milte hain.	Had momos yet? Mall Road has the best ones.	मोमोज़ खाए? मॉल रोड पर सबसे अच्छे मिलते हैं।
+Yeh jheel aankh ki shape ki hai, isliye Naini naam pada.	The lake is shaped like an eye, that's why it's called Naini.	ये झील आँख के आकार की है, इसलिए नैनी नाम पड़ा।
+Parking ki bahut dikkat hai yahan, gaadi Tallital pe hi laga do.	Parking is a real problem here - just park at Tallital.	पार्किंग की बहुत दिक़्क़त है यहाँ, गाड़ी तल्लीताल पर ही लगा दो।
+Tibetan market mein sasti jackets milti hain, dekh lena.	You get cheap jackets in the Tibetan market, take a look.	तिब्बती बाज़ार में सस्ती जैकेटें मिलती हैं, देख लेना।
+Bandaron se bach ke, chips cheen ke bhaag jaate hain!	Watch out for the monkeys, they snatch chips and run!	बंदरों से बचके, चिप्स छीनकर भाग जाते हैं!
+Season mein yahan itni bheed hoti hai ki Mall Road pe chalna mushkil.	In peak season it's so crowded you can barely walk on Mall Road.	सीज़न में यहाँ इतनी भीड़ होती है कि मॉल रोड पर चलना मुश्किल।
+Bachao! Police!	Help! Police!	बचाओ! पुलिस!
+Arey maar kyun raha hai?!	Hey, why are you hitting me?!	अरे मार क्यों रहा है?!
+Koi police ko bulao!	Someone call the police!	कोई पुलिस को बुलाओ!
+Hai Ram! Bachao!	Oh God! Help!	हे राम! बचाओ!
+Arey bhai dekh ke chala!	Hey, watch where you're driving!	अरे भाई देखके चला!
+Oye! Andha hai kya?	Oi! Are you blind?	ओए! अंधा है क्या?
+Police bulaunga!	I'll call the police!	पुलिस बुलाऊँगा!
+Hai Ram!	Oh my God!	हे राम!
+Oye! Kahan ja raha hai?	Hey! Where do you think you're going?	ओए! कहाँ जा रहा है?
+
+# ---------------------------------------------------------------- food stalls
+Bada Bazar Momos	Bada Bazar Momos	बड़ा बाज़ार मोमोज़
+Bhutta Wala	Corn Seller	भुट्टा वाला
+Bun Makkhan Corner	Bun Makkhan Corner	बन मक्खन कॉर्नर
+Chai & Maggi Point	Chai & Maggi Point	चाय और मैगी पॉइंट
+Momos Stall	Momos Stall	मोमोज़ स्टॉल
+Garma garam momos	hot steaming momos	गरमा-गरम मोमोज़
+Maggi	Maggi noodles	मैगी
+Adrak wali chai	ginger tea	अदरक वाली चाय
+Bun makkhan	bun with butter	बन मक्खन
+Bhutta (corn)	roasted corn	भुट्टा
+{0} se khao (Rs {1})	Eat at {0} (Rs {1})	{0} से खाओ (Rs {1})
+{0} khaya! +{1} health  (-Rs {2})	Ate {0}! +{1} health (-Rs {2})	{0} खाया! +{1} हेल्थ  (-Rs {2})
+Abhi pet bhara hai, thodi der baad aana!	You're full - come back a bit later!	अभी पेट भरा है, थोड़ी देर बाद आना!
+Jeb khaali hai! Mission karke paise kamao.	Your pockets are empty! Earn money from missions.	जेब ख़ाली है! मिशन करके पैसे कमाओ।
+
+# ---------------------------------------------------------------- missions
+Nainital Darshan	Nainital Darshan	नैनीताल दर्शन
+Nainital mein pehla din! Pehle Maa Naina Devi ke darshan, phir kuch garma-garam khaana, phir jheel ka nazara.	First day in Nainital! First visit Maa Naina Devi, then grab some hot food, then enjoy the lake view.	नैनीताल में पहला दिन! पहले माँ नैना देवी के दर्शन, फिर कुछ गरमा-गरम खाना, फिर झील का नज़ारा।
+Naina Devi Mandir jaao aur darshan karo	Go to Naina Devi Temple and pay your respects	नैना देवी मंदिर जाओ और दर्शन करो
+Kisi stall se kuch khao (E)	Eat something at a food stall (E)	किसी स्टॉल से कुछ खाओ (E)
+Wapas jheel ke kinare aao	Come back to the lake shore	वापस झील के किनारे आओ
+Gunda Raj Khatam	End the Goon Raj	गुंडा राज ख़त्म
+Bada Bazar ke dukaandaar pareshaan hain - ek gang hafta vasooli kar raha hai. Unhe sabak sikhao!	The Bada Bazar shopkeepers are being extorted by a gang. Teach them a lesson!	बड़ा बाज़ार के दुकानदार परेशान हैं - एक गैंग हफ़्ता वसूली कर रहा है। उन्हें सबक़ सिखाओ!
+Bada Bazar pahuncho	Reach Bada Bazar	बड़ा बाज़ार पहुँचो
+Gang ko harao	Defeat the gang	गैंग को हराओ
+Naav Race	Boat Race	नाव रेस
+Boat club walon ki challenge: Mallital se Tallital tak naav, saare checkpoints, 4 minute mein!	The boat club's challenge: row from Mallital to Tallital through every checkpoint in 4 minutes!	बोट क्लब वालों का चैलेंज: मल्लीताल से तल्लीताल तक नाव, सारे चेकपॉइंट, 4 मिनट में!
+Jetty se naav lo (E)	Take a boat from the jetty (E)	जेटी से नाव लो (E)
+Checkpoint 1	Checkpoint 1	चेकपॉइंट 1
+Checkpoint 2	Checkpoint 2	चेकपॉइंट 2
+Tallital jetty pe finish	Finish at the Tallital jetty	तल्लीताल जेटी पर फ़िनिश
+Taxi Driver	Taxi Driver	टैक्सी ड्राइवर
+Taxi stand wale bhaiya beemar hain. Unki taxi chalao: Mallital se sawari uthao aur Tallital chhodo.	The taxi driver is sick. Drive his taxi: pick up a fare at Mallital and drop them at Tallital.	टैक्सी स्टैंड वाले भैया बीमार हैं। उनकी टैक्सी चलाओ: मल्लीताल से सवारी उठाओ और तल्लीताल छोड़ो।
+Taxi (ya koi bhi gaadi) mein baitho	Get in the taxi (or any car)	टैक्सी (या कोई भी गाड़ी) में बैठो
+Mallital se sawari uthao	Pick up the passenger at Mallital	मल्लीताल से सवारी उठाओ
+Sawari ko Tallital Bus Stand chhodo	Drop the passenger at Tallital Bus Stand	सवारी को तल्लीताल बस स्टैंड छोड़ो
+Snow View Parcel	Snow View Parcel	स्नो व्यू पार्सल
+Snow View ke cafe wale ka parcel jaldi pahunchana hai - 7 minute hain. Paidal, gaadi, jaise marzi!	Deliver a parcel to the Snow View cafe - you have 7 minutes. On foot or by car, your call!	स्नो व्यू के कैफ़े वाले का पार्सल जल्दी पहुँचाना है - 7 मिनट हैं। पैदल, गाड़ी, जैसे मर्ज़ी!
+Parcel Snow View pahunchao (E)	Deliver the parcel to Snow View (E)	पार्सल स्नो व्यू पहुँचाओ (E)
+Bandar Bhagao	Shoo the Monkeys	बंदर भगाओ
+Mandir ke bandar prasad cheen rahe hain! Unki taraf daudo (Shift) aur bhagao.	The temple monkeys are snatching offerings! Sprint at them (Shift) and chase them off.	मंदिर के बंदर प्रसाद छीन रहे हैं! उनकी तरफ़ दौड़ो (Shift) और भगाओ।
+3 bandar bhagao (Shift se unki taraf daudo)	Chase off 3 monkeys (sprint at them with Shift)	3 बंदर भगाओ (Shift से उनकी तरफ़ दौड़ो)
+Nainital Photo Tour	Nainital Photo Tour	नैनीताल फ़ोटो टूर
+Ek travel blogger ko Nainital ke best viewpoints ki photos chahiye. Sab jagah jaao!	A travel blogger needs photos of Nainital's best viewpoints. Visit them all!	एक ट्रैवल ब्लॉगर को नैनीताल के सबसे अच्छे व्यू पॉइंट्स की फ़ोटो चाहिए। सब जगह जाओ!
+Saare viewpoints ki photo lo	Photograph all the viewpoints	सारे व्यू पॉइंट्स की फ़ोटो लो
+Raat ki Gasht	Night Patrol	रात की गश्त
+Raat mein Tallital pe gunde logon ko loot rahe hain. Police late hai - tum sambhalo!	Thugs are robbing people at Tallital tonight. The police are late - you handle it!	रात में तल्लीताल पर गुंडे लोगों को लूट रहे हैं। पुलिस लेट है - तुम सँभालो!
+Tallital ke andhere mein gunde dhundo	Find the thugs in the dark at Tallital	तल्लीताल के अँधेरे में गुंडे ढूँढो
+Gundon ko harao	Defeat the thugs	गुंडों को हराओ
+Ye mission sirf raat mein milega. (N dabake raat karo)	This mission is only available at night. (Press N for night)	ये मिशन सिर्फ़ रात में मिलेगा। (N दबाकर रात करो)
+Mission chhod diya	Mission abandoned	मिशन छोड़ दिया
+Aap behosh ho gaye	You passed out	आप बेहोश हो गए
+Time khatam!	Time's up!	टाइम ख़त्म!
+Shabash! Agla kaam: {0}	Well done! Next: {0}	शाबाश! अगला काम: {0}
+Mission: {0}  (Rs {1})	Mission: {0}  (Rs {1})	मिशन: {0}  (Rs {1})
+Mission: {0}  (Rs {1}, dobara)	Mission: {0}  (Rs {1}, replay)	मिशन: {0}  (Rs {1}, दोबारा)
+{0}   +Rs {1}	{0}   +Rs {1}	{0}   +Rs {1}
+(E dabao)	(press E)	(E दबाओ)
+Photo kheench li: {0}	Photo taken: {0}	फ़ोटो खींच ली: {0}
+{0} dher ho gaya!	{0} is down!	{0} ढेर हो गया!
+Padho: {0}	Read: {0}	पढ़ो: {0}
+{0} se baat karo	Talk to {0}	{0} से बात करो

@@ -26,7 +26,7 @@ namespace Nainital
         public BikeRide Bike => bike ? bike : bike = GetComponent<BikeRide>();
         public bool HasRider => rider;
         bool Scooty => name.ToLowerInvariant().Contains("scooty");
-        float MaxSpeed => Scooty ? 13f : 17f;
+        float MaxSpeed => (Scooty ? 13f : 17f) * PlayerStats.BikeSpeed;   // bike skill (PlayerStats)
 
         void Awake()
         {
@@ -109,6 +109,7 @@ namespace Nainital
             if (!rider || !Bike || Bike.Crashed) return;
             float dt = Time.fixedDeltaTime;
             Vector2 mv = GameInput.UiBlocking ? Vector2.zero : GameInput.Move;
+            mv.y = VehicleFuel.Drive(this, mv.y, Bike.Speed, dt);   // fuel: burns while riding, no pull once dry (VehicleFuel)
             float target = mv.y > 0.05f ? mv.y * MaxSpeed : 0f;
             if (GameInput.JumpHeld || mv.y < -0.05f) target = 0f;
             // steering: a wide lock walking pace, less as it gathers speed

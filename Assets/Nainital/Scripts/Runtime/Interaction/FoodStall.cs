@@ -21,6 +21,7 @@ namespace Nainital
             nextUse = Time.time + 15f;
             string item = items[Random.Range(0, items.Length)];
             p.Health.Heal(heal);
+            PlayerStats.Eat(0.35f, 0f);   // a plate fills about a third of the hunger bar (PlayerStats)
             GameEvents.ShowToast(item + " khaya! +" + heal + " health  (-Rs " + price + ")", 2.5f);
             GameEvents.RaiseAte();
         }

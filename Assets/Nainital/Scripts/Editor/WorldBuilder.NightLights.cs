@@ -180,8 +180,89 @@ namespace Nainital.EditorTools
                     if (done) Flush(false);
                 }
             }
+
+            // Gap fill (22 Nov 2026, NightCheck after the first pass: the lanes between tall houses at (-364, 218) and
+            // (0, 246) and hillside lanes still black, their nearest lamp 19-40 m away). The pass above skips a spot when a
+            // lamp stands within 15 m on the MAP, even one on a road 8-20 m higher or lower, and gives up where neither a
+            // pole nor a wall fits at that one spot. Walk every road among the houses again every 6 m: where no lamp hangs
+            // within 15 m on the same level, try a pole a little further out (up to 2.5 m more), then a wall lamp up to 9 m
+            // away; a spot with no room tries again 6 m on.
+            var heads = new Dictionary<Vector2Int, List<Vector3>>();
+            void Mark3(Vector3 q)
+            {
+                var k = new Vector2Int(Mathf.FloorToInt(q.x / 16f), Mathf.FloorToInt(q.z / 16f));
+                if (!heads.TryGetValue(k, out var l)) heads[k] = l = new List<Vector3>();
+                l.Add(q);
+            }
+            bool Lit(Vector2 q, float y, float r)
+            {
+                int gx = Mathf.FloorToInt(q.x / 16f), gz = Mathf.FloorToInt(q.y / 16f);
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dz = -1; dz <= 1; dz++)
+                        if (heads.TryGetValue(new Vector2Int(gx + dx, gz + dz), out var l))
+                            foreach (var o in l)
+                            {
+                                float dy = o.y - y;
+                                if (dy > -2f && dy < 11f && new Vector2(o.x - q.x, o.z - q.y).sqrMagnitude < r * r) return true;
+                            }
+                return false;
+            }
+            foreach (var h in ctx.lampHeads) Mark3(h);
+            int gapPoles = 0, gapWalls = 0, gapNone = 0;
+            foreach (var r in ctx.world.roads)
+            {
+                if (r.kind == "track" || r.kind == "bridleway" || IsMallDeck(r.name)) continue;
+                bool foot = r.kind == "path" || r.kind == "footway" || r.kind == "steps";
+                var line = Geo.ToPoints(r.pts);
+                if (line.Length < 2) continue;
+                var pts = Resample(line, 6f, false);
+                for (int i = 0; i < pts.Count; i++)
+                {
+                    Vector2 p = pts[i];
+                    if (ctx.InLake(p) || ctx.LakeDistance(p) < 18f) continue;
+                    if (HousesNear(ctx, p) < 3) continue;
+                    float y = ctx.H(p);
+                    if (Lit(p, y, 15f)) continue;
+                    Vector2 tan = (pts[Mathf.Min(i + 1, pts.Count - 1)] - pts[Mathf.Max(i - 1, 0)]).normalized;
+                    if (tan.sqrMagnitude < 0.5f) continue;
+                    Vector2 sideV = new Vector2(-tan.y, tan.x);
+                    float off = r.width * 0.5f + (foot ? 0.45f : 0.7f);
+                    int had = ctx.lampHeads.Count;
+                    bool done = false;
+                    foreach (float extra in new[] { 0f, 1.2f, 2.5f })
+                    {
+                        foreach (var s in new[] { sideV, -sideV })
+                        {
+                            Vector2 lp = p + s * (off + extra);
+                            if (clear.Blocked(lp, 0.3f) || SolidAt(ctx, lp)) continue;
+                            float gy = ctx.H(lp);
+                            if (Mathf.Abs(gy - y) > 2.5f) continue;   // not up on a bank or down a drop beside the lane
+                            Vector3 basePos = new Vector3(lp.x, gy, lp.y);
+                            Quaternion rot = Quaternion.LookRotation(new Vector3(-s.x, 0, -s.y));
+                            using (PropKit.At(mb, basePos, rot))
+                            {
+                                Vector3 bulb = PropKit.RoadLamp(mb);
+                                ctx.lampHeads.Add(basePos + rot * bulb);
+                            }
+                            col.Box(basePos + Vector3.up * 2.8f, new Vector3(0.25f, 5.6f, 0.25f), Vector2.zero);
+                            Mark(lp);
+                            gapPoles++;
+                            done = true;
+                            break;
+                        }
+                        if (done) break;
+                    }
+                    if (!done && WallLamp(p, sideV, off + 9f)) { gapWalls++; done = true; }
+                    if (done)
+                    {
+                        for (int k = had; k < ctx.lampHeads.Count; k++) Mark3(ctx.lampHeads[k]);
+                        Flush(false);
+                    }
+                    else gapNone++;
+                }
+            }
             Flush(true);
-            Debug.Log($"[Nainital] street lamps: {poles} on poles, {walls} on house walls, {none} spots with no room, {near} skipped (a lamp there already); lamps total {ctx.lampHeads.Count} (were {before})");
+            Debug.Log($"[Nainital] street lamps: {poles} on poles, {walls} on house walls, {none} spots with no room, {near} skipped (a lamp there already); gap fill: {gapPoles} poles, {gapWalls} wall lamps, {gapNone} 6 m spots still dark; lamps total {ctx.lampHeads.Count} (were {before})");
         }
 
         /// <summary>About half the houses facing a road (within ~22 m) keep a bulb on by the door at night: a little warm

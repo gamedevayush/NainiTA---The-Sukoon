@@ -110,7 +110,7 @@ namespace Nainital
             }
             black = UiKit.FullImg("Black", root, Color.black);
             yield return Splash();
-            if (PlayerPrefs.GetInt("nt_lang_set", 0) == 0) yield return LanguagePick();
+            // (no language question at the first start any more: English by default, Settings > Language for Hindi - 22 Nov 2026)
             yield return Loading();
         }
 
@@ -280,14 +280,14 @@ namespace Nainital
                 if (tex) img.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
                 var fit = img.GetComponent<AspectRatioFitter>();
                 if (tex) fit.aspectRatio = (float)tex.width / tex.height;
-                place.text = Loc.English ? p.en : p.hi;
-                fact.text = Loc.English ? p.factEn : p.factHi;
-                credit.text = (Loc.English ? "Photo: " : "Tasveer: ") + p.credit + "  /  Wikimedia Commons";
+                place.text = Loc.L(p.hi, p.en);
+                fact.text = Loc.L(p.factHi, p.factEn);
+                credit.text = Loc.L("Tasveer: ", "Photo: ") + p.credit + "  /  Wikimedia Commons";
             }
             ShowPhoto(front, 0);
             front.color = Color.white;
             back.color = new Color(1, 1, 1, 0);
-            tip.text = (Loc.English ? "<color=#FFA91F>TIP</color>   " : "<color=#FFA91F>SUJHAAV</color>   ") + Tips[tipIndex][Loc.English ? 1 : 0];
+            tip.text = "<color=#FFA91F>" + Loc.L("SUJHAAV", "TIP") + "</color>   " + Loc.L(Tips[tipIndex][0], Tips[tipIndex][1]);
 
             yield return Fade(black, 1f, 0f, 0.45f);
             float started = Time.unscaledTime;
@@ -332,7 +332,7 @@ namespace Nainital
                 {
                     tipT = 0f;
                     tipIndex = (tipIndex + 1) % Tips.Length;
-                    tip.text = (Loc.English ? "<color=#FFA91F>TIP</color>   " : "<color=#FFA91F>SUJHAAV</color>   ") + Tips[tipIndex][Loc.English ? 1 : 0];
+                    tip.text = "<color=#FFA91F>" + Loc.L("SUJHAAV", "TIP") + "</color>   " + Loc.L(Tips[tipIndex][0], Tips[tipIndex][1]);
                 }
                 spin.rectTransform.localEulerAngles = new Vector3(0, 0, -Time.unscaledTime * 60f);
                 logoM.rectTransform.localEulerAngles = new Vector3(0, 0, Time.unscaledTime * 8f);

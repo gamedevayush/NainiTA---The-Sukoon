@@ -786,6 +786,9 @@ namespace Nainital.EditorTools
             if (t360.HasValue) Tower360(ctx, parent, t360.Value, rng);
             BuildRopeway(ctx, parent);
             BuildExtras(ctx, parent, rng);
+            BuildPetrolPumps(ctx, parent);
+            BuildFireStation(ctx, parent);
+            BuildHouse(ctx, parent);         // LandmarkBuilder.House.cs: the player's house on Zoo Road (22 Nov)   // LandmarkBuilder.FireStation.cs: Mallital, at the owner's pin (22 Nov)   // LandmarkBuilder.PetrolPumps.cs: Tallital and Sukhatal, Himgiri Fuels (22 Nov)
         }
 
         // ------------------------------------------------------------------ extra Nainital details

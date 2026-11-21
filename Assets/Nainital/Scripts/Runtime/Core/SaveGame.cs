@@ -81,6 +81,7 @@ namespace Nainital
             PlayerPrefs.DeleteKey(Key);
             PlaySeconds = 0f;
             GameState.ResetProgress();
+            Inventory.ResetAll();   // nothing bought, the default clothes (shops, 22 Nov 2026)
             PlayerPrefs.Save();
         }
 
@@ -90,12 +91,10 @@ namespace Nainital
         public static string Ago(long ticks)
         {
             var span = DateTime.Now - new DateTime(ticks);
-            bool en = Loc.English;
-            if (span.TotalMinutes < 1) return en ? "just now" : "abhi abhi";
-            if (span.TotalHours < 1) { int m = (int)span.TotalMinutes; return en ? $"{m} min ago" : $"{m} minute pehle"; }
-            if (span.TotalDays < 1) { int h = (int)span.TotalHours; return en ? $"{h} hour{(h == 1 ? "" : "s")} ago" : $"{h} ghante pehle"; }
-            int dd = (int)span.TotalDays;
-            return en ? $"{dd} day{(dd == 1 ? "" : "s")} ago" : $"{dd} din pehle";
+            if (span.TotalMinutes < 1) return Loc.T("abhi abhi");
+            if (span.TotalHours < 1) return Loc.T($"{(int)span.TotalMinutes} minute pehle");
+            if (span.TotalDays < 1) return Loc.T($"{(int)span.TotalHours} ghante pehle");   // "1 ghante pehle" has its own entry
+            return Loc.T($"{(int)span.TotalDays} din pehle");
         }
 
         public static string Clock(float hour)

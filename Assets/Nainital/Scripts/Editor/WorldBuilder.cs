@@ -221,6 +221,9 @@ namespace Nainital.EditorTools
             Step("G.O.A.N. plan (civic sites)", () => PlanGoan(ctx));
             Step("Tallital plan", () => PlanTallital(ctx));
             Step("Mallital plan", () => PlanMallital(ctx));
+            Step("Fire station plan", () => LandmarkBuilder.PlanFireStation(ctx));   // keeps its footprint clear (LandmarkBuilder.FireStation.cs, 22 Nov)
+            Step("House plan (Zoo Road)", () => LandmarkBuilder.PlanHouse(ctx));   // the player's house replaces the one house on its spot (LandmarkBuilder.House.cs)
+            Step("Pump and sit-out plans", () => { LandmarkBuilder.PlanPetrolPumps(ctx); LandmarkBuilder.PlanRestaurants(ctx); });   // the houses skip their ground (PetrolPumps.cs, Shops.cs)
             BuildingKit.ShopFront = (p, n, w) => ctx.shopFronts.Add((p, n, w));
             BuildingKit.Ground = p => ctx.H(p);   // plinths and aprons follow the real ground
             Step("Buildings", () => BuildBuildings(ctx));
@@ -240,6 +243,7 @@ namespace Nainital.EditorTools
             Step("Tallital (bus station, school, chowk)", () => BuildTallital(ctx));
             Step("Mallital (Capitol, Naina Devi gate, Tibetan market, ghat)", () => BuildMallital(ctx));
             Step("The Flats (DSA ground)", () => BuildFlats(ctx));
+            Step("Shops and restaurants", () => LandmarkBuilder.BuildShopsAndRestaurants(ctx));   // LandmarkBuilder.Shops.cs (22 Nov): on the built shop fronts, before the trees (their sit-outs stay clear)
             Step("Trees", () => BuildTrees(ctx));
             Step("Lighting", () => BuildLighting(ctx));
             Step("Far ridges (beyond the map)", () => BuildFarRidges(ctx));

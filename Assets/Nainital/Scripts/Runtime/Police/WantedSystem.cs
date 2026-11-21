@@ -70,6 +70,13 @@ namespace Nainital
             Raise(cop ? 2 : 1, cop ? "Police pe haath uthaya!" : "Maar-peet! Police aa rahi hai");
         }
 
+        /// <summary>A prank call to 100 / 108 / 101 (the phone, EmergencyDispatch): one star - a constable comes and warns.</summary>
+        public void Prank(string why)
+        {
+            lastCrime = Time.time;
+            Raise(1, why);
+        }
+
         /// <summary>The player killed someone: 2 stars; 3 people (or 2 policemen) this time round: 3 stars.</summary>
         public void Kill(Vector3 at, bool cop)
         {

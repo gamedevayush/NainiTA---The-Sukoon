@@ -176,6 +176,32 @@ namespace Nainital
         }
 
         /// <summary>One of the 108 crew.</summary>
+        /// <summary>A townsperson in a random look (restaurant diners, 22 Nov 2026): no script moves them.</summary>
+        public GameObject MakePerson(string name, Vector3 pos)
+        {
+            CharacterLibrary.Entry look = null;
+            var lib = CharacterLibrary.Instance;
+            if (lib && lib.entries.Length > 0)
+                for (int k = 0; k < 8 && look == null; k++)
+                {
+                    var e = lib.entries[Random.Range(0, lib.entries.Length)];
+                    if (e != null && !string.IsNullOrEmpty(e.id) && !e.id.StartsWith("police")) look = e;
+                }
+            var go = Person(name, look, pos, Pal.ShirtWhite, Pal.Jeans);
+            go.transform.SetParent(null, true);
+            return go;
+        }
+
+        /// <summary>A restaurant's waiter: a townsperson's look (not the 108 crew's uniform) that walks where it is told
+        /// (the Medic walker; Restaurant.Bring).</summary>
+        public Medic MakeWaiter(Vector3 pos)
+        {
+            var go = MakePerson("Waiter", pos);
+            var m = go.AddComponent<Medic>();
+            m.rig = go.GetComponentInChildren<HumanoidRig>(true);
+            return m;
+        }
+
         public Medic MakeMedic(Vector3 pos)
         {
             var kit = PoliceKit.Instance;
@@ -295,6 +321,43 @@ namespace Nainital
             if (k < 0) return false;
             var o = MakeOfficer(RoadRoute.Pos(k) + Vector3.up * 0.3f);
             return o;
+        }
+
+        /// <summary>The 108 ambulance the player called for themselves (the phone): it comes and a medic treats them.</summary>
+        public Ambulance SpawnAmbulanceForPlayer(Vector3 at)
+        {
+            if (!RoadRoute.ReadyAny()) return null;
+            var kit = PoliceKit.Instance;
+            int k = RoadRoute.SpawnNode(at, 150f, 260f, Camera.main);
+            if (k < 0) return null;
+            var go = MakeCarAt(k, kit ? kit.ambulanceModel : "Ambulance108", CarType.Suv, "108 Ambulance", at);
+            if (!go) return null;
+            go.AddComponent<RouteDriver>();
+            Letters(go, kit ? kit.ambulanceLetters : null);
+            var a = go.AddComponent<Ambulance>();
+            a.lights = EmergencyLights.Fit(go, kit ? kit.ambulanceRoof : new Vector3(0f, 2.75f, 1.6f), kit ? kit.ambulanceRoofWidth : 1.6f, false);
+            a.BeginForPlayer(at);
+            Ambulances.Add(a);
+            return a;
+        }
+
+        /// <summary>The 101 fire tender (the phone's call): the light truck in red with a light bar, from a road out of sight.</summary>
+        public FireTruck SpawnFireTruck(Vector3 at, Component src)
+        {
+            if (!RoadRoute.ReadyAny()) return null;
+            // from the fire station when the fire is a fair way off and nobody is looking at its bay; else a road out of sight
+            int k = -1;
+            var bay = FireStationBay.Instance;
+            if (bay && !bay.Seen() && Vector3.Distance(bay.transform.position, at) > 100f) k = RoadRoute.Nearest(bay.transform.position, 40f);
+            if (k < 0) k = RoadRoute.SpawnNode(at, 150f, 260f, Camera.main);
+            if (k < 0) return null;
+            var go = MakeCarAt(k, FireTruck.Model, CarType.Pickup, "101 Fire Tender", at);
+            if (!go) return null;
+            go.AddComponent<RouteDriver>();
+            var ft = go.AddComponent<FireTruck>();
+            ft.Dress();
+            ft.Begin(at, src);
+            return ft;
         }
 
         /// <summary>The 108 ambulance for an accident, from a road out of sight.</summary>

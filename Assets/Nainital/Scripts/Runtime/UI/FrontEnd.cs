@@ -177,7 +177,7 @@ namespace Nainital
             }
             else
             {
-                loc.Add(UiKit.Txt("Title", head, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 20), new Vector2(900, 110), 92, TextAnchor.MiddleLeft, Aipan.Rice, true), UiKit.Spaced(hiTitle), UiKit.Spaced(enTitle));
+                loc.AddSpaced(UiKit.Txt("Title", head, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(0, 20), new Vector2(900, 110), 92, TextAnchor.MiddleLeft, Aipan.Rice, true), hiTitle, enTitle);
                 UiKit.Strip("Dots", head, Aipan.DotRow, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(4, -46), new Vector2(300, 20), Aipan.Saffron);
             }
             return UiKit.Rect("List", s.rt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(80, -310), new Vector2(700, 700));
@@ -193,7 +193,7 @@ namespace Nainital
             var dots = UiKit.Strip("Dots", bar.transform, Aipan.DotRow, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 6), new Vector2(600, 14), new Color(Aipan.Rice.r, Aipan.Rice.g, Aipan.Rice.b, 0.55f));
             var bullet = UiKit.Img("Bullet", rt, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(30, withSub ? 16 : 0), new Vector2(18, 18), new Color(1, 1, 1, 0.45f), HudStyle.Diamond);
             var label = UiKit.Txt("Label", rt, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(62, withSub ? 16 : 0), new Vector2(560, 70), 46, TextAnchor.MiddleLeft, Aipan.Rice, true);
-            loc.Add(label, UiKit.Spaced(hi), UiKit.Spaced(en));
+            loc.AddSpaced(label, hi, en);
             Text sub = null;
             if (withSub) sub = UiKit.Txt("Sub", rt, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(64, -28), new Vector2(560, 34), 25, TextAnchor.MiddleLeft, HudStyle.InkDim);
             var tb = rt.gameObject.AddComponent<TapButton>();
@@ -233,8 +233,8 @@ namespace Nainital
             cornerGroup = corners.gameObject.AddComponent<CanvasGroup>();
             var chip = UiKit.Panel("Stats", corners, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-60, -48), new Vector2(470, 64), HudStyle.Glass, true);
             statsChip = UiKit.Txt("Text", chip.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -1), new Vector2(450, 60), 30, TextAnchor.MiddleCenter, Aipan.Rice, true);
-            Segmented(corners, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 54), 170, new[] { "HINDI", "ENGLISH" }, new[] { "HINDI", "ENGLISH" },
-                () => Loc.English ? 1 : 0, i => Loc.SetEnglish(i == 1));
+            Segmented(corners, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-60, 54), 170, new[] { "ENGLISH", "HINDI_NAME" }, new[] { "ENGLISH", "HINDI_NAME" },
+                () => Loc.Hindi ? 1 : 0, i => Loc.Set(i == 1 ? Loc.Lang.Hindi : Loc.Lang.English));
         }
 
         CanvasGroup cornerGroup;
@@ -273,7 +273,7 @@ namespace Nainital
             bg.raycastTarget = true;
             UiKit.Img("Mandala", s.rt, new Vector2(1, 0), new Vector2(0.5f, 0.5f), new Vector2(-40, 40), new Vector2(520, 520), new Color(1, 1, 1, 0.035f), Aipan.Mandala);
             UiKit.Strip("Border", s.rt, Aipan.Border, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -14), new Vector2(size.x - 40, 26), Color.white);
-            loc.Add(UiKit.Txt("Title", s.rt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(52, -54), new Vector2(size.x - 100, 80), 56, TextAnchor.MiddleLeft, Aipan.Rice, true), UiKit.Spaced(hi), UiKit.Spaced(en));
+            loc.AddSpaced(UiKit.Txt("Title", s.rt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(52, -54), new Vector2(size.x - 100, 80), 56, TextAnchor.MiddleLeft, Aipan.Rice, true), hi, en);
             UiKit.Strip("Dots", s.rt, Aipan.DotRow, new Vector2(0, 1), new Vector2(0, 1), new Vector2(54, -134), new Vector2(220, 18), Aipan.Saffron);
             body = UiKit.Rect("Body", s.rt, new Vector2(0, 1), new Vector2(0, 1), new Vector2(52, -170), new Vector2(size.x - 104, size.y - 200));
             // a close button for a phone held one-handed
@@ -349,10 +349,10 @@ namespace Nainital
                 "If the phone runs warm or you want to save battery, use LOW quality and 30 FPS.");
             // language
             y = -10f;
-            SegRow(tabPages[3], ref y, "Bhasha", "Language", new[] { "HINDI", "ENGLISH" }, new[] { "HINDI", "ENGLISH" }, () => Loc.English ? 1 : 0, i => Loc.SetEnglish(i == 1));
+            SegRow(tabPages[3], ref y, "Bhasha", "Language", new[] { "ENGLISH", "HINDI_NAME" }, new[] { "ENGLISH", "HINDI_NAME" }, () => Loc.Hindi ? 1 : 0, i => Loc.Set(i == 1 ? Loc.Lang.Hindi : Loc.Lang.English));
             loc.Add(UiKit.Txt("Note", tabPages[3], new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, y - 10), new Vector2(820, 90), 25, TextAnchor.UpperLeft, HudStyle.InkDim),
-                "Hindi Roman lipi mein (Hinglish) - jaise Nainital mein bolte hain.",
-                "Hindi is written in Roman letters (Hinglish), the way Nainital talks.");
+                "LANG_NOTE_HI",
+                "Everything in the game - menus, phone, signs on screen, people's lines - in English or in Hindi.");
             SetTab(0);
         }
 
@@ -500,7 +500,7 @@ namespace Nainital
             UiKit.Img("Dot", markerRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30, 30), Aipan.Saffron, HudStyle.Disc);
             UiKit.Img("Core", markerRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(12, 12), Color.white, HudStyle.Disc);
             markerText = UiKit.Txt("Label", markerRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 92), new Vector2(600, 50), 34, TextAnchor.MiddleCenter, Aipan.Rice, true);
-            loc.Add(markerText, UiKit.Spaced("AAP YAHAN HO"), UiKit.Spaced("YOU ARE HERE"));
+            loc.AddSpaced(markerText, "AAP YAHAN HO", "YOU ARE HERE");
         }
 
         // ------------------------------------------------------------------ menus
@@ -571,7 +571,7 @@ namespace Nainital
                 statusPlace.text = tr && !string.IsNullOrEmpty(tr.Place) ? Loc.T(tr.Place) : "Nainital";
                 var dn = DayNightCycle.Instance;
                 var ws = WeatherSystem.Instance;
-                string weather = ws ? (Loc.English ? new[] { "Clear", "Cloudy", "Fog", "Rain" } : new[] { "Saaf", "Baadal", "Kohra", "Baarish" })[(int)ws.current] : "";
+                string weather = ws ? Loc.T(new[] { "Saaf", "Baadal", "Kohra", "Baarish" }[(int)ws.current]) : "";
                 int mins = Mathf.FloorToInt(SaveGame.PlaySeconds / 60f);
                 string saved = SaveGame.Exists ? SaveGame.Ago(SaveGame.Read().savedAt) : UiKit.L("abhi nahi", "not yet");
                 string c = "<color=#FFA91F>◆</color>  ";
@@ -579,7 +579,7 @@ namespace Nainital
                     c + (dn ? SaveGame.Clock(dn.timeOfDay) : "") + (weather.Length > 0 ? "   ·   " + weather : "") + "\n" +
                     c + UiKit.L("Paise", "Money") + "   " + HudStyle.Rupees(GameState.Money) + "\n" +
                     c + UiKit.L("Missions", "Missions") + "   " + done + " / " + total + "\n" +
-                    c + UiKit.L("Khela", "Played") + "   " + (mins >= 60 ? $"{mins / 60}h {mins % 60}m" : $"{mins} min") + "\n" +
+                    c + UiKit.L("Khela", "Played") + "   " + (mins >= 60 ? $"{mins / 60}h {mins % 60}m" : Loc.T($"{mins} min")) + "\n" +
                     c + UiKit.L("Aakhri save", "Last saved") + "   " + saved;
             }
         }
@@ -596,11 +596,11 @@ namespace Nainital
                 if (isDone) done++;
                 sb.Append(isDone ? "<color=#74EB8C>✓   " : "<color=#FFA91F>◆   ").Append(Loc.T(m.title)).Append("</color>")
                   .Append("   <color=#B8C2C9>").Append(HudStyle.Rupees(m.reward)).Append("</color>");
-                if (m.nightOnly) sb.Append(Loc.English ? "  <color=#33D1C2>(night)</color>" : "  <color=#33D1C2>(raat)</color>");
+                if (m.nightOnly) sb.Append("  <color=#33D1C2>").Append(Loc.L("(raat)", "(night)")).Append("</color>");
                 sb.Append('\n');
             }
-            sb.Append("\n<color=#B8C2C9>").Append(done).Append(" / ").Append(mm.missions.Count).Append(Loc.English ? " done" : " poore").Append("</color>\n");
-            sb.Append(Loc.English ? "<color=#B8C2C9>Gold 'M' markers on the radar start missions.</color>" : "<color=#B8C2C9>Radar pe sunehre 'M' marker se mission shuru hota hai.</color>");
+            sb.Append("\n<color=#B8C2C9>").Append(done).Append(" / ").Append(mm.missions.Count).Append(" ").Append(Loc.L("poore", "done")).Append("</color>\n");
+            sb.Append("<color=#B8C2C9>").Append(Loc.L("Radar pe sunehre 'M' marker se mission shuru hota hai.", "Gold 'M' markers on the radar start missions.")).Append("</color>");
             missionList.text = sb.ToString();
         }
 

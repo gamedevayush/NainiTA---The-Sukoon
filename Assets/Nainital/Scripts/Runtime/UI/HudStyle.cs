@@ -51,7 +51,10 @@ namespace Nainital
         /// <summary>Opaque on the left, clear on the right (a fading strip behind text).</summary>
         public static Sprite FadeRight => gradientH ? gradientH : gradientH = MakeFade(256);
 
-        static Sprite pauseIcon, mapIcon, moreIcon;
+        static Sprite pauseIcon, mapIcon, moreIcon, phoneIcon;
+        /// <summary>A phone: a rounded body, its screen cut out, a round button at the bottom.</summary>
+        public static Sprite PhoneIcon => phoneIcon ? phoneIcon : phoneIcon = MakeIcon(96, (x, y) =>
+            Mathf.Clamp01(Box(x, y, 0.5f, 0.5f, 0.2f, 0.4f, 0.07f) - Box(x, y, 0.5f, 0.55f, 0.145f, 0.27f, 0.015f) - Circle(x, y, 0.5f, 0.185f, 0.04f)));
         /// <summary>Two upright bars (the menu / pause button).</summary>
         public static Sprite PauseIcon => pauseIcon ? pauseIcon : pauseIcon = MakeIcon(96, (x, y) =>
             Mathf.Max(Box(x, y, 0.33f, 0.5f, 0.09f, 0.32f, 0.04f), Box(x, y, 0.67f, 0.5f, 0.09f, 0.32f, 0.04f)));

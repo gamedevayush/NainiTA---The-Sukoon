@@ -1,0 +1,201 @@
+# Naini Sukoon - gameplay texts from the code (prompts, toasts, police, vehicles, touch controls, cheats). Same format
+# as strings.tsv.
+
+# ---------------------------------------------------------------- vehicles
+Gaadi se utro	Get out	गाड़ी से उतरो
+Bus chalao	Drive the bus	बस चलाओ
+Gaadi chalao	Drive the car	गाड़ी चलाओ
+W/S: race-brake, A/D: steering, Space: handbrake, E: utro	W/S: throttle/brake, A/D: steer, Space: handbrake, E: get out	W/S: रेस-ब्रेक, A/D: स्टीयरिंग, Space: हैंडब्रेक, E: उतरो
+Utro	Get off	उतरो
+Scooty ruk rahi hai...	The scooty is stopping...	स्कूटी रुक रही है...
+Bike ruk rahi hai...	The bike is stopping...	बाइक रुक रही है...
+Scooty uthao aur chalao	Pick up the scooty and ride	स्कूटी उठाओ और चलाओ
+Bike uthao aur chalao	Pick up the bike and ride	बाइक उठाओ और चलाओ
+Scooty rok ke baitho	Stop the scooty and get on	स्कूटी रोककर बैठो
+Bike rok ke baitho	Stop the bike and get on	बाइक रोककर बैठो
+Scooty pe baitho	Get on the scooty	स्कूटी पर बैठो
+Bike pe baitho	Get on the bike	बाइक पर बैठो
+Scooty ruk rahi hai... sawari utregi, phir aap baithoge	The scooty is stopping... the rider gets off, then you get on	स्कूटी रुक रही है... सवारी उतरेगी, फिर आप बैठोगे
+Bike ruk rahi hai... sawari utregi, phir aap baithoge	The bike is stopping... the rider gets off, then you get on	बाइक रुक रही है... सवारी उतरेगी, फिर आप बैठोगे
+Pehle scooty roko (S / Space)	Stop the scooty first (S / Space)	पहले स्कूटी रोको (S / Space)
+Pehle bike roko (S / Space)	Stop the bike first (S / Space)	पहले बाइक रोको (S / Space)
+W/S: race-brake, A/D: mod, Space: brake, E: utro	W/S: throttle/brake, A/D: turn, Space: brake, E: get off	W/S: रेस-ब्रेक, A/D: मोड़, Space: ब्रेक, E: उतरो
+Gaadi ruk rahi hai...	The car is stopping...	गाड़ी रुक रही है...
+Bus rok ke baitho	Stop the bus and get in	बस रोककर बैठो
+Gaadi rok ke baitho	Stop the car and get in	गाड़ी रोककर बैठो
+Gaadi ruk rahi hai... driver utrega, phir aap baithoge	The car is stopping... the driver gets out, then you get in	गाड़ी रुक रही है... ड्राइवर उतरेगा, फिर आप बैठोगे
+Gaadi mein aag! Jaldi bahar niklo (E)	The car's on fire! Get out quickly (E)	गाड़ी में आग! जल्दी बाहर निकलो (E)
+Arey! Meri gaadi!	Hey! My car!	अरे! मेरी गाड़ी!
+Arey! Meri bike!	Hey! My bike!	अरे! मेरी बाइक!
+Bhai sahab, ye kya kar rahe ho?	Brother, what are you doing?	भाई साहब, ये क्या कर रहे हो?
+Le jao, le jao... police ko bataunga!	Take it, take it... I'm telling the police!	ले जाओ, ले जाओ... पुलिस को बताऊँगा!
+Oye! Ruk!	Oi! Stop!	ओए! रुक!
+
+# ---------------------------------------------------------------- police
+Police pe haath uthaya!	You hit a policeman!	पुलिस पर हाथ उठाया!
+Maar-peet! Police aa rahi hai	A fight! The police are coming	मार-पीट! पुलिस आ रही है
+Do police wale maar diye!	Two policemen killed!	दो पुलिस वाले मार दिए!
+Teen logon ka khoon!	Three people killed!	तीन लोगों का ख़ून!
+Police wale ka khoon!	A policeman killed!	पुलिस वाले का ख़ून!
+Khoon ho gaya! Police gaadi aa rahi hai	Murder! A police car is coming	ख़ून हो गया! पुलिस गाड़ी आ रही है
+Constable: "Chal nikal! Agli baar seedha andar."	Constable: "Get lost! Next time you go straight inside."	कांस्टेबल: "चल निकल! अगली बार सीधा अंदर।"
+Chal nikal! Agli baar seedha andar.	Get lost! Next time you go straight inside.	चल निकल! अगली बार सीधा अंदर।
+Police ne chhod diya	The police let you go	पुलिस ने छोड़ दिया
+Police ne peecha chhod diya	The police gave up the chase	पुलिस ने पीछा छोड़ दिया
+GIRAFTAAR!	BUSTED!	गिरफ़्तार!
+BEHOSH!	WASTED!	बेहोश!
+Mallital Kotwali  -  jurmana ₹#	Mallital Police Station  -  fine ₹#	मल्लीताल कोतवाली  -  जुर्माना ₹#
+BD Pandey Hospital  -  ilaaj ka bill ₹#	BD Pandey Hospital  -  treatment bill ₹#	बी.डी. पांडे अस्पताल  -  इलाज का बिल ₹#
+Police wala gir gaya!	A policeman is down!	पुलिस वाला गिर गया!
+Theek hai, jao. Dobara mat karna!	All right, go. Don't do it again!	ठीक है, जाओ। दोबारा मत करना!
+Ruk ja! Haath upar!	Stop! Hands up!	रुक जा! हाथ ऊपर!
+Goli maar do!	Shoot him!	गोली मार दो!
+Ruk ja, warna goli chala dunga!	Stop, or I'll shoot!	रुक जा, वरना गोली चला दूँगा!
+Gaadi se bahar niklo! Haath upar!	Out of the car! Hands up!	गाड़ी से बाहर निकलो! हाथ ऊपर!
+Haath upar! Hilna mat!	Hands up! Don't move!	हाथ ऊपर! हिलना मत!
+Bahar nahi niklega? Goli chalao!	Not coming out? Open fire!	बाहर नहीं निकलेगा? गोली चलाओ!
+108 ambulance aa rahi hai	The 108 ambulance is coming	108 एम्बुलेंस आ रही है
+Havaldar	Head constable	हवलदार
+Inspector	Inspector	इंस्पेक्टर
+Daroga	Sub-inspector	दरोगा
+Sipahi	Constable	सिपाही
+
+# ---------------------------------------------------------------- animals, people, places to sit
+Bandar aapke haath se bhutta cheen ke bhaag gaya!	A monkey snatched your corn and ran off!	बंदर आपके हाथ से भुट्टा छीनकर भाग गया!
+Bandar ne chips ka packet uda liya!	A monkey stole your bag of chips!	बंदर ने चिप्स का पैकेट उड़ा लिया!
+Bandar aapka chashma kheench ke le gaya... aur wapas phek diya!	A monkey grabbed your glasses... and threw them back!	बंदर आपका चश्मा खींचकर ले गया... और वापस फेंक दिया!
+Bandar ne momos wala dona cheen liya!	A monkey snatched your plate of momos!	बंदर ने मोमोज़ वाला दोना छीन लिया!
+Ghode se utro	Get off the horse	घोड़े से उतरो
+Ghode ki sawari (Rs #)	Horse ride (Rs #)	घोड़े की सवारी (Rs #)
+Sawari ke liye Rs # chahiye!	You need Rs # for a ride!	सवारी के लिए Rs # चाहिए!
+WASD se chalao, Shift se sarpat daudao, E se utro	WASD to ride, Shift to gallop, E to get off	WASD से चलाओ, Shift से सरपट दौड़ाओ, E से उतरो
+Bench pe baitho	Sit on the bench	बेंच पर बैठो
+Jheel ka nazara... (chalne ke liye move karo)	What a lake view... (move to stand up)	झील का नज़ारा... (चलने के लिए मूव करो)
+Naav se utro	Get off the boat	नाव से उतरो
+Utarne ke liye jetty ke paas jao	Go near a jetty to get off	उतरने के लिए जेटी के पास जाओ
+Naav chalao (Rs 100)	Take a boat (Rs 100)	नाव चलाओ (Rs 100)
+Naav ke liye Rs 100 chahiye!	You need Rs 100 for a boat!	नाव के लिए Rs 100 चाहिए!
+W/Joystick se chalao, A/D se mudo. Jetty pe E dabake utro.	W/joystick to row, A/D to turn. Press E at a jetty to get off.	W/जॉयस्टिक से चलाओ, A/D से मुड़ो। जेटी पर E दबाकर उतरो।
+Mallital ya Tallital boat stand ki jetty ke paas jao.	Go near the Mallital or Tallital boat stand jetty.	मल्लीताल या तल्लीताल बोट स्टैंड की जेटी के पास जाओ।
+Cable car se utro	Get off the cable car	केबल कार से उतरो
+Cable car mein baitho (ticket Rs #)	Board the cable car (ticket Rs #)	केबल कार में बैठो (टिकट Rs #)
+Station aane do, phir utarna	Wait for the station, then get off	स्टेशन आने दो, फिर उतरना
+Ticket ke liye Rs # chahiye!	You need Rs # for a ticket!	टिकट के लिए Rs # चाहिए!
+Cable car mein baith gaye - Mallital ki taraf. Nazara dekho!	On the cable car - heading to Mallital. Enjoy the view!	केबल कार में बैठ गए - मल्लीताल की तरफ़। नज़ारा देखो!
+Cable car mein baith gaye - Snow View ki taraf. Nazara dekho!	On the cable car - heading to Snow View. Enjoy the view!	केबल कार में बैठ गए - स्नो व्यू की तरफ़। नज़ारा देखो!
+Pahunch gaye: {0}	Arrived: {0}	पहुँच गए: {0}
+
+# ---------------------------------------------------------------- world, player
+Subah ho gayi	Good morning!	सुबह हो गई
+Raat ho gayi - Mall Road ki lights dekho!	Night has fallen - check out the Mall Road lights!	रात हो गई - मॉल रोड की लाइटें देखो!
+Mausam saaf ho gaya	The weather has cleared	मौसम साफ़ हो गया
+Baadal chha gaye	Clouds are rolling in	बादल छा गए
+Kohra (fog) aa gaya - Nainital special!	Fog has rolled in - a Nainital special!	कोहरा आ गया - नैनीताल स्पेशल!
+Baarish shuru! Sadkein geeli hain, dhyan se chalao	It's raining! Roads are wet, drive carefully	बारिश शुरू! सड़कें गीली हैं, ध्यान से चलाओ
+Kinare pe chadh gaye!	Climbed onto the shore!	किनारे पर चढ़ गए!
+Yahan se nahi chadh sakte. Jetty ya neecha kinara dhundo.	Can't climb out here. Find a jetty or a lower bank.	यहाँ से नहीं चढ़ सकते। जेटी या नीचा किनारा ढूँढो।
+Aap behosh ho gaye... thodi der mein Mall Road pe hosh aayega.	You passed out... you'll wake up on Mall Road shortly.	आप बेहोश हो गए... थोड़ी देर में मॉल रोड पर होश आएगा।
+Nainital mein swagat hai!	Welcome to Nainital!	नैनीताल में स्वागत है!
+Nainital mein swagat hai!  (H = controls, M = map)	Welcome to Nainital!  (H = controls, M = map)	नैनीताल में स्वागत है!  (H = कंट्रोल, M = नक्शा)
+Jetpack utaar diya	Jetpack off	जेटपैक उतार दिया
+Pehle gaadi / naav / seat se utro	Get out of the vehicle / boat / seat first	पहले गाड़ी / नाव / सीट से उतरो
+Cheat: UDAAN - jetpack! Upar / Neeche buttons, Daudo = tez, Utro = band	Cheat: UDAAN - jetpack! Up / Down buttons, Sprint = fast, Get off = off	चीट: UDAAN - जेटपैक! ऊपर / नीचे बटन, दौड़ो = तेज़, उतरो = बंद
+Cheat: UDAAN - jetpack! Space = upar, Ctrl/C = neeche, Shift = tez, E = utaaro	Cheat: UDAAN - jetpack! Space = up, Ctrl/C = down, Shift = fast, E = take off	चीट: UDAAN - जेटपैक! Space = ऊपर, Ctrl/C = नीचे, Shift = तेज़, E = उतारो
+
+# ---------------------------------------------------------------- touch controls, weather panel
+AUTO RUN	AUTO RUN	ऑटो रन
+Punch	Punch	मुक्का
+Jump	Jump	कूदो
+Kick	Kick	किक
+Block	Block	बचाव
+Roll	Roll	लुढ़को
+Use	Use	इस्तेमाल
+Upar	Up	ऊपर
+Neeche	Down	नीचे
+Left	Left	बाएँ
+Right	Right	दाएँ
+Gas	Gas	गैस
+Brake	Brake	ब्रेक
+Horn	Horn	हॉर्न
+Handbrake	Handbrake	हैंडब्रेक
+Mausam aur Samay	Weather and Time	मौसम और समय
+(aapka chuna hua)	(your choice)	(आपका चुना हुआ)
+(apne aap badalta hai)	(changes by itself)	(अपने आप बदलता है)
+Apne aap badle	Change by itself	अपने आप बदले
+Samay:	Time:	समय:
+(ruka hua)	(stopped)	(रुका हुआ)
+Subah 6	Morning 6	सुबह 6
+Dopahar 12	Noon 12	दोपहर 12
+Shaam 5:30	Evening 5:30	शाम 5:30
+Raat 9	Night 9	रात 9
+Aadhi raat	Midnight	आधी रात
+Bhor 4:30	Dawn 4:30	भोर 4:30
+- 1 ghanta	- 1 hour	- 1 घंटा
++ 1 ghanta	+ 1 hour	+ 1 घंटा
+Samay chalao	Run the clock	समय चलाओ
+Samay roko	Stop the clock	समय रोको
+Band karo	Close	बंद करो
+Cheats	Cheats	चीट्स
+UDAAN  -  Jetpack	UDAAN  -  Jetpack	UDAAN  -  जेटपैक
+SAFAR  -  Kahin bhi jao	SAFAR  -  Go anywhere	SAFAR  -  कहीं भी जाओ
+JEEVAN  -  Poori health	JEEVAN  -  Full health	JEEVAN  -  पूरी हेल्थ
+AMAR  -  Chot nahi lagegi	AMAR  -  No damage	AMAR  -  चोट नहीं लगेगी
+GAADI  -  Car paas aayegi	GAADI  -  A car comes to you	GAADI  -  कार पास आएगी
+JEEP  -  Bolero / Scorpio	JEEP  -  An SUV	JEEP  -  SUV
+POLICE  -  Ek star aur	POLICE  -  One more star	POLICE  -  एक स्टार और
+SHANTI  -  Police hatao	SHANTI  -  Lose the police	SHANTI  -  पुलिस हटाओ
+TAXI  -  Taxi paas aayegi	TAXI  -  A taxi comes to you	TAXI  -  टैक्सी पास आएगी
+BUS  -  Bus paas aayegi	BUS  -  A bus comes to you	BUS  -  बस पास आएगी
+Kahan jaana hai?	Where to?	कहाँ जाना है?
+Kahan jaana hai? (Safar)	Where to? (Safar)	कहाँ जाना है? (सफ़र)
+Jagahon ki list nahi mili	The list of places is missing	जगहों की सूची नहीं मिली
+Wahan khuli jagah nahi mili	No open ground there	वहाँ खुली जगह नहीं मिली
+
+# ---------------------------------------------------------------- cheats
+Cheat code likho, phir Enter	Type a cheat code, then Enter	चीट कोड लिखो, फिर Enter
+Cheat: poori health	Cheat: full health	चीट: पूरी हेल्थ
+Cheat: AMAR - ab chot nahi lagegi	Cheat: AMAR - no more damage	चीट: AMAR - अब चोट नहीं लगेगी
+AMAR band	AMAR off	AMAR बंद
+Cheat: wanted # star	Cheat: wanted # star	चीट: वांटेड # स्टार
+Cheat: SHANTI - police ne chhod diya	Cheat: SHANTI - the police let you go	चीट: SHANTI - पुलिस ने छोड़ दिया
+Pehle gaadi se utro	Get out of the vehicle first	पहले गाड़ी से उतरो
+Gaadi nahi ban saki	Couldn't make the car	गाड़ी नहीं बन सकी
+Yahan jagah nahi hai, khuli jagah pe try karo	No room here - try somewhere open	यहाँ जगह नहीं है, खुली जगह पर कोशिश करो
+
+# ---------------------------------------------------------------- map
+Aap	You	आप
+Jagah	Places	जगहें
+Mission	Mission	मिशन
+Target	Target	लक्ष्य
+
+# ---------------------------------------------------------------- bug panel (testers)
+Bug batao	Report a bug	बग बताओ
+Kya galat hai? (jagah, kya dikh raha hai, kya hona chahiye)	What's wrong? (where, what you see, what should happen)	क्या ग़लत है? (जगह, क्या दिख रहा है, क्या होना चाहिए)
+Yahan likho...	Write here...	यहाँ लिखो...
+Aur photo jodo	Add a photo	और फ़ोटो जोड़ो
+Save karo	Save	सेव करो
+Rehne do	Cancel	रहने दो
+Bug save ho gaya. Bhejo, ya Files app > Nainital Open World > BugReports	Bug saved. Send it, or Files app > Nainital Open World > BugReports	बग सेव हो गया। भेजो, या Files ऐप > Nainital Open World > BugReports
+Bug save ho gaya. Claude ko bolo: "bug dekho"	Bug saved. Tell Claude: "check the bug"	बग सेव हो गया। Claude को बोलो: "bug dekho"
+
+# ---------------------------------------------------------------- phone camera
+Camera paidal chalte hue hi khulega	The camera opens only on foot	कैमरा पैदल चलते हुए ही खुलेगा
+Drag karke dekho, do ungli se zoom	Drag to look, pinch to zoom	खींचकर देखो, दो उँगलियों से ज़ूम
+Drag karke dekho  |  Space: photo  |  F: selfie  |  T: band	Drag to look  |  Space: photo  |  F: selfie  |  T: close	खींचकर देखो  |  Space: फ़ोटो  |  F: सेल्फ़ी  |  T: बंद
+Selfie / Back	Selfie / Back	सेल्फ़ी / बैक
+Photo save ho gayi	Photo saved	फ़ोटो सेव हो गई
+Photo save ho gayi (game ki Gallery mein)	Photo saved (in the game's Gallery)	फ़ोटो सेव हो गई (गेम की गैलरी में)
+Photo save ho gayi (phone ki Gallery mein bhi)	Photo saved (in your phone's Gallery too)	फ़ोटो सेव हो गई (फ़ोन की गैलरी में भी)
+Photo save ho gayi - Pictures\NainiTA	Photo saved - Pictures\NainiTA	फ़ोटो सेव हो गई - Pictures\NainiTA
+Cheat: {0} aa gayi - paas jaake {1} dabao	Cheat: {0} is here - go up to it and press {1}	चीट: {0} आ गई - पास जाकर {1} दबाओ
+Galat code: {0}	Wrong code: {0}	ग़लत कोड: {0}
+Taxi	Taxi	टैक्सी
+Bus	Bus	बस
+Car	Car	कार
+Jeep	Jeep	जीप
+E	E	E
+Hatchback	Hatchback	हैचबैक
+Sedan	Sedan	सेडान
+Suv	SUV	SUV
+Pickup	Pickup	पिकअप
+Phone ki Gallery mein save nahi hui (photos ki permission do)	Couldn't save to the phone's Gallery (allow photos access)	फ़ोन की गैलरी में सेव नहीं हुई (फ़ोटोज़ की परमिशन दो)

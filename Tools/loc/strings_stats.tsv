@@ -1,0 +1,32 @@
+# Naini Sukoon - stats, hunger, the gym (PlayerStats, GymStation, the phone's Stats app). Same format as strings.tsv.
+Stats	Stats	स्टैट्स
+Bhookh	Hunger	भूख
+Saans / taakat	Energy	साँस / ताक़त
+Stamina	Stamina	स्टैमिना
+Muscle	Muscle	मसल
+Fat	Fat	फ़ैट
+Driving	Driving	ड्राइविंग
+Bike	Bike	बाइक
+Swimming	Swimming	तैराकी
+Bhookh lagi hai - kisi stall ya restaurant mein kuch khao	You're hungry - eat something at a stall or a restaurant	भूख लगी है - किसी स्टॉल या रेस्टोरेंट में कुछ खाओ
+Stamina badhi: #	Stamina up: #	स्टैमिना बढ़ी: #
+Muscle badhe: #	Muscle up: #	मसल बढ़े: #
+Fat badh gaya: #	Fat up: #	फ़ैट बढ़ गया: #
+Fat ghata: #	Fat down: #	फ़ैट घटा: #
+Driving skill badhi: #	Driving skill up: #	ड्राइविंग स्किल बढ़ी: #
+Bike skill badhi: #	Bike skill up: #	बाइक स्किल बढ़ी: #
+Swimming skill badhi: #	Swimming skill up: #	तैराकी स्किल बढ़ी: #
+Saans phool gayi! Ruk ke saans lo	Out of breath! Stop and catch your breath	साँस फूल गई! रुककर साँस लो
+Saans phool gayi - dheere tairo	Out of breath - swim slowly	साँस फूल गई - धीरे तैरो
+Bhookh se behosh ho gaye...	You fainted from hunger...	भूख से बेहोश हो गए...
+Bhookh se health gir rahi hai - jaldi kuch khao!	Hunger is draining your health - eat something now!	भूख से हेल्थ गिर रही है - जल्दी कुछ खाओ!
+Bahut bhookh lagi hai! Aankhon ke aage dhundla ho raha hai	You're starving! Your eyes are going blurry	बहुत भूख लगी है! आँखों के आगे धुँधला हो रहा है
+Bhookh lag rahi hai - kuch kha lo	Getting hungry - eat something	भूख लग रही है - कुछ खा लो
+Pull-ups karo (gym)	Do pull-ups (gym)	पुल-अप्स करो (जिम)
+Cycling karo (gym)	Pedal the cycle (gym)	साइकलिंग करो (जिम)
+Twister pe kasrat karo (gym)	Work out on the twister (gym)	ट्विस्टर पर कसरत करो (जिम)
+Kasrat karo (gym)	Work out (gym)	कसरत करो (जिम)
+Thoda saans le lo, phir dobara	Catch your breath, then again	थोड़ा साँस ले लो, फिर दोबारा
+Bahut thak gaye ho - pehle aaram karo	You're too tired - rest first	बहुत थक गए हो - पहले आराम करो
+Kasrat chal rahi hai...	Working out...	कसरत चल रही है...
+Shabash! Muscle aur stamina badhe, fat ghata	Well done! Muscle and stamina up, fat down	शाबाश! मसल और स्टैमिना बढ़े, फ़ैट घटा

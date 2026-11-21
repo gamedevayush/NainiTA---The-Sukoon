@@ -71,6 +71,13 @@ namespace Nainital.EditorTools
                     }
                     else   // a twister disc
                         sm.atlas.Cylinder(c + Vector3.up * 0.15f, 0.35f, 0.35f, 0.08f, 10, S(Pal.BoatRed), true);
+                    // a workout spot the player can use (Runtime/Interaction/GymStation.cs; stats only, 22 Nov 2026)
+                    var gs = new GameObject("Gym spot " + pieces).AddComponent<GymStation>();
+                    gs.transform.SetParent(parent, false);
+                    gs.transform.position = c + Vector3.up * 0.9f;
+                    gs.kind = kind == 0 ? "pull" : kind == 1 ? "pedal" : "twist";
+                    gs.along = a3;   // the top bar's direction (the pull-ups' hands go on it)
+                    gs.radius = 1.8f;
                     pieces++;
                 }
                 Vector2 bp = Bank(ctx, GymA + along * 3f, lake, 3.6f);

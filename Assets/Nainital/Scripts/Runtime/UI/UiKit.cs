@@ -125,15 +125,19 @@ namespace Nainital
         public static float EaseOut(float t) { t = Mathf.Clamp01(t); return 1f - Mathf.Pow(1f - t, 3f); }
         public static float EaseOutBack(float t) { t = Mathf.Clamp01(t); const float c1 = 1.4f, c3 = c1 + 1f; return 1f + c3 * Mathf.Pow(t - 1f, 3f) + c1 * Mathf.Pow(t - 1f, 2f); }
 
-        /// <summary>Text that follows the language: Hindi (Roman) and English.</summary>
+        /// <summary>Text that follows the language (Loc): English, or Hindi from the table (key = the Hinglish).</summary>
         public class LocTexts
         {
             readonly List<(Text t, string hi, string en)> list = new List<(Text, string, string)>();
-            public Text Add(Text t, string hi, string en) { list.Add((t, hi, en)); t.text = Loc.English ? en : hi; return t; }
-            public void Refresh() { foreach (var (t, hi, en) in list) if (t) t.text = Loc.English ? en : hi; }
+            public Text Add(Text t, string hi, string en) { list.Add((t, hi, en)); t.text = Loc.L(hi, en); return t; }
+            public void Refresh() { foreach (var (t, hi, en) in list) if (t) t.text = Loc.L(hi, en); foreach (var (t, hi, en) in spaced) if (t) t.text = SpacedL(hi, en); }
+            readonly List<(Text t, string hi, string en)> spaced = new List<(Text, string, string)>();
+            /// <summary>A letter-spaced title: English spaced out, Hindi as it is (spaces would break the joined letters).</summary>
+            public Text AddSpaced(Text t, string hi, string en) { spaced.Add((t, hi, en)); t.text = SpacedL(hi, en); return t; }
+            static string SpacedL(string hi, string en) => Loc.Hindi ? Loc.L(hi, en) : Spaced(Loc.L(hi, en));
         }
 
-        public static string L(string hi, string en) => Loc.English ? en : hi;
+        public static string L(string hi, string en) => Loc.L(hi, en);
     }
 
     /// <summary>A button made of whatever is under it: a tap runs it, with a tick on the phone and the click sound, and it

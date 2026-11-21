@@ -224,6 +224,8 @@ namespace Nainital
             BuildHelp(root);
 
             if (showTouch) gameObject.AddComponent<TouchControls>().Build(this, root);
+            gameObject.AddComponent<FuelGauge>().Build(this, root);   // fuel while driving / riding (VehicleFuel)
+            gameObject.AddComponent<Phone>().Build(this, root);   // T / the phone button: calls (112 / 100 / 108 / 101), camera, gallery
             sideButtons.SetAsLastSibling();
             dialogPanel.transform.SetAsLastSibling();
             helpPanel.transform.SetAsLastSibling();
@@ -246,10 +248,12 @@ namespace Nainital
             IconBtn("Menu", sideButtons, new Vector2(-40 - s * 0.5f, y), HudStyle.PauseIcon, TogglePause, HudStyle.Marigold);
             IconBtn("Map", sideButtons, new Vector2(-40 - s * 1.5f - 14, y), HudStyle.MapIcon, () => GameInput.TouchMap = true, HudStyle.Ink);
             IconBtn("More", sideButtons, new Vector2(-40 - s * 2.5f - 28, y), HudStyle.MoreIcon, () => { tray.gameObject.SetActive(!tray.gameObject.activeSelf); trayOpenUntil = Time.unscaledTime + 6f; }, HudStyle.Ink);
+            IconBtn("Phone", sideButtons, new Vector2(-40 - s * 3.5f - 42, y), HudStyle.PhoneIcon, Phone.Toggle, HudStyle.Teal);   // calls, camera (Phone, 22 Nov 2026)
             tray = Rect("Tray", sideButtons, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-40, y - s * 0.5f - 14), new Vector2(240, 400));
             tray.gameObject.SetActive(false);
             AddTrayButton("Din / Raat", () => { if (DayNightCycle.Instance) DayNightCycle.Instance.ToggleDayNight(); }, new Color(0.05f, 0.07f, 0.10f, 0.85f));
             AddTrayButton("Help", () => helpPanel.SetActive(!helpPanel.activeSelf), new Color(0.05f, 0.07f, 0.10f, 0.85f));
+            AddTrayButton("Stats", () => { if (Phone.Instance) Phone.Instance.OpenStats(); }, new Color(0.05f, 0.07f, 0.10f, 0.85f));   // PlayerStats, in the phone
         }
 
         float IconSize => showTouch ? 78f : 66f;
@@ -443,8 +447,7 @@ namespace Nainital
         void RefreshLanguage()
         {
             foreach (var (t, src) in locTexts) if (t) t.text = Loc.T(src);
-            bool en = Loc.English;
-            helpText.text = en ? HelpEn : HelpHi;
+            helpText.text = Loc.L("HUD_HELP", HelpEn);   // (the Hindi help is one entry in Tools/loc/strings.tsv)
             revealText.text = Loc.T(revealSrc).ToUpperInvariant();
             placeText.text = Loc.T(placeSrc);
             dialogTitle.text = Loc.T(dialogTitleSrc);
@@ -462,7 +465,7 @@ namespace Nainital
             "<color=#FFB829>Left click</color>  punch combo (3rd hit kick)     <color=#FFB829>F</color>  kick     <color=#FFB829>Right click / Q</color>  block\n" +
             "<color=#FFB829>E</color>  baat karo / padho / khao / naav / bench / gaadi (chalti traffic wali bhi) / mission shuru\n" +
             "<color=#FFB829>Gaadi</color>  W/S race-brake, A/D steering, Space handbrake, G horn, E utro\n" +
-            "<color=#FFB829>N</color>  din <-> raat     <color=#FFB829>M</color>  poora map     <color=#FFB829>Esc / P</color>  menu     <color=#FFB829>H</color>  help\n" +
+            "<color=#FFB829>N</color>  din <-> raat     <color=#FFB829>M</color>  poora map     <color=#FFB829>T</color>  phone     <color=#FFB829>Esc / P</color>  menu     <color=#FFB829>H</color>  help\n" +
             "<color=#FFB829>` ya F1</color> (phone: upar-daaye kone pe 3 tap)  cheat - JEEVAN, AMAR, GAADI, TAXI, JEEP, BUS, UDAAN (jetpack), SAFAR (teleport)\n<color=#FFB829>F2</color>  kisi bhi jagah teleport\n\n" +
             "Sunehra 'M' marker = mission. Hara roshni ka khamba = agla target.\n" +
             "Jheel mein gir gaye? Tairo, kinare pe Space dabake chadho.\n\n" +
@@ -476,7 +479,7 @@ namespace Nainital
             "<color=#FFB829>Left click</color>  punch combo (3rd hit kicks)     <color=#FFB829>F</color>  kick     <color=#FFB829>Right click / Q</color>  block\n" +
             "<color=#FFB829>E</color>  talk / read / eat / boat / bench / car / start mission\n" +
             "<color=#FFB829>Car</color>  W/S throttle-brake, A/D steer, Space handbrake, G horn, E get out\n" +
-            "<color=#FFB829>N</color>  day <-> night     <color=#FFB829>M</color>  full map     <color=#FFB829>Esc / P</color>  menu     <color=#FFB829>H</color>  help\n" +
+            "<color=#FFB829>N</color>  day <-> night     <color=#FFB829>M</color>  full map     <color=#FFB829>T</color>  phone     <color=#FFB829>Esc / P</color>  menu     <color=#FFB829>H</color>  help\n" +
             "<color=#FFB829>` or F1</color> (phone: 3 taps top-right)  cheats - JEEVAN, AMAR, GAADI, TAXI, JEEP, BUS, UDAAN (jetpack), SAFAR (teleport)\n<color=#FFB829>F2</color>  teleport to a place\n\n" +
             "Gold 'M' marker = mission. Green light beam = next objective.\n" +
             "Fell in the lake? Swim to the bank and press Space to climb out.\n\n" +
@@ -549,7 +552,7 @@ namespace Nainital
             var ws = WeatherSystem.Instance;
             if (!ws) return "";
             int k = (int)ws.current;
-            return Loc.English ? new[] { "Clear", "Cloudy", "Fog", "Rain" }[k] : new[] { "Saaf", "Baadal", "Kohra", "Baarish" }[k];
+            return Loc.T(new[] { "Saaf", "Baadal", "Kohra", "Baarish" }[k]);
         }
 
         void Update()
@@ -603,7 +606,7 @@ namespace Nainital
             }
             string w = WeatherName();
             clockText.text = clock + (w.Length > 0 ? "   <color=#33D1C2>◆</color>   " + w : "");
-            if (string.IsNullOrEmpty(placeSrc)) placeText.text = "Nainital";
+            if (string.IsNullOrEmpty(placeSrc)) placeText.text = Loc.T("Nainital");
 
             if (dialogPanel.activeSelf)
             {

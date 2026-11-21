@@ -69,3 +69,9 @@ Tools/newvehicles/*.blend
 !Tools/newvehicles/NewVehicles_v06.blend
 !Tools/newvehicles/NewVehicles_v07.blend
 *.blend1
+
+# Tools/firestation: Street View / satellite reference shots - reference only, never in this public repo
+Tools/firestation/refs/
+Tools/firestation/_tiles/
+# local editor settings
+.vscode/

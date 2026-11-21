@@ -66,6 +66,7 @@ namespace Nainital
 
         void OnGUI()
         {
+            GUI.skin.font = HudStyle.Regular;   // Rajdhani: it carries the Hindi glyphs (Loc)
             if (!open) return;
             float s = Mathf.Max(1f, Screen.height / 720f);
             if (box == null)
@@ -78,12 +79,12 @@ namespace Nainital
             label.fontSize = Mathf.RoundToInt(15 * s);
             var r = new Rect(Screen.width * 0.5f - 230 * s, Screen.height * 0.3f, 460 * s, 150 * s);
             GUI.Box(r, "", box);
-            GUI.Label(new Rect(r.x, r.y + 8 * s, r.width, 26 * s), "Cheat code likho, phir Enter", label);
+            GUI.Label(new Rect(r.x, r.y + 8 * s, r.width, 26 * s), Loc.T("Cheat code likho, phir Enter"), label);
             GUI.SetNextControlName("cheat");
             code = GUI.TextField(new Rect(r.x + 20 * s, r.y + 40 * s, r.width - 40 * s, 46 * s), code, 16, field);
             GUI.FocusControl("cheat");
             if (GUI.Button(new Rect(r.x + 20 * s, r.y + 96 * s, (r.width - 50 * s) * 0.5f, 40 * s), "OK")) Apply();
-            if (GUI.Button(new Rect(r.x + 30 * s + (r.width - 50 * s) * 0.5f, r.y + 96 * s, (r.width - 50 * s) * 0.5f, 40 * s), "Band karo")) Toggle();
+            if (GUI.Button(new Rect(r.x + 30 * s + (r.width - 50 * s) * 0.5f, r.y + 96 * s, (r.width - 50 * s) * 0.5f, 40 * s), Loc.T("Band karo"))) Toggle();
             var e = Event.current;
             if (e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter)) { Apply(); e.Use(); }
         }

@@ -1,0 +1,112 @@
+# Naini Sukoon - shops, outfits, restaurants (Shop, ShopUI, Restaurant, Inventory/ShopCatalog). Same format as strings.tsv.
+{0} - dukaan dekho	{0} - browse the shop	{0} - दुकान देखो
+Jeb mein	In your pocket	जेब में
+Order karo	Order	ऑर्डर करो
+Pehna hai	Wearing	पहना है
+Pehno	Wear	पहनो
+Le liya	Bought	ले लिया
+Abhi khao	Eat now	अभी खाओ
+Recharge karo	Recharge	रिचार्ज करो
+Kharido	Buy	ख़रीदो
+Pehan liya: {0}	Now wearing: {0}	पहन लिया: {0}
+Itne paise nahi hain	Not enough money	इतने पैसे नहीं हैं
+Kha liya: {0}	Ate: {0}	खा लिया: {0}
+Recharge ho gaya!	Recharged!	रिचार्ज हो गया!
+Kharid ke pehan liya: {0}	Bought and put on: {0}	ख़रीदकर पहन लिया: {0}
+Kharid liya: {0} - ghar pe rakh diya	Bought: {0} - it's at your house	ख़रीद लिया: {0} - घर पर रख दिया
+Baitho aur order karo	Sit down and order	बैठो और ऑर्डर करो
+Order de diya - thoda intezaar karo	Order placed - wait a little	ऑर्डर दे दिया - थोड़ा इंतज़ार करो
+Waiter: "Lijiye, aapka {0}"	Waiter: "Here you are - your {0}"	वेटर: "लीजिए, आपका {0}"
+Tibetan Market	Tibetan Market	तिब्बती बाज़ार
+# the shops
+Naini Woollens Emporium	Naini Woollens Emporium	नैनी वूलन्स एम्पोरियम
+Himalaya Candle House	Himalaya Candle House	हिमालय कैंडल हाउस
+Kumaon Kapda Ghar	Kumaon Kapda Ghar	कुमाऊँ कपड़ा घर
+Barsaat Chhaata Ghar	Barsaat Umbrella House	बरसात छाता घर
+Sukoon Medicos	Sukoon Medicos	सुकून मेडिकोज़
+Lake View Book Depot	Lake View Book Depot	लेक व्यू बुक डिपो
+Pahadi Bakers	Pahadi Bakers	पहाड़ी बेकर्स
+Fit Pahad Sports	Fit Pahad Sports	फ़िट पहाड़ स्पोर्ट्स
+Shri Bal Mithai Bhandar	Shri Bal Mithai Bhandar	श्री बाल मिठाई भंडार
+Naini Mobile Point	Naini Mobile Point	नैनी मोबाइल पॉइंट
+Taaza Phal Bhandar	Taaza Fruit Shop	ताज़ा फल भंडार
+Tashi Souvenirs and Toys	Tashi Souvenirs and Toys	ताशी सुवेनियर्स एंड टॉयज़
+Dolma Jacket Store	Dolma Jacket Store	डोल्मा जैकेट स्टोर
+# the restaurants
+Tashi Momo Corner	Tashi Momo Corner	ताशी मोमो कॉर्नर
+Pahadi Rasoi	Pahadi Rasoi	पहाड़ी रसोई
+Bazaar Bhature Wala	Bazaar Bhature Wala	बाज़ार भटूरे वाला
+Lake Breeze Cafe	Lake Breeze Cafe	लेक ब्रीज़ कैफ़े
+Barf Pizza Point	Barf Pizza Point	बर्फ़ पिज़्ज़ा पॉइंट
+# the goods
+Kaala puffer jacket (apna)	Black puffer jacket (your own)	काली पफ़र जैकेट (अपनी)
+Maroon puffer jacket	Maroon puffer jacket	मरून पफ़र जैकेट
+Sarson peela puffer jacket	Mustard-yellow puffer jacket	सरसों पीली पफ़र जैकेट
+Fauji hara jacket, khaki pant	Army-green jacket, khaki trousers	फ़ौजी हरी जैकेट, ख़ाकी पैंट
+Neela jacket aur Pahadi topi	Blue jacket and a Pahadi cap	नीली जैकेट और पहाड़ी टोपी
+Slaty jacket aur oon ki topi	Slate jacket and a woollen cap	स्लेटी जैकेट और ऊन की टोपी
+Kumaoni shawl	Kumaoni shawl	कुमाऊँनी शॉल
+Haath ka bunaa sweater	Hand-knitted sweater	हाथ का बुना स्वेटर
+Oon ka muffler	Woollen muffler	ऊन का मफ़लर
+Oon ke dastaane	Woollen gloves	ऊन के दस्ताने
+Oon ke moze	Woollen socks	ऊन के मोज़े
+Bhed ki oon ka kambal	Sheep's wool blanket	भेड़ की ऊन का कंबल
+Bal Mithai ka dibba	A box of Bal Mithai	बाल मिठाई का डिब्बा
+Singori ka dibba	A box of Singori	सिंगौड़ी का डिब्बा
+Bal Mithai abhi khao	Bal Mithai, eat it now	बाल मिठाई अभी खाओ
+Garam jalebi abhi khao	Hot jalebi, eat it now	गरम जलेबी अभी खाओ
+Gulab wali candle	Rose candle	गुलाब वाली मोमबत्ती
+Kaanch ke jar wali candle	Candle in a glass jar	काँच के जार वाली मोमबत्ती
+Naini jheel wali candle	Naini Lake candle	नैनी झील वाली मोमबत्ती
+Rangeen candles ka set	A set of coloured candles	रंगीन मोमबत्तियों का सेट
+Kaala chhaata	Black umbrella	काला छाता
+Rangeen chhaata	Rainbow umbrella	रंगीन छाता
+Barsaati (raincoat)	Raincoat	बरसाती (रेनकोट)
+Trekking backpack	Trekking backpack	ट्रेकिंग बैग
+First aid kit	First aid kit	फ़र्स्ट एड किट
+Dard ka balm	Pain balm	दर्द का बाम
+Sardi-zukaam ki dawai	Cold and flu medicine	सर्दी-ज़ुकाम की दवाई
+Dard ki goli abhi lo	A painkiller, take it now	दर्द की गोली अभी लो
+ORS ghol abhi piyo	ORS, drink it now	ORS घोल अभी पियो
+Recharge chhota pack	Small recharge pack	रिचार्ज छोटा पैक
+Recharge mahine ka pack	Monthly recharge pack	रिचार्ज महीने का पैक
+Earphones	Earphones	ईयरफ़ोन
+Power bank	Power bank	पावर बैंक
+Phone cover (Naini wala)	Phone cover (Naini print)	फ़ोन कवर (नैनी वाला)
+Bandar wala teddy	Monkey teddy	बंदर वाला टेडी
+Lakdi ki naav (model)	Wooden boat (model)	लकड़ी की नाव (मॉडल)
+Nainital fridge magnet	Nainital fridge magnet	नैनीताल फ़्रिज मैग्नेट
+Naini jheel ka snow globe	Naini Lake snow globe	नैनी झील का स्नो ग्लोब
+Khilona ropeway trolley	Toy ropeway trolley	खिलौना रोपवे ट्रॉली
+Pital ki ghanti	Brass bell	पीतल की घंटी
+Jim Corbett ki shikaar kahaniyan	Jim Corbett's hunting tales	जिम कॉर्बेट की शिकार कहानियाँ
+Kumaon trekking guide	Kumaon trekking guide	कुमाऊँ ट्रेकिंग गाइड
+Comics ka set	A set of comics	कॉमिक्स का सेट
+Naini diary aur pen	Naini diary and pen	नैनी डायरी और पेन
+Plum cake	Plum cake	प्लम केक
+Atta biscuits ka dabba	A tin of atta biscuits	आटा बिस्कुट का डब्बा
+Brown bread	Brown bread	ब्राउन ब्रेड
+Garam patties abhi khao	Hot patties, eat them now	गरम पैटीज़ अभी खाओ
+Pastry abhi khao	Pastry, eat it now	पेस्ट्री अभी खाओ
+Phalon ki tokri	A basket of fruit	फलों की टोकरी
+Ramgarh ke seb (1 kilo)	Ramgarh apples (1 kilo)	रामगढ़ के सेब (1 किलो)
+Kele abhi khao	Bananas, eat them now	केले अभी खाओ
+Aadu aur plum abhi khao	Peaches and plums, eat them now	आड़ू और प्लम अभी खाओ
+Dumbbell ka joda	A pair of dumbbells	डंबल का जोड़ा
+Yoga / gym mat	Yoga / gym mat	योगा / जिम मैट
+Running shoes	Running shoes	रनिंग शूज़
+Shaker bottle	Shaker bottle	शेकर बोतल
+Adrak wali chai	ginger tea	अदरक वाली चाय
+Garam coffee	Hot coffee	गरम कॉफ़ी
+Masala Maggi	Masala Maggi	मसाला मैगी
+Steam momos	Steamed momos	स्टीम मोमोज़
+Thukpa	Thukpa	थुकपा
+Pizza	Pizza	पिज़्ज़ा
+Pahadi thali	Pahadi thali	पहाड़ी थाली
+Aloo paratha	Aloo paratha	आलू पराठा
+Chole bhature	Chole bhature	छोले भटूरे
+Rajma chawal	Rajma rice	राजमा चावल
+Grilled sandwich	Grilled sandwich	ग्रिल्ड सैंडविच
+Pakode	Pakoras	पकौड़े
+Bhatt ki churkani aur bhaat	Bhatt ki churkani with rice	भट्ट की चुड़कानी और भात
+Softy ice cream	Soft-serve ice cream	सॉफ़्टी आइसक्रीम

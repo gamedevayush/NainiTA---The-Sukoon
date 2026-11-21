@@ -70,6 +70,8 @@ Shader "Nainital/LampGlow"
                 else if (size > 0)   // billboard: spread the corners in view space round the bulb
                 {
                     float3 vs = TransformWorldToView(ws);
+                    // shrink it close up (22 Nov 2026: a lamp 6-8 m away showed a halo like a full moon); full size from ~25 m
+                    size *= lerp(0.4, 1.0, saturate((-vs.z - 3.0) / 22.0));
                     vs.xy += (i.uv * 2 - 1) * size;
                     vs.z += size * 0.5;   // a little towards the camera, so the lamp head does not cut it
                     o.pos = TransformWViewToHClip(vs);

@@ -1,0 +1,219 @@
+# Naini Sukoon - every text the game shows. key <TAB> English <TAB> Hindi (Devanagari).
+# The key is the text as the code writes it (Hinglish). '#' in a key or text = a number; {0} {1} = filled in by the code.
+# After any change: python Tools/loc/build_loc.py  (shapes the Hindi, extends the fonts, writes Resources/Loc/strings.json)
+# In the editor, Bridge/loc_missing.txt lists text the game showed that has no line here.
+
+# ---------------------------------------------------------------- language
+ENGLISH	ENGLISH	ENGLISH
+HINDI_NAME	हिन्दी	हिन्दी
+Bhasha	Language	भाषा
+BHASHA	LANGUAGE	भाषा
+LANG_NOTE_HI	Everything in the game - menus, phone, signs on screen, people's lines - in English or in Hindi.	खेल की हर चीज़ - मेन्यू, फ़ोन, स्क्रीन के संदेश, लोगों की बातें - अंग्रेज़ी या हिन्दी में।
+
+# ---------------------------------------------------------------- main menu, pause, dialogs (FrontEnd)
+JAARI RAKHO	CONTINUE	जारी रखो
+NAYA SAFAR	NEW GAME	नया सफ़र
+NAYA SAFAR?	NEW GAME?	नया सफ़र?
+Purana save, paise aur missions - sab mit jayega. Pakka?	Your save, money and missions will all be wiped. Sure?	पुराना सेव, पैसे और मिशन - सब मिट जाएगा। पक्का?
+HAAN, SHURU KARO	YES, START	हाँ, शुरू करो
+SETTINGS	SETTINGS	सेटिंग्स
+CREDITS	CREDITS	क्रेडिट्स
+BAHAR NIKLO	QUIT	बाहर निकलो
+THODA RUKO	PAUSED	थोड़ा रुको
+WAPAS KHELO	RESUME	वापस खेलो
+SAVE KARO	SAVE GAME	सेव करो
+Safar save ho gaya	Journey saved	सफ़र सेव हो गया
+MISSIONS	MISSIONS	मिशन
+MISSION CHHODO	ABANDON MISSION	मिशन छोड़ो
+MISSION CHHODEIN?	ABANDON MISSION?	मिशन छोड़ें?
+Is mission ka inaam nahi milega.	You won't get this mission's reward.	इस मिशन का इनाम नहीं मिलेगा।
+HAAN, CHHODO	YES, ABANDON	हाँ, छोड़ो
+MAIN MENU	MAIN MENU	मुख्य मेन्यू
+KHEL BAND KAREIN?	QUIT THE GAME?	खेल बंद करें?
+Aapka safar save ho jayega.	Your journey will be saved.	आपका सफ़र सेव हो जाएगा।
+HAAN, BAND KARO	YES, QUIT	हाँ, बंद करो
+NAHI	NO	नहीं
+HAAN	YES	हाँ
+AAP YAHAN HO	YOU ARE HERE	आप यहाँ हो
+AWAAZ	SOUND	आवाज़
+CONTROLS	CONTROLS	कंट्रोल
+GRAPHICS	GRAPHICS	ग्राफ़िक्स
+Sab kuch	Everything	सब कुछ
+Mahaul (pakshi, hawa, jheel)	Ambience (birds, wind, lake)	माहौल (पक्षी, हवा, झील)
+Effects (gaadi, kadam, ghoonse)	Effects (cars, steps, punches)	इफ़ेक्ट (गाड़ी, क़दम, घूँसे)
+Camera ki speed	Camera speed	कैमरे की रफ़्तार
+Camera ulta (upar-neeche)	Invert camera (up-down)	कैमरा उल्टा (ऊपर-नीचे)
+Vibration	Vibration	वाइब्रेशन
+BAND	OFF	बंद
+CHALU	ON	चालू
+Quality	Quality	क्वालिटी
+KAM	LOW	कम
+THEEK	MEDIUM	ठीक
+ZABARDAST	HIGH	ज़बरदस्त
+Kam	Low	कम
+Theek	Medium	ठीक
+Zabardast	High	ज़बरदस्त
+Frame rate	Frame rate	फ़्रेम रेट
+30 FPS	30 FPS	30 FPS
+60 FPS	60 FPS	60 FPS
+Phone garam ho ya battery bachani ho to Quality KAM aur 30 FPS rakho.	If the phone runs warm or you want to save battery, use LOW quality and 30 FPS.	फ़ोन गरम हो या बैटरी बचानी हो तो क्वालिटी 'कम' और 30 FPS रखो।
+Wahin se jahan chhoda tha	Right where you left off	वहीं से जहाँ छोड़ा था
+missions	missions	मिशन
+abhi nahi	not yet	अभी नहीं
+Paise	Money	पैसे
+Missions	Missions	मिशन
+Khela	Played	खेला
+Aakhri save	Last saved	आख़िरी सेव
+(raat)	(night)	(रात)
+poore	done	पूरे
+Radar pe sunehre 'M' marker se mission shuru hota hai.	Gold 'M' markers on the radar start missions.	रडार पर सुनहरे 'M' निशान से मिशन शुरू होता है।
+abhi abhi	just now	अभी-अभी
+# minute pehle	# min ago	# मिनट पहले
+1 ghante pehle	1 hour ago	1 घंटा पहले
+# ghante pehle	# hours ago	# घंटे पहले
+1 din pehle	1 day ago	1 दिन पहले
+# din pehle	# days ago	# दिन पहले
+
+# ---------------------------------------------------------------- HUD
+Din / Raat	Day / Night	दिन / रात
+Help	Help	मदद
+Theek hai	OK	ठीक है
+MISSION	MISSION	मिशन
+Map	Map	नक्शा
+Mausam	Weather	मौसम
+Cheat	Cheat	चीट
+Bug	Bug	बग
+Saaf	Clear	साफ़
+Baadal	Cloudy	बादल
+Kohra	Fog	कोहरा
+Baarish	Rain	बारिश
+Nainital	Nainital	नैनीताल
+MISSION PASSED!	MISSION PASSED!	मिशन पूरा!
+MISSION FAILED	MISSION FAILED	मिशन फ़ेल
+{0}  ({1})	{0}  ({1})	{0}  ({1})
+{0}: "{1}"	{0}: "{1}"	{0}: "{1}"
+HUD_HELP	(English help is in the code)	<size=40><b>नैनीताल  -  कंट्रोल</b></size>\n\n<color=#FFB829>WASD / जॉयस्टिक</color>  चलो     <color=#FFB829>Shift</color>  दौड़ो     <color=#FFB829>Alt</color>  धीरे चलो\n<color=#FFB829>माउस / दायाँ हिस्सा खींचो</color>  कैमरा घुमाओ     <color=#FFB829>Scroll</color>  ज़ूम\n<color=#FFB829>Space</color>  कूदो     <color=#FFB829>Ctrl / C</color>  लुढ़को (बचाव)\n<color=#FFB829>लेफ़्ट क्लिक</color>  घूँसों की झड़ी (तीसरा वार किक)     <color=#FFB829>F</color>  किक     <color=#FFB829>राइट क्लिक / Q</color>  बचाव\n<color=#FFB829>E</color>  बात करो / पढ़ो / खाओ / नाव / बेंच / गाड़ी (चलते ट्रैफ़िक वाली भी) / मिशन शुरू\n<color=#FFB829>गाड़ी</color>  W/S रेस-ब्रेक, A/D स्टीयरिंग, Space हैंडब्रेक, G हॉर्न, E उतरो\n<color=#FFB829>N</color>  दिन <-> रात     <color=#FFB829>M</color>  पूरा नक्शा     <color=#FFB829>T</color>  फ़ोन     <color=#FFB829>Esc / P</color>  मेन्यू     <color=#FFB829>H</color>  मदद\n<color=#FFB829>` या F1</color> (फ़ोन: ऊपर-दाएँ कोने पर 3 टैप)  चीट - JEEVAN, AMAR, GAADI, TAXI, JEEP, BUS, UDAAN (जेटपैक), SAFAR (टेलीपोर्ट)\n<color=#FFB829>F2</color>  किसी भी जगह टेलीपोर्ट\n\nसुनहरा 'M' निशान = मिशन। हरी रोशनी का खंभा = अगला लक्ष्य।\nझील में गिर गए? तैरकर किनारे जाओ और Space दबाकर चढ़ो।\n\n<size=22><color=#B8C2C9>Map: (c) OpenStreetMap contributors (ODbL). Elevation: SRTM via AWS Terrain Tiles. Font: Rajdhani (Indian Type Foundry, SIL OFL). Shop signs: Pacifico, Lilita One, Cinzel Decorative, Yatra One, Rozha One, Bebas Neue, Anton, Limelight (SIL OFL). Shop interiors: made with Google Flow.</color></size>
+
+# ---------------------------------------------------------------- loading screen (Boot)
+Naini Jheel, Nainital	Naini Lake, Nainital	नैनी झील, नैनीताल
+Kehte hain Sati ki aankh (nain) yahan giri thi - isliye naam pada Nainital.	Legend says Sati's eye (nain) fell here - and so the town is called Nainital.	कहते हैं सती की आँख (नैन) यहाँ गिरी थी - इसीलिए नाम पड़ा नैनीताल।
+Kedarnath Dham	Kedarnath Dham	केदारनाथ धाम
+3,583 metre ki oonchai pe, barah jyotirlingon mein se ek.	At 3,583 metres, one of the twelve Jyotirlingas.	3,583 मीटर की ऊँचाई पर, बारह ज्योतिर्लिंगों में से एक।
+Phoolon ki Ghati, Chamoli	Valley of Flowers, Chamoli	फूलों की घाटी, चमोली
+Monsoon mein yahan 500 se zyada kism ke jungli phool khilte hain. UNESCO World Heritage.	Over 500 kinds of wild flowers bloom here in the monsoon. A UNESCO World Heritage Site.	मानसून में यहाँ 500 से ज़्यादा क़िस्म के जंगली फूल खिलते हैं। यूनेस्को विश्व धरोहर।
+Har Ki Pauri, Haridwar	Har Ki Pauri, Haridwar	हर की पौड़ी, हरिद्वार
+Har shaam Ganga aarti - hazaaron diye ek saath paani pe.	The Ganga aarti every evening - thousands of lamps on the water at once.	हर शाम गंगा आरती - हज़ारों दीये एक साथ पानी पर।
+Laxman Jhula, Rishikesh	Laxman Jhula, Rishikesh	लक्ष्मण झूला, ऋषिकेश
+Duniya ki yoga capital - Ganga ke upar jhoolta hua pul.	The yoga capital of the world - a bridge swaying over the Ganga.	दुनिया की योग राजधानी - गंगा के ऊपर झूलता हुआ पुल।
+Tungnath, Chopta	Tungnath, Chopta	तुंगनाथ, चोपता
+Duniya ka sabse ooncha Shiv mandir - 3,680 metre pe.	The highest Shiva temple in the world - at 3,680 metres.	दुनिया का सबसे ऊँचा शिव मंदिर - 3,680 मीटर पर।
+Panchachuli, Munsiyari	Panchachuli, Munsiyari	पंचाचूली, मुनस्यारी
+Paanch chotiyan - kehte hain Pandavon ke paanch chulhe.	Five peaks - said to be the five hearths of the Pandavas.	पाँच चोटियाँ - कहते हैं पांडवों के पाँच चूल्हे।
+Himalaya Darshan, Tungnath	The Himalaya from Tungnath	हिमालय दर्शन, तुंगनाथ
+Nanda Devi, Trishul, Chaukhamba - ek hi nazar mein.	Nanda Devi, Trishul, Chaukhamba - all in one sweep.	नंदा देवी, त्रिशूल, चौखंबा - एक ही नज़र में।
+Jim Corbett National Park	Jim Corbett National Park	जिम कॉर्बेट नेशनल पार्क
+Bharat ka sabse purana national park - 1936 se.	India's oldest national park - since 1936.	भारत का सबसे पुराना नेशनल पार्क - 1936 से।
+Kumaon ki sabse badi jheel - Nainital se bas 22 km.	The largest lake in Kumaon - just 22 km from Nainital.	कुमाऊँ की सबसे बड़ी झील - नैनीताल से बस 22 km।
+Bhimtal	Bhimtal	भीमताल
+Mall Road pe bhutta haath mein lehrate mat chalo - bandar taak mein hain.	Don't wave a corn cob on Mall Road - the monkeys are watching.	मॉल रोड पर भुट्टा हाथ में लहराते मत चलो - बंदर ताक में हैं।
+Naav chahiye? Mallital ya Tallital ki jetty pe jao.	Want a boat? Head to the Mallital or Tallital jetty.	नाव चाहिए? मल्लीताल या तल्लीताल की जेटी पर जाओ।
+Kohre mein gaadi dheere chalao - pahadi mod achanak aate hain.	Drive slowly in the fog - hill bends come suddenly.	कोहरे में गाड़ी धीरे चलाओ - पहाड़ी मोड़ अचानक आते हैं।
+Radar pe sunehra 'M' = naya mission.	A gold 'M' on the radar = a new mission.	रडार पर सुनहरा 'M' = नया मिशन।
+Raat ko Mall Road ki roshni jheel mein dekho.	At night, watch the Mall Road lights on the lake.	रात को मॉल रोड की रोशनी झील में देखो।
+Jheel mein gir gaye? Kinare tak tairo aur Jump dabao.	Fell in the lake? Swim to the bank and press Jump.	झील में गिर गए? किनारे तक तैरो और जंप दबाओ।
+Snow View se Himalaya dikhta hai - ropeway se jao.	Snow View shows the Himalaya - take the ropeway up.	स्नो व्यू से हिमालय दिखता है - रोपवे से जाओ।
+Pause menu mein 'Save karo' - safar wahin se shuru hoga.	'Save' in the pause menu - your journey picks up right there.	पॉज़ मेन्यू में 'सेव करो' - सफ़र वहीं से शुरू होगा।
+SUJHAAV	TIP	सुझाव
+Tasveer: 	Photo: 	तस्वीर:
+
+# ---------------------------------------------------------------- phone calls (EmergencyCalls), fires, 108, fines
+112 Emergency	112 Emergency	112 इमरजेंसी
+112 Emergency Response. Aapko kis cheez ki madad chahiye?	112 Emergency Response. What help do you need?	112 इमरजेंसी रिस्पॉन्स। आपको किस चीज़ की मदद चाहिए?
+Police	Police	पुलिस
+Ambulance	Ambulance	एम्बुलेंस
+Fire brigade	Fire brigade	फ़ायर ब्रिगेड
+Aapke dwara dial kiya gaya number maujood nahi hai.	The number you have dialled does not exist.	आपके द्वारा डायल किया गया नंबर मौजूद नहीं है।
+100 Police Control Room	100 Police Control Room	100 पुलिस कंट्रोल रूम
+Police control room, Nainital. Bataiye, kya hua hai?	Police control room, Nainital. Tell us, what happened?	पुलिस कंट्रोल रूम, नैनीताल। बताइए, क्या हुआ है?
+Accident hua hai	There's been an accident	एक्सीडेंट हुआ है
+Maar-peet / chori ho rahi hai	A fight / a theft	मार-पीट / चोरी हो रही है
+Kuch nahi... mazaak tha	Nothing... just kidding	कुछ नहीं... मज़ाक़ था
+Mazaak? Ye emergency line hai! Aapki location trace ho gayi hai, gaadi aa rahi hai.	A joke? This is an emergency line! Your location has been traced - a car is on its way.	मज़ाक़? ये इमरजेंसी लाइन है! आपकी लोकेशन ट्रेस हो गई है, गाड़ी आ रही है।
+Is accident ki report mil chuki hai. PCR gaadi raste mein hai, wahin rukiye.	We already have a report of this accident. A PCR van is on the way - stay there.	इस एक्सीडेंट की रिपोर्ट मिल चुकी है। PCR गाड़ी रास्ते में है, वहीं रुकिए।
+Location mil gayi. PCR gaadi bhej rahe hain. Ghayal ko hilaiye mat, 108 bhi aa rahi hai.	We have your location. Sending a PCR van. Don't move the injured - 108 is coming too.	लोकेशन मिल गई। PCR गाड़ी भेज रहे हैं। घायल को हिलाइए मत, 108 भी आ रही है।
+Gaadi bhej rahe hain. Aag lagi hai to 101 pe fire brigade ko bhi bataiye, aur gaadi se door rahiye.	Sending a car. If there's a fire, call the fire brigade on 101 too, and keep away from the vehicle.	गाड़ी भेज रहे हैं। आग लगी है तो 101 पर फ़ायर ब्रिगेड को भी बताइए, और गाड़ी से दूर रहिए।
+Gaadi bhej rahe hain. Wahin rukiye, traffic mat rokiye.	Sending a car. Stay there, and don't block the traffic.	गाड़ी भेज रहे हैं। वहीं रुकिए, ट्रैफ़िक मत रोकिए।
+Theek hai, gaadi bhej rahe hain. Wahin rukiye.	All right, sending a car. Stay there.	ठीक है, गाड़ी भेज रहे हैं। वहीं रुकिए।
+Aapki location pe team pehle se hai. Haath upar rakhiye aur sahyog kijiye.	A team is already at your location. Keep your hands up and cooperate.	आपकी लोकेशन पर टीम पहले से है। हाथ ऊपर रखिए और सहयोग कीजिए।
+Ghabraiye mat. Beat constable aur PCR gaadi bhej rahe hain, kisi bheed wali jagah chale jaiye.	Don't panic. Sending the beat constable and a PCR van - go somewhere crowded.	घबराइए मत। बीट कांस्टेबल और PCR गाड़ी भेज रहे हैं, किसी भीड़ वाली जगह चले जाइए।
+108 Ambulance	108 Ambulance	108 एम्बुलेंस
+108 Emergency. Kaun ghayal hai, aur kitni chot hai?	108 Emergency. Who is hurt, and how badly?	108 इमरजेंसी। कौन घायल है, और कितनी चोट है?
+Main khud ghayal hoon	I'm hurt myself	मैं ख़ुद घायल हूँ
+Ambulance nikal chuki hai. Wahin rukiye, zyada hiliye mat - team aapki marham-patti kar degi.	The ambulance is on its way. Stay put and don't move much - the team will dress your wounds.	एम्बुलेंस निकल चुकी है। वहीं रुकिए, ज़्यादा हिलिए मत - टीम आपकी मरहम-पट्टी कर देगी।
+Abhi saari gaadiyan busy hain. Thodi der mein phir call kijiye.	All our vehicles are busy right now. Please call again in a little while.	अभी सारी गाड़ियाँ व्यस्त हैं। थोड़ी देर में फिर कॉल कीजिए।
+Aapki awaaz to bilkul theek lag rahi hai... theek hai, team bhej rahe hain.	You sound perfectly fine... all right, sending a team.	आपकी आवाज़ तो बिल्कुल ठीक लग रही है... ठीक है, टीम भेज रहे हैं।
+Koi aur ghayal hai	Someone else is hurt	कोई और घायल है
+Is jagah ke liye ambulance raste mein hai. Ghayal ko hilaiye mat.	An ambulance is already on its way there. Don't move the injured.	इस जगह के लिए एम्बुलेंस रास्ते में है। घायल को हिलाइए मत।
+Ambulance bhej rahe hain. Ghayal ko seedha leta rehne dijiye, paani mat pilaiye.	Sending an ambulance. Keep the injured lying flat, and don't give them water.	एम्बुलेंस भेज रहे हैं। घायल को सीधा लेटा रहने दीजिए, पानी मत पिलाइए।
+Theek hai, team bhej rahe hain.	All right, sending a team.	ठीक है, टीम भेज रहे हैं।
+101 Fire Control	101 Fire Control	101 फ़ायर कंट्रोल
+Fire control room. Aag kahan lagi hai?	Fire control room. Where is the fire?	फ़ायर कंट्रोल रूम। आग कहाँ लगी है?
+Yahin paas mein, gaadi / dukaan jal rahi hai	Right near me - a vehicle / a shop is burning	यहीं पास में, गाड़ी / दुकान जल रही है
+Fire tender raste mein hai. Logon ko door rakhiye.	A fire tender is on the way. Keep people back.	फ़ायर टेंडर रास्ते में है। लोगों को दूर रखिए।
+Fire tender nikal chuka hai. Aag se door rahiye, aur kisi ko paas mat jaane dijiye.	A fire tender is on its way. Stay away from the fire, and don't let anyone near it.	फ़ायर टेंडर निकल चुका है। आग से दूर रहिए, और किसी को पास मत जाने दीजिए।
+Saare tender abhi busy hain. Thodi der mein phir call kijiye.	All tenders are busy right now. Please call again in a little while.	सारे टेंडर अभी व्यस्त हैं। थोड़ी देर में फिर कॉल कीजिए।
+Kahin nahi... mazaak tha	Nowhere... just kidding	कहीं नहीं... मज़ाक़ था
+Fire control se mazaak? Police ko aapki location bhej di gayi hai.	Joking with fire control? Your location has been sent to the police.	फ़ायर कंट्रोल से मज़ाक़? पुलिस को आपकी लोकेशन भेज दी गई है।
+Control Room	Control Room	कंट्रोल रूम
+Police: "Hum dekh lete hain. Aap aage badhiye."	Police: "We'll take it from here. You move along."	पुलिस: "हम देख लेते हैं। आप आगे बढ़िए।"
+Police ne call trace karke challan bhej diya - Rs # jurmana	The police traced the call and sent a challan - Rs # fine	पुलिस ने कॉल ट्रेस करके चालान भेज दिया - Rs # जुर्माना
+Police ne call trace karke challan bhej diya - jurmana bharne ke paise nahi!	The police traced the call and sent a challan - and you can't pay the fine!	पुलिस ने कॉल ट्रेस करके चालान भेज दिया - जुर्माना भरने के पैसे नहीं!
+Police: "Yahan to kuch hua hi nahi! Jhoothi call?" - Rs # jurmana	Police: "Nothing happened here! A fake call?" - Rs # fine	पुलिस: "यहाँ तो कुछ हुआ ही नहीं! झूठी कॉल?" - Rs # जुर्माना
+Police: "Yahan to kuch hua hi nahi! Jhoothi call?" - jurmana bharne ke paise nahi!	Police: "Nothing happened here! A fake call?" - and you can't pay the fine!	पुलिस: "यहाँ तो कुछ हुआ ही नहीं! झूठी कॉल?" - जुर्माना भरने के पैसे नहीं!
+Baar baar jhoothi call! Police naraz hai	Fake calls again and again! The police are angry	बार-बार झूठी कॉल! पुलिस नाराज़ है
+Jurmana nahi bhara! Police naraz hai	Fine not paid! The police are angry	जुर्माना नहीं भरा! पुलिस नाराज़ है
+Police ne goondon ko pakad liya!	The police caught the goons!	पुलिस ने गुंडों को पकड़ लिया!
+Police: "Yahan ab sab theek hai. Dhyaan rakhiye."	Police: "All is well here now. Take care."	पुलिस: "यहाँ अब सब ठीक है। ध्यान रखिए।"
+Kahin aag lagi hai - kaala dhuan uth raha hai! Phone (T) se 101 milao	There's a fire somewhere - black smoke is rising! Call 101 on the phone (T)	कहीं आग लगी है - काला धुआँ उठ रहा है! फ़ोन (T) से 101 मिलाओ
+101: fire brigade ne aag bujha di	101: the fire brigade put the fire out	101: फ़ायर ब्रिगेड ने आग बुझा दी
+108: marham-patti ho gayi - health poori. "Dhyaan rakhiye!"	108: wounds dressed - full health. "Take care!"	108: मरहम-पट्टी हो गई - हेल्थ पूरी। "ध्यान रखिए!"
+
+# ---------------------------------------------------------------- the phone (UI/Phone.cs)
+Phone	Phone	फ़ोन
+Camera	Camera	कैमरा
+Selfie	Selfie	सेल्फ़ी
+Gallery	Gallery	गैलरी
+Weather	Weather	मौसम
+Wallet	Wallet	वॉलेट
+Settings	Settings	सेटिंग्स
+SOS	SOS	SOS
+Photo	Photo	फ़ोटो
+Wallpaper	Wallpaper	वॉलपेपर
+Abhi	Now	अभी
+Nainital Sukoon Bank	Nainital Sukoon Bank	नैनीताल सुकून बैंक
+Balance	Balance	बैलेंस
+Paise missions se kamao. Jurmana, ilaaj aur petrol isi se katte hain.	Earn money from missions. Fines, hospital bills and petrol come out of it.	पैसे मिशन से कमाओ। जुर्माना, इलाज और पेट्रोल इसी से कटते हैं।
+Call khatam	Call ended	कॉल ख़त्म
+Call lag rahi hai...	Calling...	कॉल लग रही है...
+Jhoothi call pe police aayegi aur challan katega.	A fake call brings the police - and a challan.	झूठी कॉल पर पुलिस आएगी और चालान कटेगा।
+Abhi koi photo nahi. Camera se kheencho!	No photos yet. Take some with the Camera!	अभी कोई फ़ोटो नहीं। कैमरे से खींचो!
+Sunday	Sunday	रविवार
+Monday	Monday	सोमवार
+Tuesday	Tuesday	मंगलवार
+Wednesday	Wednesday	बुधवार
+Thursday	Thursday	गुरुवार
+Friday	Friday	शुक्रवार
+Saturday	Saturday	शनिवार
+January	January	जनवरी
+February	February	फ़रवरी
+March	March	मार्च
+April	April	अप्रैल
+May	May	मई
+June	June	जून
+July	July	जुलाई
+August	August	अगस्त
+September	September	सितंबर
+October	October	अक्टूबर
+November	November	नवंबर
+December	December	दिसंबर
+# min	# min	# मिनट

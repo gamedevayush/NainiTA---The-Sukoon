@@ -484,3 +484,21 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
     kinematic and went through people: BikeRide.PushPeople. PushTest x3: out 0.71-0.96 m (clear 0.65).
   - Jams: NpcWalker.ScanTraffic ignored a waiting traffic vehicle (< 1.5 m/s) and every bike (kinematic, speed 0) - fixed.
     JamReport x9: 0 standing for a person. Found two wedged spots (police chowki into the road; road 30 kerb) - open.
+
+## 22 Nov 2026 (01:30-05:00, main PC) - the rest of the free-roam batch (#3-#10), not committed yet
+
+- Owner, in order: "kro jo bcha hia sab"; English by default with Hindi (Devanagari, Hindi font) everywhere; a 'tagda'
+  glassmorphism phone with a Nainital wallpaper; his pins for the fire station and the two pumps; "multi agent bnaake kaam
+  divide krlo" -> 7 agents ran out of usage -> "saare agents roko", then "one by one" (agents burn ~50 % of the usage at
+  once); "pehle sab build waale ready krlo or ikkhate build chlaao"; "ruko mt" (do other work while a build runs).
+- Built: phone + calls + camera (FREEROAM s.3), language (Core/Loc.cs, Tools/loc), pumps + fuel, 13 shops, 5 sit-outs
+  with diners and a waiter, the house on Zoo Road, the fire station (101 tender drives out of it), stats + hunger blur +
+  the open gym, radio (own folders, listed in Documents\NainiTA\music_folders.txt), umbrellas.
+  Animals: code only (no models yet). Details: docs/FREEROAM.md "The rest of the batch".
+- World build traps: the Tallital pump found no free spot (houses on every forecourt) and two sit-outs landed in back yards
+  / a field -> a "Pump and sit-out plans" step before the Buildings reserves their ground (keepClear, circle to the
+  corners); sit-outs open on the road's edge (Upper Mall Road allowed: it is not a "motor road" for NearestMotorRoad).
+  Sukhatal pin is 50 m from the nearest road in the map data -> the pump stands 39 m from it on the Kaladhungi road.
+- Tools: Tools/pipeline/compile_check.py (Unity's Roslyn on the files, 7 s with the editor idle; minutes while it
+  builds - run it in the background), Editor/FreeroamTest.cs (Fuel, ShopOpen/ShopBuy, Sit, Bed/Sleep/Almari, Gym,
+  RadioPick, Rain, Report).

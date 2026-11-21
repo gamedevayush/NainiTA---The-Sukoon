@@ -203,6 +203,7 @@ namespace Nainital
             bool handbrake = ai && !wrecked ? aiHandbrake > 0.5f : (!driving || GameInput.JumpHeld);
             Vector3 up = transform.up;
             float fwdSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
+            if (player) mv.y = VehicleFuel.Drive(this, mv.y, fwdSpeed, dt);   // fuel: burns while the player drives, no pull once dry (VehicleFuel)
             float speed01 = Mathf.Clamp01(Mathf.Abs(fwdSpeed) / spec.maxSpeed);
             Braking = driving && ((Mathf.Abs(mv.y) > 0.05f && Mathf.Sign(mv.y) != Mathf.Sign(fwdSpeed) && Mathf.Abs(fwdSpeed) > 0.5f) || (player ? GameInput.JumpHeld : handbrake));
             float steerTarget = ai && !player ? Mathf.Clamp(aiSteer, -spec.steer, spec.steer) : mv.x * Mathf.Lerp(spec.steer, spec.steer * 0.35f, speed01);

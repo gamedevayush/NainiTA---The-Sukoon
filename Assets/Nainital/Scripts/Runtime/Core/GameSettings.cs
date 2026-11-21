@@ -49,7 +49,7 @@ namespace Nainital
         /// <summary>0 low, 1 medium, 2 high.</summary>
         public static int Quality { get { Load(); return quality; } set { Load(); quality = Mathf.Clamp(value, 0, 2); ApplyGraphics(); Save("nt_quality", quality); } }
 
-        public static string QualityName(int q) => Loc.English ? new[] { "Low", "Medium", "High" }[q] : new[] { "Kam", "Theek", "Zabardast" }[q];
+        public static string QualityName(int q) => Loc.L(new[] { "Kam", "Theek", "Zabardast" }[q], new[] { "Low", "Medium", "High" }[q]);
 
         /// <summary>Everything at once (the game's start).</summary>
         public static void ApplyAll()

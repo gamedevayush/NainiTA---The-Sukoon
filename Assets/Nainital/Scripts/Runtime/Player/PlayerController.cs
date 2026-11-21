@@ -192,7 +192,7 @@ namespace Nainital
             float speed;
             if (combat.Blocking) speed = walkSpeed * 0.8f;
             else if (GameInput.WalkHeld || mag < 0.45f) speed = walkSpeed;
-            else if (GameInput.SprintHeld) speed = sprintSpeed;
+            else if (GameInput.SprintHeld && PlayerStats.CanSprint) speed = sprintSpeed * PlayerStats.SprintScale;   // stamina, fat (PlayerStats)
             else speed = runSpeed;
             Vector3 desired = wish * speed * Mathf.Max(mag, mag > 0 ? 0.35f : 0f);
 
@@ -212,7 +212,7 @@ namespace Nainital
             // jump
             if (jumpBuffer > 0f && coyote > 0f && !combat.Busy)
             {
-                motor.velocity.y = Mathf.Sqrt(2f * -motor.gravity * jumpHeight);
+                motor.velocity.y = Mathf.Sqrt(2f * -motor.gravity * jumpHeight * PlayerStats.JumpScale);   // muscle, fat
                 jumpBuffer = 0f;
                 coyote = 0f;
             }
@@ -255,7 +255,7 @@ namespace Nainital
             combat.Blocking = false;
             float targetY = waterY - 1.35f;
             motor.velocity.y = Mathf.Clamp((targetY - transform.position.y) * 3f, -3f, 3f);
-            float speed = GameInput.SprintHeld ? swimSpeed * 1.6f : swimSpeed;
+            float speed = (GameInput.SprintHeld && PlayerStats.CanSwimFast ? swimSpeed * 1.6f : swimSpeed) * PlayerStats.SwimScale;   // breath, swimming skill
             motor.Move(wish * speed * mag, 5f, dt, useGravity: false);
             if (mag > 0.05f) motor.FaceTowards(wish, 300f, dt);
             rig.speed = motor.HorizontalVelocity.magnitude;

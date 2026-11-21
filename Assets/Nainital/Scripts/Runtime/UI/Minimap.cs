@@ -228,9 +228,9 @@ namespace Nainital
             var big = h.Panel("BigMap", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980, 1040), HudStyle.GlassDeep);
             bigMap = big.gameObject;
             var title = h.TxtB("Title", big.transform, new Vector2(0, 1f), new Vector2(0, 1f), new Vector2(34, -14), new Vector2(600, 50), 40, TextAnchor.MiddleLeft, HudStyle.Ink);
-            title.text = "NAINITAL";
+            bigTitle = title;
             var close = h.Txt("Close", big.transform, new Vector2(1, 1f), new Vector2(1, 1f), new Vector2(-34, -14), new Vector2(400, 50), 24, TextAnchor.MiddleRight, HudStyle.InkDim);
-            close.text = "<color=#FFB829>M</color>  band karo / close";
+            bigClose = close;
             var bigRaw = new GameObject("Map", typeof(RectTransform), typeof(RawImage));
             bigRaw.transform.SetParent(big.transform, false);
             var brt = (RectTransform)bigRaw.transform;
@@ -242,9 +242,25 @@ namespace Nainital
             bigMarker = mk.rectTransform;
             // legend
             var leg = h.Txt("Legend", big.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0, 14), new Vector2(900, 34), 24, TextAnchor.MiddleCenter, HudStyle.InkDim);
-            leg.text = "<color=#FA5C52>▲</color> Aap / You      <color=#FFB829>◆</color> Jagah / Places      <color=#FFB829>M</color> Mission      <color=#33D1C2>●</color> Target";
+            bigLegend = leg;
+            BigTexts();
+            Loc.Changed += BigTexts;
             bigMap.SetActive(false);
         }
+
+        Text bigTitle, bigClose, bigLegend;
+        /// <summary>The full map's words in the current language (Loc).</summary>
+        void BigTexts()
+        {
+            if (!bigTitle) return;
+            bigTitle.text = Loc.T("NAINITAL");
+            bigClose.text = "<color=#FFB829>M</color>  " + Loc.T("Band karo");
+            bigLegend.text = "<color=#FA5C52>▲</color> " + Loc.T("Aap") + "      <color=#FFB829>◆</color> " + Loc.T("Jagah") +
+                             "      <color=#FFB829>M</color> " + Loc.T("Mission") + "      <color=#33D1C2>●</color> " + Loc.T("Target");
+            foreach (var (t, src) in placeLabels) if (t) t.text = Loc.T(src);
+        }
+        readonly System.Collections.Generic.List<(Text t, string src)> placeLabels = new System.Collections.Generic.List<(Text, string)>();
+        void OnDestroy() { Loc.Changed -= BigTexts; }
 
         void Update()
         {

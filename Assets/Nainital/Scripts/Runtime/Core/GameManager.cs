@@ -51,6 +51,12 @@ namespace Nainital
             // the main menu, the pause menu, settings, saving and the intro (it greets the player when play starts)
             if (!FindAnyObjectByType<FrontEnd>()) new GameObject("FrontEnd").AddComponent<FrontEnd>();
             WantedSystem.Ensure();   // the police, accidents and the 108 ambulance (Runtime/Police)
+            FireManager.Ensure();    // fires now and then for the 101 fire brigade (World/Fires.cs)
+            PhoneCamera.Ensure();    // the phone's camera and selfie (Player/PhoneCamera.cs)
+            Radio.Ensure();          // the car radio: own music + free-licence stations (Audio/Radio.cs)
+            Umbrellas.Ensure();      // townsfolk under umbrellas in the rain (Characters/Umbrellas.cs)
+            PlayerStats.Ensure();    // stamina, muscle, fat, skills, hunger (Player/PlayerStats.cs)
+            AnimalManager.Ensure();  // street cows, dogs, cats (Characters/AnimalManager.cs)
         }
 
         bool mobileTerrain;

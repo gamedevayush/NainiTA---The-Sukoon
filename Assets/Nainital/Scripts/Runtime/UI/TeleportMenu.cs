@@ -79,6 +79,7 @@ namespace Nainital
 
         void OnGUI()
         {
+            GUI.skin.font = HudStyle.Regular;   // Rajdhani: it carries the Hindi glyphs (Loc)
             if (!open) return;
             float s = Mathf.Max(1f, Screen.height / 720f);
             if (btn == null)
@@ -90,15 +91,15 @@ namespace Nainital
             head.fontSize = Mathf.RoundToInt(18 * s);
             var r = new Rect(Screen.width * 0.5f - 230 * s, Screen.height * 0.08f, 460 * s, Screen.height * 0.84f);
             GUI.Box(r, "");
-            GUI.Label(new Rect(r.x, r.y + 6 * s, r.width, 30 * s), "Kahan jaana hai? (Safar)", head);
+            GUI.Label(new Rect(r.x, r.y + 6 * s, r.width, 30 * s), Loc.T("Kahan jaana hai? (Safar)"), head);
             float rowH = 38 * s;
             var view = new Rect(r.x + 10 * s, r.y + 42 * s, r.width - 20 * s, r.height - 96 * s);
             var content = new Rect(0, 0, view.width - 22 * s, names.Count * (rowH + 4 * s));
             scroll = GUI.BeginScrollView(view, scroll, content);
             for (int i = 0; i < names.Count; i++)
-                if (GUI.Button(new Rect(0, i * (rowH + 4 * s), content.width, rowH), "  " + names[i], btn)) { Go(i); break; }
+                if (GUI.Button(new Rect(0, i * (rowH + 4 * s), content.width, rowH), "  " + Loc.T(names[i]), btn)) { Go(i); break; }
             GUI.EndScrollView();
-            if (GUI.Button(new Rect(r.x + r.width * 0.3f, r.yMax - 48 * s, r.width * 0.4f, 40 * s), "Band karo")) Close();
+            if (GUI.Button(new Rect(r.x + r.width * 0.3f, r.yMax - 48 * s, r.width * 0.4f, 40 * s), Loc.T("Band karo"))) Close();
         }
 
         void Go(int i)

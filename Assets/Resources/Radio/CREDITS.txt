@@ -1,0 +1,2 @@
+Radio stations (Pahadi Dhun FM, Naini Lo-fi, Mall Road Beats): original music synthesised for Naini Sukoon by
+Tools/radio/make_stations.py (22 Nov 2026). No third-party recordings or samples.

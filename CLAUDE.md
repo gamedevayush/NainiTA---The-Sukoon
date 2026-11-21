@@ -11,6 +11,8 @@ Unity 6000.4.1f1 open-world Nainital. Public repo, Git LFS. The owner talks Hing
 3. The built world (`Assets/Nainital/Generated/`) is not in git: **Nainital > 2. Build World** after `world.json` changes.
 
 ## Where to start
+- **New chat on the free-roam batch: read `docs/FREEROAM.md` section "HANDOFF - 22 Nov 2026" first** (state, what
+  was running, what is left, how to resume).
 - `README.md` "Work in progress": the next-PC steps and what changed, by date. `docs/TRACKER.md`: the day-by-day log.
 - Vehicles / the Vehicle Setup tool: `docs/VEHICLES.md` - **section 0.3 is the open list** (0.1 / 0.2: what the 21 Nov
   afternoon and evening passes did); tick items off there and put anything new that is wrong or changed into it (owner:
@@ -33,4 +35,18 @@ Unity 6000.4.1f1 open-world Nainital. Public repo, Git LFS. The owner talks Hing
   every feature, the order, the status, what is NOT wanted, and the next item's design. Work it in order; tick it there.
 - Play tests through the bridge: start Play with `call PlayTest.Begin` (skips the main menu; `VehicleSetupShots.Play`
   opens the menu, which blocks all input). Night: `call NightCheck.Run` (arg hour). Sounds: `call VehicleTest.SoundReport`.
+- **Language (owner, 22 Nov 2026: "default will be english .. can be changable to hindi .. with hindi font .. and everywhere")**:
+  English by default, Hindi in Devanagari (Settings > Language, the phone's Settings). Code writes Hinglish keys; every
+  shown text goes through `Loc.T` / `Loc.L(hi, en)` / `Loc.F`. The table: `Tools/loc/strings*.tsv` (key, English, Hindi;
+  '#' = a number; {0} = an argument). **After adding or changing any text: `python Tools/loc/build_loc.py`** (needs
+  fonttools + uharfbuzz: `pip install --user fonttools uharfbuzz`; run it WITHOUT -I so the user site-packages load). It
+  shapes the Hindi with HarfBuzz (uGUI cannot), extends the Rajdhani fonts in Resources/Fonts with Private Use Area glyphs
+  (originals in Tools/loc/fonts_src) and writes Resources/Loc/strings.json. Never type Devanagari straight into code: it
+  shows unshaped. Gaps: in the editor every shown text without an entry lands in Bridge/loc_missing.txt; scene texts:
+  `call LocDump.Run` -> Bridge/loc_scene.tsv. World signs (3D letters) stay as built.
 - Tools' Python with numpy on the main PC: `C:\Users\Ayush Singth\AppData\Local\Programs\Python\Python310\python.exe -I`.
+- **A component the world builder adds (AddComponent in Editor code) must live in its own file with the class's name**
+  (`RestaurantSeat.cs`, `HouseBed.cs`): Unity saves a MonoBehaviour from a shared file as a MISSING script, so it works
+  right after the build and is gone after the scene reloads (22 Nov: every restaurant chair and the house bed).
+- Code check without the editor: `python -I Tools/pipeline/compile_check.py` (Unity's own compiler on the current files,
+  7 s; minutes while Unity is building - run it in the background). Free-roam test steps: `Editor/FreeroamTest.cs`.

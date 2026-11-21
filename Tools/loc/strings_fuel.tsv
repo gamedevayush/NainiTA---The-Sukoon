@@ -1,0 +1,16 @@
+# Naini Sukoon - petrol pumps and fuel (VehicleFuel, FuelStation, LandmarkBuilder.PetrolPumps). Same format as strings.tsv.
+Himgiri Fuels, Tallital	Himgiri Fuels, Tallital	हिमगिरि फ़्यूल्स, तल्लीताल
+Himgiri Fuels, Sukhatal	Himgiri Fuels, Sukhatal	हिमगिरि फ़्यूल्स, सूखाताल
+Petrol kam hai (#%) - petrol pump dhoondo (map pe)	Low on fuel (#%) - find a petrol pump (on the map)	पेट्रोल कम है (#%) - पेट्रोल पंप ढूँढो (नक्शे पर)
+Petrol khatam! Gaadi nahi chalegi. Sabse paas ka pump # m door	Out of fuel! It won't go. The nearest pump is # m away	पेट्रोल ख़त्म! गाड़ी नहीं चलेगी। सबसे पास का पंप # m दूर
+Petrol khatam! Gaadi nahi chalegi	Out of fuel! It won't go	पेट्रोल ख़त्म! गाड़ी नहीं चलेगी
+Ye electric hai - petrol nahi chahiye, chalte raho	It's electric - no petrol needed, keep going	ये इलेक्ट्रिक है - पेट्रोल नहीं चाहिए, चलते रहो
+Tanki pehle se full hai	The tank is already full	टंकी पहले से फ़ुल है
+Petrol pump: gaadi roko, tanki bhar denge (Rs # / litre)	Petrol pump: stop here and we'll fill the tank (Rs # a litre)	पेट्रोल पंप: गाड़ी रोको, टंकी भर देंगे (Rs # / लीटर)
+Paise nahi - petrol nahi milega	No money - no petrol	पैसे नहीं - पेट्रोल नहीं मिलेगा
+Petrol bhar raha hai...	Filling up...	पेट्रोल भर रहा है...
+Aadhe mein chal diye: # litre, Rs #	Drove off half way: # litres, Rs #	आधे में चल दिए: # लीटर, Rs #
+Paise kam the: # litre bhara, Rs #	Not enough money: # litres filled, Rs #	पैसे कम थे: # लीटर भरा, Rs #
+Tanki full: # litre, Rs #	Tank full: # litres, Rs #	टंकी फ़ुल: # लीटर, Rs #
+Fire Station	Fire Station	फ़ायर स्टेशन
+Sukhatal	Sukhatal	सूखाताल

@@ -1,0 +1,14 @@
+# Naini Sukoon - the radio (Audio/Radio.cs, the phone's Radio app). Same format as strings.tsv.
+Radio	Radio	रेडियो
+Radio band	Radio off	रेडियो बंद
+Radio: {0}	Radio: {0}	रेडियो: {0}
+Apne Gaane	My Music	अपने गाने
+Pahadi Dhun FM	Pahadi Dhun FM	पहाड़ी धुन FM
+Naini Lo-fi	Naini Lo-fi	नैनी लो-फ़ाई
+Mall Road Beats	Mall Road Beats	मॉल रोड बीट्स
+Ab baj raha hai: {0}	Now playing: {0}	अब बज रहा है: {0}
+Apne gaane game ke Music folder mein daalo (Files app > NainiTA > Music)	Put your own songs in the game's Music folder (Files app > NainiTA > Music)	अपने गाने गेम के Music फ़ोल्डर में डालो (Files ऐप > NainiTA > Music)
+Apne gaane Documents\NainiTA\Music mein daalo	Put your own songs in Documents\NainiTA\Music	अपने गाने Documents\NainiTA\Music में डालो
+Apne gaane: Files app > NainiTA > Music. Gaadi mein radio bajta hai.	Your own songs: Files app > NainiTA > Music. The radio plays in vehicles.	अपने गाने: Files ऐप > NainiTA > Music। गाड़ी में रेडियो बजता है।
+Apne gaane: Documents\NainiTA\Music. Gaadi mein radio bajta hai (R se station badlo).	Your own songs: Documents\NainiTA\Music. The radio plays in vehicles (R changes the station).	अपने गाने: Documents\NainiTA\Music। गाड़ी में रेडियो बजता है (R से स्टेशन बदलो)।
+Ye gaane chal nahi paaye (mp3, ogg ya wav daalo)	These songs would not play (use mp3, ogg or wav)	ये गाने चल नहीं पाए (mp3, ogg या wav डालो)
