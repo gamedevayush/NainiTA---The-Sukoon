@@ -137,6 +137,25 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
 
+### Next: free-roam features (GTA San Andreas style)
+
+The owner's plan of 21 Nov 2026 with every answer he gave, the order and the status: `docs/FREEROAM.md`.
+
+### Changed on 21 Nov (night): ride bikes and scooties, indicators, dipper, no more jams for the townsfolk
+
+Owner's rules for every vehicle (in `CLAUDE.md`): the player gets in -> everyone else gets out; traffic indicates before
+a turn; stuck traffic may flash its dipper; a townsperson in the way steps aside. Details: `docs/VEHICLES.md` 0.2.
+
+| What | Where |
+|---|---|
+| The player takes any traffic bike / scooty (E): its people get off, he rides it (W/S, A/D, Space, horn), E to get off | `Runtime/Vehicles/PlayerBike.cs`, `TrafficBike.HandOver`, `PlayerController.Mode.Bike` |
+| Indicators before turns, a turn round signals right; the dipper when held up | `RoadChoice.cs` (`TurnPlan`), `VehicleParts.BuildIndicators`, `VehicleLamps` |
+| A bike / scooty knocked over (its rider thrown) can be picked up and ridden: "Bike uthao aur chalao" | `PlayerBike.Interact`, `BikeRide.Recover` / `Settled` |
+| Riding: a road climbing ahead no longer slows the player's bike (only a face over ~37 deg is a wall); A/D standing still walks it round on the spot (facing a wall) | `PlayerBike.FixedUpdate`, `BikeRide.Drive(.., walkRound)` |
+| Two-wheelers no longer pass through people (they shove them out of their box) | `BikeRide.PushPeople` |
+| Townsfolk step out of a waiting vehicle's way and out of a bike's | `NpcWalker.ScanTraffic` |
+| Checks (start Play with `call PlayTest.Begin`: `VehicleSetupShots.Play` opens the main menu, which blocks the input) | `VehicleTest.RideBike` / `KnockBike` / `RideFallen` / `RideReport` / `RideGo` (arg "secs [steer throttle]") / `RideOff`, `SignalReport`, `FaceSignal`, `ColliderReport`, `PushTest`, `JamReport` |
+
 ### Changed on 21 Nov (evening): parked cars out of the lake, unbranded ambulance, dents where hit
 
 Owner: "iphone build ko chodke baaki solve krdo". Details and measurements: `docs/VEHICLES.md` section 0.2; still open: 0.3.

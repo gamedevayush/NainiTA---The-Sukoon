@@ -29,6 +29,13 @@ namespace Nainital
         static int wallMask = -1;
         int turnSteps;
         Vector3 turnHeading;
+        readonly TurnPlan plan = new TurnPlan();
+        VehicleLamps lampsRef;
+        float dipperCd;
+        /// <summary>How many dipper flicks the traffic has given (checks: VehicleTest.SignalReport).</summary>
+        public static int Dippers;
+        /// <summary>The indicator this car shows now (-1 left, +1 right, 0 none).</summary>
+        public int Signal => lampsRef ? lampsRef.signal : 0;
         bool passed;
         CarController car;
         Rigidbody rb;
@@ -192,21 +199,10 @@ namespace Nainital
             idx += dir;
             var pts = Pts;
             if (idx > 0 && idx < pts.Length - 1) return;
-            var links = net.Links(road, idx <= 0 ? 0 : 1);
-            var ok = new List<(int r, int i, int d)>();   // onward roads, never the wrong way down a one-way road
-            if (links != null)
-                foreach (var (r, i) in links)
-                {
-                    if (r == road) continue;
-                    var q = net.roads[r].pts;
-                    int ow = net.roads[r].oneWay;
-                    if (ow != 0)
-                    {
-                        if ((ow > 0 && i >= q.Length - 2) || (ow < 0 && i <= 1)) continue;   // would enter at its exit end
-                        ok.Add((r, i, ow));
-                    }
-                    else ok.Add((r, i, i <= 0 ? 1 : i >= q.Length - 1 ? -1 : (Random.value < 0.5f ? 1 : -1)));
-                }
+            // the road planned (and signalled) 30 m back, else one picked now
+            var planned = plan.Take(road, dir);
+            if (planned.HasValue) { road = planned.Value.r; idx = planned.Value.i; dir = planned.Value.d; return; }
+            var ok = RoadChoice.Onward(net, road, idx);   // onward roads, never the wrong way down a one-way road
             if (ok.Count > 0)
             {
                 var c = ok[Random.Range(0, ok.Count)];
@@ -221,6 +217,7 @@ namespace Nainital
         /// <summary>Start a turn round in the road: slowly across it first (TurnAcross), backing up if it is narrow.</summary>
         void TurnRound()
         {
+            plan.TurningRound();
             dir = -dir;
             idx = Mathf.Clamp(idx, 0, Pts.Length - 1);
             Vector3 h = Lane(idx + dir * 2) - Lane(idx);
@@ -392,7 +389,12 @@ namespace Nainital
             float dt = Time.fixedDeltaTime;
             Vector3 pos = transform.position;
             float fwd = car.ForwardSpeed;
-            if (mode == Mode.Wrecked) { car.aiThrottle = 0f; car.aiHandbrake = 1f; return; }
+            if (mode == Mode.Wrecked) { car.aiThrottle = 0f; car.aiHandbrake = 1f; if (lampsRef) lampsRef.signal = 0; return; }
+
+            // the indicator: the turn planned ahead, right through a turn round (owner, 21 Nov 2026)
+            if (!lampsRef) lampsRef = GetComponent<VehicleLamps>();
+            if (mode == Mode.Drive) plan.Tick(net, road, dir, pos, dt);
+            if (lampsRef) lampsRef.signal = mode == Mode.TurnAcross || mode == Mode.TurnBack ? 1 : mode == Mode.Drive ? plan.Signal : 0;
 
             if (mode == Mode.PullUp)
             {
@@ -645,6 +647,13 @@ namespace Nainital
                     hornCooldown = Random.Range(4f, 9f);
                 }
                 else if (bend > 45f) hornCooldown = 2.5f;   // one chance per bend
+            }
+            // held up: now and then a flick of the dipper too (owner, 21 Nov 2026: "stucked hain to random dipper bhi")
+            dipperCd -= dt;
+            if (blocked > 2.5f && dipperCd <= 0f)
+            {
+                if (lampsRef && Random.value < 0.45f) { lampsRef.Flash(); Dippers++; }
+                dipperCd = Random.Range(3f, 7f);
             }
             var cam = Camera.main;   // going past the listener
             if (au && cam)

@@ -20,7 +20,7 @@ namespace Nainital
         public float turnSpeed = 720f;
         public float jumpHeight = 1.25f;
 
-        public enum Mode { Normal, Seated, Boat, Dead, Vehicle, Mount }
+        public enum Mode { Normal, Seated, Boat, Dead, Vehicle, Mount, Bike }
         public Mode CurrentMode { get; private set; } = Mode.Normal;
         public bool InWater { get; private set; }
         public HumanoidRig Rig => rig;
@@ -56,6 +56,41 @@ namespace Nainital
             var vp = c.GetComponent<VehicleParts>();
             if (vp && vp.HasSetup) { vp.Sit(transform, rig, 0); vp.OpenDoorFor(0); }
             if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SetOverride(c.transform, c.type == CarType.Bus ? 13f : 7.5f);
+        }
+
+        /// <summary>Astride a bike / scooty (PlayerBike): the setup's rider seat - hands on the grips, feet on the pegs,
+        /// the riding pose (VehicleParts.Sit) - and the leg swung over (the riding pack's Mount clip, when it is in).</summary>
+        public void EnterBike(PlayerBike b)
+        {
+            CurrentMode = Mode.Bike;
+            motor.Controller.enabled = false;
+            var vp = b.Bike.Parts;
+            if (vp && vp.HasSetup) vp.Sit(transform, rig, 0);
+            else
+            {
+                transform.SetParent(b.Bike.model ? b.Bike.model : b.transform, false);
+                transform.localPosition = b.Bike.SeatLocal;
+                transform.localRotation = Quaternion.identity;
+                rig.riding = true;
+            }
+            rig.speed = 0;
+            if (rig.HasRideClips) rig.PlayGesture("Mount", 1.1f);
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SetOverride(b.transform, 5f);
+        }
+
+        /// <summary>Off the bike at `at` (on foot again).</summary>
+        public void ExitBike(Vector3 at)
+        {
+            var vp = PlayerBike.Riding ? PlayerBike.Riding.Bike.Parts : GetComponentInParent<VehicleParts>();
+            if (vp) vp.Leave(transform);
+            transform.SetParent(null, true);
+            transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized + Vector3.forward * 1e-4f, Vector3.up);
+            rig.riding = false; rig.seated = false; rig.pillion = false; rig.driving = false; rig.lean = 0f;
+            CurrentMode = Mode.Normal;
+            motor.Controller.enabled = true;
+            motor.Teleport(at);
+            fallPeakY = at.y;
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SetOverride(null, 0f);
         }
 
         public void EnterMount(Transform seatT, Transform camTarget)
@@ -128,6 +163,7 @@ namespace Nainital
                 case Mode.Boat: UpdateBoat(); return;
                 case Mode.Vehicle:
                 case Mode.Mount: rig.seated = true; rig.speed = 0; rig.grounded = true; return;
+                case Mode.Bike: rig.speed = 0; rig.grounded = true; return;   // the riding pose: VehicleParts.Sit set it
             }
             if (Jetpack.Flying) { fallPeakY = transform.position.y; return; }   // the jetpack (cheat UDAAN) does the moving
 
@@ -327,6 +363,7 @@ namespace Nainital
             if (CurrentMode == Mode.Boat && boat) boat.ForceExit();
             if (CurrentMode == Mode.Vehicle && car) car.ForceExit();
             if (CurrentMode == Mode.Mount && Pony.Ridden) Pony.Ridden.Interact(this);
+            if (CurrentMode == Mode.Bike && PlayerBike.Riding) PlayerBike.Riding.ForceExit();
             CurrentMode = Mode.Dead;
             rig.dead = true;
             deadTimer = 3.5f;
@@ -342,6 +379,7 @@ namespace Nainital
             if (CurrentMode == Mode.Boat && boat) boat.ForceExit();
             if (CurrentMode == Mode.Vehicle && car) car.ForceExit();
             if (CurrentMode == Mode.Mount && Pony.Ridden) Pony.Ridden.Interact(this);
+            if (CurrentMode == Mode.Bike && PlayerBike.Riding) PlayerBike.Riding.ForceExit();
             if (CurrentMode == Mode.Seated) { rig.seated = false; motor.Controller.enabled = true; }
             if (Jetpack.Flying) Jetpack.Toggle(this);
             CurrentMode = Mode.Dead;

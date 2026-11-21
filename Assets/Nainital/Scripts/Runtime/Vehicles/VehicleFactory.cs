@@ -458,7 +458,7 @@ namespace Nainital
             info.mass = e.mass;
             LampMaterials(out var hm, out var tm);
             parts.BuildLamps(hm, tm, out var heads, out var tails);
-            if (heads.Length > 0) { var vl = root.AddComponent<VehicleLamps>(); vl.lamps = heads[0]; vl.more = heads; }
+            if (heads.Length > 0) { var vl = root.AddComponent<VehicleLamps>(); vl.lamps = heads[0]; vl.more = heads; parts.BuildIndicators(hm, out vl.indL, out vl.indR); }
             var fx = root.AddComponent<VehicleFX>();
             fx.tails = tails;
             fx.exhaust = Exhaust(root.transform, new Vector3(W * 0.25f, Mathf.Min(0.35f, R), -L * 0.5f));

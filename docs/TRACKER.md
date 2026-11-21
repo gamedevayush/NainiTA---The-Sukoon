@@ -469,3 +469,18 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   yellow roof), the third (|x| <= 0.50, y 1.08-1.52, |n.z| >= 0.6, |n.x| < 0.45) is clean. Glass -> M_VehicleGlass
   (alpha 0.22 / smooth 0.92 looked like a pale blue panel; now 0.15 / 0.7). NewVehicles_v07.blend; tuktuk re-exported,
   FixMaterials, VehicleKit.Build. Tool: VehicleSetupWindow.NightArg (the night preview was left on and darkened sheets).
+- 23:15-00:30 owner: "bike scooty pe bethne ka abhi nhi bna kya? or yaad rkhna...kisi bhi vehicle me agar bethre hain
+  to baaki saari utarjayenge..gaadi agar aage kahin turn hogi to indicator degi pehle...or stucked hain to random dipper"
+  then "indicator chlra hain mst", then "saari gaadi ke proper collider check krna, abhi ek gaadi mere aarpaar chla gaya
+  tha... NPC ke pass gaadi aaye to vo side hojaaye vrna jam lgjayega".
+  - Indicators / dipper: RoadChoice + TurnPlan (plan 30 m ahead, signal >25 deg, U-turn right, 2.5 s hold), amber quads
+    at the lamps' outer edges (VehicleParts.BuildIndicators), VehicleLamps.signal / Flash. SignalReport: 3-4 of 24 at a
+    time, 9 dipper flicks / 1.5 min. Owner liked it as it is (a bigger in-cluster indicator was started, he stopped it).
+  - The player on a bike / scooty: PlayerBike (E: it stops, rider + pillion off, Mount clip, VehicleParts.Sit),
+    PlayerController.Mode.Bike. RideBike / RideReport / RideGo / RideOff: scooty_family, 0 people left on it, feet 1 cm,
+    hands 7 cm, 13 m in 3 s, off.
+  - Colliders: every car / bus / auto box 97 % long, 87-88 % wide, 79-87 % tall, dynamic (ColliderReport; first run read
+    0-16 % because exhaust particles keep a world-space box at the origin - meshes only now). The two-wheelers are
+    kinematic and went through people: BikeRide.PushPeople. PushTest x3: out 0.71-0.96 m (clear 0.65).
+  - Jams: NpcWalker.ScanTraffic ignored a waiting traffic vehicle (< 1.5 m/s) and every bike (kinematic, speed 0) - fixed.
+    JamReport x9: 0 standing for a person. Found two wedged spots (police chowki into the road; road 30 kerb) - open.

@@ -53,6 +53,302 @@ namespace Nainital.EditorTools
             Debug.Log($"[Nainital] reimported {n} vehicle FBX, {readable} with a readable Body mesh");
         }
 
+        /// <summary>The traffic's indicators and dipper now (owner, 21 Nov 2026): how many cars / two-wheelers signal left /
+        /// right, how many of those have indicator lamps and have one lit this frame, the dipper flicks so far, and the
+        /// nearest signalling car to the player. Bridge: call VehicleTest.SignalReport</summary>
+        public static void SignalReport()
+        {
+            Need();
+            int n = 0, l = 0, r = 0, withLamps = 0, lit = 0;
+            VehicleLamps nearest = null; float nd = float.MaxValue;
+            var pp = PlayerController.Instance ? PlayerController.Instance.transform.position : Vector3.zero;
+            foreach (var vl in Object.FindObjectsByType<VehicleLamps>(FindObjectsSortMode.None))
+            {
+                if (!vl.GetComponent<TrafficCar>() && !vl.GetComponent<TrafficBike>()) continue;
+                n++;
+                if (vl.signal == 0) continue;
+                if (vl.signal < 0) l++; else r++;
+                var set = vl.signal < 0 ? vl.indL : vl.indR;
+                if (set.Length > 0) withLamps++;
+                if (System.Array.Exists(set, x => x && x.enabled)) lit++;
+                float d = (vl.transform.position - pp).sqrMagnitude;
+                if (d < nd) { nd = d; nearest = vl; }
+            }
+            Debug.Log($"[Nainital] signals: {n} traffic vehicles, {l} left / {r} right, {withLamps} of them with indicator lamps, {lit} lit this frame (blinking ~55 %), dipper flicks so far {TrafficCar.Dippers}" +
+                      (nearest ? $"; nearest signalling: {nearest.name} {(nearest.signal < 0 ? "LEFT" : "RIGHT")} at {Mathf.Sqrt(nd):F0} m" : ""));
+        }
+
+        /// <summary>Stands the player 9 m behind the nearest signalling traffic vehicle, looking at it (then "capture").
+        /// Bridge: call VehicleTest.FaceSignal</summary>
+        public static void FaceSignal()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            VehicleLamps best = null; float bd = float.MaxValue;
+            foreach (var vl in Object.FindObjectsByType<VehicleLamps>(FindObjectsSortMode.None))
+            {
+                if (vl.signal == 0 || (!vl.GetComponent<TrafficCar>() && !vl.GetComponent<TrafficBike>())) continue;
+                float d = (vl.transform.position - p.transform.position).sqrMagnitude;
+                if (d < bd) { bd = d; best = vl; }
+            }
+            if (!best) throw new System.Exception("nobody is signalling now");
+            Vector3 f = best.transform.forward; f.y = 0f; f.Normalize();
+            Vector3 at = Ground(best.transform.position - f * 9f + Vector3.Cross(Vector3.up, f) * 1.5f) + Vector3.up * 0.2f;
+            p.GetComponent<CharacterMotor>().Teleport(at);
+            Vector3 look = best.transform.position - at; look.y = 0f;
+            p.transform.rotation = Quaternion.LookRotation(look.normalized);
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SnapBehind();
+            Debug.Log($"[Nainital] facing {best.name} signalling {(best.signal < 0 ? "LEFT" : "RIGHT")} from 9 m behind");
+        }
+
+        /// <summary>Every vehicle of the library as the game makes it (gameplay on), its collider against its body: how much
+        /// of the body's length / width / height the colliders cover, the body kind (dynamic / kinematic). Flags a
+        /// vehicle with no collider or one covering under 85 % of the body (owner, 21 Nov 2026: "saari gaadi ke proper
+        /// collider check krna"). Bridge (Play): call VehicleTest.ColliderReport</summary>
+        public static void ColliderReport()
+        {
+            Need();
+            var lib = VehicleLibrary.Instance;
+            var mat = Object.FindAnyObjectByType<TrafficManager>() ? Object.FindAnyObjectByType<TrafficManager>().material : null;
+            var sb = new StringBuilder("[Nainital] colliders (cover of the body: length / width / height %; rigidbody):");
+            int bad = 0;
+            void One(GameObject go, string nm)
+            {
+                go.transform.position = new Vector3(0f, -500f, 0f);
+                Physics.SyncTransforms();
+                Bounds body = default, col = default; bool fb = true, fc = true;
+                foreach (var r in go.GetComponentsInChildren<Renderer>())
+                {
+                    // the body's meshes only: an exhaust's particles simulate in world space (their box stays at the origin)
+                    if (r.gameObject.layer == 9 || !(r is MeshRenderer || r is SkinnedMeshRenderer)) continue;
+                    if (fb) { body = r.bounds; fb = false; } else body.Encapsulate(r.bounds);
+                }
+                int nc = 0;
+                foreach (var c in go.GetComponentsInChildren<Collider>()) { if (c.isTrigger || c.gameObject.layer == 9) continue; nc++; if (fc) { col = c.bounds; fc = false; } else col.Encapsulate(c.bounds); }
+                var rb = go.GetComponent<Rigidbody>();
+                float L = nc > 0 ? col.size.z / body.size.z * 100f : 0f, W = nc > 0 ? col.size.x / body.size.x * 100f : 0f, H = nc > 0 ? col.size.y / body.size.y * 100f : 0f;
+                bool flag = nc == 0 || L < 85f || H < 60f || W < 60f;
+                if (flag) bad++;
+                sb.AppendLine().Append($"  {nm,-20} colliders {nc}, cover L {L:F0} W {W:F0} H {H:F0}, {(rb ? (rb.isKinematic ? "kinematic" : "dynamic") : "no rigidbody")}{(flag ? "   <- CHECK" : "")}");
+                Object.DestroyImmediate(go);
+            }
+            for (int i = 0; i < lib.entries.Length; i++)
+            {
+                var e = lib.entries[i];
+                if (e == null || !e.prefab) continue;
+                One(VehicleFactory.Create(e.type, Px.CarWhite, mat, true, "ColTest " + e.name, i), e.name);
+            }
+            foreach (var e in lib.bikes)
+            {
+                if (e == null || !e.prefab) continue;
+                One(BikeRide.Create(e, "ColTest " + e.name), e.name + " (two-wheeler, moves itself: PushPeople)");
+            }
+            sb.AppendLine().Append($"  flagged {bad}");
+            Debug.Log(sb.ToString());
+        }
+
+        /// <summary>The player put inside a moving traffic two-wheeler's box (10 cm off its middle line): 0.4 s later, is he
+        /// out of it (BikeRide.PushPeople)? Logs his side distance from the bike's middle line against the box's half width
+        /// + his radius. Bridge (Play): call VehicleTest.PushTest</summary>
+        public static void PushTest()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            TrafficBike tb = null; float bd = float.MaxValue;
+            foreach (var t in Object.FindObjectsByType<TrafficBike>(FindObjectsSortMode.None))
+            {
+                var br = t.GetComponent<BikeRide>();
+                if (t.Down || !br || br.Speed < 2f) continue;
+                float d = (t.transform.position - p.transform.position).sqrMagnitude;
+                if (d < bd) { bd = d; tb = t; }
+            }
+            if (!tb) throw new System.Exception("no moving traffic bike");
+            var box = tb.GetComponent<BoxCollider>();
+            p.GetComponent<CharacterMotor>().Teleport(tb.transform.position + tb.transform.right * 0.1f + Vector3.up * 0.1f);
+            Physics.SyncTransforms();
+            double end = EditorApplication.timeSinceStartup + 0.4;
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying || !tb) { EditorApplication.update -= Tick; return; }
+                if (EditorApplication.timeSinceStartup < end) return;
+                EditorApplication.update -= Tick;
+                var cc = p.GetComponent<CharacterController>();
+                Vector3 local = tb.transform.InverseTransformPoint(p.transform.position);
+                float need = box.size.x * 0.5f + (cc ? cc.radius : 0.3f);
+                Debug.Log($"[Nainital] push test: {tb.name} at {tb.GetComponent<BikeRide>().Speed:F1} m/s - player {Mathf.Abs(local.x):F2} m off its middle line (clear at {need:F2}), along it {local.z:F2}: {(Mathf.Abs(local.x) >= need - 0.05f || Mathf.Abs(local.z) > box.size.z * 0.5f + 0.3f ? "OUT" : "STILL INSIDE")}");
+            }
+            EditorApplication.update += Tick;
+        }
+
+        /// <summary>Why the traffic stands: for every traffic car / two-wheeler under 0.5 m/s, what is in front of it within
+        /// 9 m (a person - the townsfolk or the player -, a vehicle, something else, nothing). The jam the owner saw (21 Nov
+        /// 2026: "NPC ke pass gaadi aaye to vo side hojaaye vrna jam lgjayega") shows as standing for a person. Bridge (Play):
+        /// call VehicleTest.JamReport</summary>
+        public static void JamReport()
+        {
+            Need();
+            int n = 0, standing = 0, person = 0, vehicle = 0, other = 0, clear = 0;
+            int mask = ~((1 << 2) | (1 << 4));
+            var others = new System.Collections.Generic.List<string>();
+            foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            {
+                var tc = t.GetComponent<TrafficCar>(); var tb = t.GetComponent<TrafficBike>();
+                if (!tc && !tb) continue;
+                n++;
+                float sp = tc ? tc.Speed : t.GetComponent<BikeRide>().Speed;
+                if (sp > 0.5f) continue;
+                standing++;
+                var info = t.GetComponent<VehicleInfo>();
+                float half = info ? info.length * 0.5f : 1f;
+                Vector3 f = new Vector3(t.forward.x, 0f, t.forward.z).normalized;
+                var hits = Physics.SphereCastAll(t.position + Vector3.up * 0.9f + f * (half + 0.2f), 0.7f, f, 9f, mask, QueryTriggerInteraction.Ignore);
+                System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+                string what = "clear";
+                foreach (var h in hits)
+                {
+                    if (h.collider.transform.IsChildOf(t)) continue;
+                    int l = h.collider.gameObject.layer;
+                    what = l == 8 || l == 9 ? "person" : l == VehicleFactory.VehicleLayer ? "vehicle" : "other";
+                    if (what == "other") others.Add($"{h.collider.name}{(h.collider.transform.parent ? "<" + h.collider.transform.parent.name : "")} {h.distance:F1}m @{t.position:F0} [{(tc ? tc.State : "bike")}]");
+                    break;
+                }
+                if (what == "person") person++; else if (what == "vehicle") vehicle++; else if (what == "other") other++; else clear++;
+            }
+            Debug.Log($"[Nainital] jam report: {n} traffic, {standing} standing - in front: person {person}, vehicle {vehicle}, other {other}, nothing {clear}" + (others.Count > 0 ? " | other: " + string.Join("; ", others) : ""));
+        }
+
+        // ---------------------------------------------------------------- the player on a bike (21 Nov 2026)
+        static PlayerBike testBike;
+
+        /// <summary>The player beside the nearest traffic two-wheeler, asking for it (E): it pulls up, its people get off,
+        /// the player mounts. Bridge: call VehicleTest.RideBike, then RideReport / RideGo / RideOff.</summary>
+        public static void RideBike()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            TrafficBike best = null; float bd = float.MaxValue;
+            foreach (var tb in Object.FindObjectsByType<TrafficBike>(FindObjectsSortMode.None))
+            {
+                if (tb.Down || !tb.GetComponent<PlayerBike>()) continue;
+                float d = (tb.transform.position - p.transform.position).sqrMagnitude;
+                if (d < bd) { bd = d; best = tb; }
+            }
+            if (!best) throw new System.Exception("no traffic bike");
+            testBike = best.GetComponent<PlayerBike>();
+            p.GetComponent<CharacterMotor>().Teleport(Ground(best.transform.position - best.transform.right * 2f) + Vector3.up * 0.2f);
+            Physics.SyncTransforms();
+            int people = best.GetComponentsInChildren<NpcWalker>(true).Length;
+            testBike.Interact(p);
+            Debug.Log($"[Nainital] ride: asked {best.name} ({people} on it) at {Mathf.Sqrt(bd):F0} m");
+        }
+
+        /// <summary>Who is on the test bike, the player's mode, the bike's speed and where it is.</summary>
+        public static void RideReport()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            if (!testBike) throw new System.Exception("no test bike (RideBike first)");
+            int npcs = testBike.GetComponentsInChildren<NpcWalker>(true).Length;
+            var rig = p.Rig;
+            var ik = p.GetComponent<HandIK>();
+            string miss = "";
+            if (ik && rig)
+            {
+                var a = rig.GetComponentInChildren<Animator>();
+                if (a && a.isHuman)
+                {
+                    var hl = a.GetBoneTransform(HumanBodyBones.LeftHand); var fl = a.GetBoneTransform(HumanBodyBones.LeftFoot);
+                    if (ik.left && hl) miss += $" handL {(hl.position - ik.left.position).magnitude * 100f:F0}cm";
+                    if (ik.footLeft && fl) miss += $" footL {(fl.position - (ik.footLeft.position + Vector3.up * rig.SoleLift)).magnitude * 100f:F0}cm";
+                }
+            }
+            // what the player's stop-short cast sees ahead (PlayerBike.FixedUpdate)
+            var bk = testBike.Bike;
+            Vector3 from = Ground(testBike.transform.position + bk.Forward * (bk.length * 0.5f)) + Vector3.up * 0.75f;
+            string ahead = "clear";
+            foreach (var hit in Physics.SphereCastAll(from, 0.35f, bk.Forward, 6f, ~((1 << 2) | (1 << 4) | (1 << 8) | (1 << 9)), QueryTriggerInteraction.Ignore))
+            {
+                if (hit.collider.transform.IsChildOf(testBike.transform) || (hit.distance <= 0f ? hit.collider is TerrainCollider : hit.normal.y > 0.8f)) continue;
+                ahead = $"{hit.collider.name} (layer {hit.collider.gameObject.layer}) at {hit.distance:F1} m, slope {Vector3.Angle(hit.normal, Vector3.up):F0} deg";
+                break;
+            }
+            var brb = testBike.GetComponent<Rigidbody>();
+            Debug.Log($"[Nainital] ride report: player {p.CurrentMode}, riding {(PlayerBike.Riding ? PlayerBike.Riding.name : "-")}, npcs still on the bike {npcs}, " +
+                      $"traffic {(testBike.GetComponent<TrafficBike>() ? "still" : "gone")}, speed {bk.Speed:F1} m/s at {testBike.transform.position:F0}, rig riding {(rig ? rig.riding : false)}{miss}, " +
+                      $"crashed {bk.Crashed}, kinematic {(brb ? brb.isKinematic : false)}, ahead {ahead}, in {GameInput.Move}");
+        }
+
+        /// <summary>Throttle on for arg seconds (default 3), then off; logs how far it went.</summary>
+        public static void RideGo()
+        {
+            Need();
+            // arg: "seconds [steer throttle]", e.g. "3" or "2 1 0" (2 s of D alone: walked round on the spot)
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            var parts = (Arg() ?? "").Split(new[] { ' ', ',' }, System.StringSplitOptions.RemoveEmptyEntries);
+            float secs = parts.Length > 0 && float.TryParse(parts[0], System.Globalization.NumberStyles.Float, ci, out var s) ? s : 3f;
+            Vector2 mv = parts.Length > 2 ? new Vector2(float.Parse(parts[1], ci), float.Parse(parts[2], ci)) : new Vector2(0f, 1f);
+            if (!testBike) throw new System.Exception("no test bike");
+            Vector3 start = testBike.transform.position;
+            float yaw0 = testBike.transform.eulerAngles.y;
+            double end = EditorApplication.timeSinceStartup + secs;
+            GameInput.TouchMove = mv;
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying) { EditorApplication.update -= Tick; return; }
+                if (EditorApplication.timeSinceStartup < end) return;
+                GameInput.TouchMove = Vector2.zero;
+                EditorApplication.update -= Tick;
+                Debug.Log($"[Nainital] ride go: {Vector3.Distance(start, testBike.transform.position):F1} m in {secs:F1} s, speed {testBike.Bike.Speed:F1} m/s, " +
+                          $"turned {Mathf.DeltaAngle(yaw0, testBike.transform.eulerAngles.y):F0} deg");
+            }
+            EditorApplication.update += Tick;
+        }
+
+        /// <summary>The nearest traffic two-wheeler with a rider is knocked over as by the player's car (its rider is thrown).
+        /// Then RideFallen once it lies still.</summary>
+        public static void KnockBike()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            TrafficBike best = null; float bd = float.MaxValue;
+            foreach (var tb in Object.FindObjectsByType<TrafficBike>(FindObjectsSortMode.None))
+            {
+                if (tb.Down || !tb.GetComponent<PlayerBike>() || tb.GetComponentsInChildren<NpcWalker>(true).Length == 0) continue;
+                float d = (tb.transform.position - p.transform.position).sqrMagnitude;
+                if (d < bd) { bd = d; best = tb; }
+            }
+            if (!best) throw new System.Exception("no traffic bike with a rider");
+            testBike = best.GetComponent<PlayerBike>();
+            Vector3 v = Vector3.Cross(Vector3.up, best.transform.forward) * 9f;   // a car from the side at ~32 km/h
+            testBike.Bike.Crash(v, null);
+            Debug.Log($"[Nainital] knock: {best.name} at {best.transform.position:F0}, {Mathf.Sqrt(bd):F0} m away");
+        }
+
+        /// <summary>The player beside the fallen test bike: its prompt, whether E works, then E (pick it up and ride).</summary>
+        public static void RideFallen()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            if (!testBike) throw new System.Exception("no test bike (KnockBike first)");
+            var b = testBike.Bike;
+            p.GetComponent<CharacterMotor>().Teleport(Ground(testBike.transform.position - Vector3.ProjectOnPlane(testBike.transform.right, Vector3.up).normalized * 1.5f) + Vector3.up * 0.2f);
+            Physics.SyncTransforms();
+            float tilt = Vector3.Angle(testBike.transform.up, Vector3.up);
+            string before = $"crashed {b.Crashed}, settled {b.Settled}, tilt {tilt:F0} deg, prompt \"{testBike.Prompt}\", can {testBike.CanInteract(p)}";
+            testBike.Interact(p);
+            Debug.Log($"[Nainital] ride fallen: {before} -> player {p.CurrentMode}, riding {(PlayerBike.Riding ? PlayerBike.Riding.name : "-")}, " +
+                      $"crashed {b.Crashed}, tilt {Vector3.Angle(testBike.transform.up, Vector3.up):F0} deg, traffic {(testBike.GetComponent<TrafficBike>() ? "still" : "gone")}");
+        }
+
+        /// <summary>E on the bike: off (brakes first if it is still moving).</summary>
+        public static void RideOff()
+        {
+            Need();
+            GameInput.TouchMove = Vector2.zero;
+            if (PlayerBike.Riding) PlayerBike.Riding.Interact(PlayerController.Instance);
+            Debug.Log($"[Nainital] ride off: player {PlayerController.Instance.CurrentMode}");
+        }
+
         public static void Crash()
         {
             Need();

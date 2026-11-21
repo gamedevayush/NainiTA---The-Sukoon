@@ -546,6 +546,87 @@ namespace Nainital
             return list2.ToArray();
         }
 
+        static Material amber;
+
+        /// <summary>The indicators (owner, 21 Nov 2026: "turn hogi to indicator degi pehle"): small amber two-sided quads
+        /// just outside the first head lamp (or pair) and the first tail lamp, on the part each hangs on (a bike's front
+        /// pair turns with its handlebar); a single centre lamp (a two-wheeler's) gets one each side of it. Off until
+        /// VehicleLamps blinks them. `head` is the head lamp material the amber copies.</summary>
+        public void BuildIndicators(Material head, out Renderer[] left, out Renderer[] right)
+        {
+            left = right = new Renderer[0];
+            if (setup == null || !head) return;
+            if (!amber) { amber = new Material(head) { name = "M_LampIndicator" }; amber.SetColor("_BaseColor", new Color(5f, 1.9f, 0.08f)); }
+            AtRest();
+            var L = new Dictionary<Transform, List<(Vector3 p, Quaternion r, Vector2 s)>>();
+            var R = new Dictionary<Transform, List<(Vector3 p, Quaternion r, Vector2 s)>>();
+            void Add(Dictionary<Transform, List<(Vector3, Quaternion, Vector2)>> d, Transform on, Vector3 p, Quaternion r, Vector2 s)
+            {
+                if (!d.TryGetValue(on, out var list)) d[on] = list = new List<(Vector3, Quaternion, Vector2)>();
+                list.Add((p, r, s));
+            }
+            foreach (var set in new[] { setup.head, setup.tail })
+            {
+                if (set == null || set.Length == 0 || set[0] == null) continue;
+                var l = set[0];
+                Transform on = SeatParent;
+                if (!string.IsNullOrEmpty(l.on))
+                    foreach (var t in body.GetComponentsInChildren<Transform>(true)) if (t.name == l.on) { on = t; break; }
+                Vector2 s = TwoWheeler ? new Vector2(0.05f, 0.04f) : new Vector2(0.075f, 0.05f);
+                var rot = Quaternion.Euler(l.euler);
+                var mir = Quaternion.Euler(l.euler.x, -l.euler.y, -l.euler.z);
+                if (l.mirror)
+                {
+                    float ax = Mathf.Abs(l.pos.x) + l.size.x * 0.5f + 0.045f;
+                    bool origLeft = l.pos.x < 0f;
+                    Add(L, on, new Vector3(-ax, l.pos.y, l.pos.z), origLeft ? rot : mir, s);
+                    Add(R, on, new Vector3(ax, l.pos.y, l.pos.z), origLeft ? mir : rot, s);
+                }
+                else
+                {
+                    float dx = l.size.x * 0.5f + 0.09f;
+                    Add(L, on, new Vector3(l.pos.x - dx, l.pos.y, l.pos.z), rot, s);
+                    Add(R, on, new Vector3(l.pos.x + dx, l.pos.y, l.pos.z), rot, s);
+                }
+            }
+            left = QuadSets(L, amber, "IndicatorL");
+            right = QuadSets(R, amber, "IndicatorR");
+        }
+
+        /// <summary>Two-sided quads (vehicle space) as one mesh per part they hang on, renderers off.</summary>
+        Renderer[] QuadSets(Dictionary<Transform, List<(Vector3 p, Quaternion r, Vector2 s)>> byPart, Material mat, string name)
+        {
+            var list2 = new List<Renderer>();
+            foreach (var kv in byPart)
+            {
+                var verts = new List<Vector3>();
+                var tris = new List<int>();
+                foreach (var (p, r, s) in kv.Value)
+                {
+                    Vector3 ax = r * Vector3.right * (s.x * 0.5f), ay = r * Vector3.up * (s.y * 0.5f);
+                    int b = verts.Count;
+                    foreach (var c in new[] { p - ax - ay, p + ax - ay, p + ax + ay, p - ax + ay })
+                        verts.Add(kv.Key.InverseTransformPoint(Frame.TransformPoint(c)));
+                    tris.AddRange(new[] { b, b + 1, b + 2, b, b + 2, b + 3, b, b + 2, b + 1, b, b + 3, b + 2 });
+                }
+                var mesh = new Mesh { name = model + "_" + name };
+                if (!Application.isPlaying) mesh.hideFlags = HideFlags.DontSave;
+                mesh.SetVertices(verts);
+                mesh.SetTriangles(tris, 0);
+                mesh.RecalculateNormals();
+                mesh.RecalculateBounds();
+                var go = new GameObject(name) { layer = gameObject.layer };
+                go.transform.SetParent(kv.Key, false);
+                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = mat;
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                mr.enabled = false;
+                list2.Add(mr);
+            }
+            return list2.ToArray();
+        }
+
         /// <summary>Where the first head lamp pair is (vehicle space; for the driven car's real spot lights).</summary>
         public bool HeadLampPoints(out Vector3 left, out Vector3 right)
         {

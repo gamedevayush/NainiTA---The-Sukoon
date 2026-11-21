@@ -25,3 +25,7 @@ Unity 6000.4.1f1 open-world Nainital. Public repo, Git LFS. The owner talks Hing
 - Commit / push only when the owner asks; push instructions for the next PC go into the docs above.
 - Close the Unity editor when idle (RAM); run heavy jobs one at a time.
 - Build World resets `bundleVersion` to 0.1.0 - never commit that.
+- **Vehicle rules (owner, 21 Nov 2026, "yaad rkhna")**: whenever the player gets into ANY vehicle (car, bus, auto,
+  e-rickshaw, bike, scooty) everyone else in it gets out; traffic shows its indicator before a turn; stuck traffic may
+  flash its dipper now and then; a townsperson in a vehicle's way steps aside. Keep these true in every vehicle change
+  (checks: `VehicleTest.RideBike` / `RideReport`, `SignalReport`, `JamReport`, `ColliderReport`, `PushTest`).

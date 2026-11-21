@@ -17,7 +17,9 @@ namespace Nainital
         public float cruise = 10f;
 
         int road, idx, dir;
-        float stuck, hornCd, pull;
+        float stuck, hornCd, pull, dipperCd;
+        readonly TurnPlan plan = new TurnPlan();
+        VehicleLamps lampsRef;
         bool down;
         BikeRide bike;
         NpcWalker rider;
@@ -45,6 +47,42 @@ namespace Nainital
             }
             else if (pm) rider = pm.MakeRider(bike.model, bike.SeatLocal);
             bike.OnCrash += Thrown;
+            if (!GetComponent<PlayerBike>()) gameObject.AddComponent<PlayerBike>();   // the player can take it (E)
+        }
+
+        PlayerBike giveTo;
+        PlayerController taker;
+        float pullT;
+
+        /// <summary>The player asked for this bike (PlayerBike): pull up, everyone off, then it is the player's.</summary>
+        public void RequestTakeover(PlayerBike pb, PlayerController p) { giveTo = pb; taker = p; pullT = 0f; }
+
+        /// <summary>Stopped for the player: the rider and the pillion get off at their way out (the owner's rule: whoever
+        /// gets in, everyone else gets out), then the player mounts and the traffic lets the bike go.</summary>
+        void HandOver()
+        {
+            var pb = giveTo; var p = taker;
+            giveTo = null; taker = null;
+            if (!pb || !p || (p.transform.position - transform.position).sqrMagnitude > 12f * 12f) { if (pb) pb.Released(); return; }
+            var vp = bike.Parts;
+            string who = null;
+            foreach (var (n, seat) in new[] { (rider, 0), (pillion, 1) })
+            {
+                if (!n) continue;
+                Vector3 face = -transform.right;
+                Vector3 at = vp && vp.HasSetup ? vp.WayOut(seat, out face) : transform.position - transform.right * 0.9f + transform.forward * (seat == 0 ? 0f : -0.6f);
+                n.LeaveCar(at, face);
+                if (who == null) who = n.npcName;
+            }
+            rider = null; pillion = null;   // theirs no more (OnDestroy would take them with it)
+            if (who != null)
+            {
+                string[] lines = { "Arey! Meri bike!", "Bhai sahab, ye kya kar rahe ho?", "Le jao, le jao... police ko bataunga!", "Oye! Ruk!" };
+                GameEvents.ShowToast(who + ": \"" + lines[Random.Range(0, lines.Length)] + "\"", 2.5f);
+            }
+            if (lampsRef) lampsRef.signal = 0;
+            pb.Mount(p);
+            Destroy(this);   // TrafficManager drops it; BikeRide stays, the player rides it now
         }
 
         NpcWalker pillion;
@@ -71,21 +109,10 @@ namespace Nainital
             idx += dir;
             var pts = Pts;
             if (idx > 0 && idx < pts.Length - 1) return;
-            var links = net.Links(road, idx <= 0 ? 0 : 1);
-            var ok = new List<(int r, int i, int d)>();
-            if (links != null)
-                foreach (var (r, i) in links)
-                {
-                    if (r == road) continue;
-                    var q = net.roads[r].pts;
-                    int ow = net.roads[r].oneWay;
-                    if (ow != 0)
-                    {
-                        if ((ow > 0 && i >= q.Length - 2) || (ow < 0 && i <= 1)) continue;
-                        ok.Add((r, i, ow));
-                    }
-                    else ok.Add((r, i, i <= 0 ? 1 : i >= q.Length - 1 ? -1 : (Random.value < 0.5f ? 1 : -1)));
-                }
+            // the road planned (and signalled) 30 m back, else one picked now
+            var planned = plan.Take(road, dir);
+            if (planned.HasValue) { road = planned.Value.r; idx = planned.Value.i; dir = planned.Value.d; return; }
+            var ok = RoadChoice.Onward(net, road, idx);
             if (ok.Count > 0)
             {
                 var c = ok[Random.Range(0, ok.Count)];
@@ -116,9 +143,16 @@ namespace Nainital
         void FixedUpdate()
         {
             if (!net || !bike || down) return;
-            if (bike.Crashed) return;
+            if (bike.Crashed) { if (giveTo) { giveTo.Released(); giveTo = null; } return; }
             float dt = Time.fixedDeltaTime;
             Vector3 pos = transform.position;
+            if (giveTo)   // pulling up for the player
+            {
+                bike.Drive(transform.position + bike.Forward * 4f, 0f, dt);
+                if (lampsRef) lampsRef.signal = -1;   // over to the left
+                if (bike.Speed < 0.3f && (pullT += dt) > 0.35f) HandOver();
+                return;
+            }
             for (int guard = 0; guard < 4; guard++)
             {
                 Vector3 nx = Lane(idx + dir) - pos;
@@ -126,6 +160,10 @@ namespace Nainital
                 if (nx.magnitude < 2f || (nx.magnitude < 7f && Vector3.Dot(nx, bike.Forward) < 0f)) { Advance(); if (!this || down) return; }
                 else break;
             }
+            // the indicator for the turn planned ahead (owner, 21 Nov 2026)
+            if (!lampsRef) lampsRef = GetComponent<VehicleLamps>();
+            plan.Tick(net, road, dir, pos, dt);
+            if (lampsRef) lampsRef.signal = plan.Signal;
             float speed = bike.Speed;
             Vector3 ahead = Lane(idx + dir * 3) - pos;
             ahead.y = 0;
@@ -150,6 +188,8 @@ namespace Nainital
             if (speed < 0.3f) stuck += dt; else stuck = 0f;
             hornCd -= dt;
             if (stuck > 2f && hornCd <= 0f && AudioManager.Instance) { AudioManager.Instance.HornAt(pos + Vector3.up, false); hornCd = Random.Range(5f, 10f); }
+            dipperCd -= dt;   // held up: a flick of the headlight now and then
+            if (stuck > 2.5f && dipperCd <= 0f) { if (lampsRef && Random.value < 0.45f) { lampsRef.Flash(); TrafficCar.Dippers++; } dipperCd = Random.Range(3f, 7f); }
             if (stuck > 30f && !Seen()) Destroy(gameObject);
         }
 
@@ -207,6 +247,7 @@ namespace Nainital
 
         void OnDestroy()
         {
+            if (bike) bike.OnCrash -= Thrown;   // the player picked it up and rides it (PlayerBike): no thrown handler left behind
             if (rider) Destroy(rider.gameObject);
             if (pillion) Destroy(pillion.gameObject);
         }

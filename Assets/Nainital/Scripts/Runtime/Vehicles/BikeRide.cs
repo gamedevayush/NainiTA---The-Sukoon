@@ -68,7 +68,7 @@ namespace Nainital
                 if (s0 != null && s0.surface > 0f) b.seatTop = s0.surface;
                 VehicleFactory.LampMaterials(out var hm, out var tm);
                 parts.BuildLamps(hm, tm, out var heads, out var tails);
-                if (heads.Length > 0) { var vl = root.AddComponent<VehicleLamps>(); vl.lamps = heads[0]; vl.more = heads; }
+                if (heads.Length > 0) { var vl = root.AddComponent<VehicleLamps>(); vl.lamps = heads[0]; vl.more = heads; parts.BuildIndicators(hm, out vl.indL, out vl.indR); }
                 if (tails.Length > 0) root.AddComponent<VehicleFX>().tails = tails;
             }
             return root;
@@ -110,8 +110,9 @@ namespace Nainital
             return new Vector3(p.x, t ? top : p.y, p.z);
         }
 
-        /// <summary>One physics step towards `aim` at up to targetSpeed (call from FixedUpdate).</summary>
-        public void Drive(Vector3 aim, float targetSpeed, float dt)
+        /// <summary>One physics step towards `aim` at up to targetSpeed (call from FixedUpdate). walkRound: standing, the
+        /// rider walks it round on the spot even with nowhere to go ahead (the player, facing a wall).</summary>
+        public void Drive(Vector3 aim, float targetSpeed, float dt, bool walkRound = false)
         {
             if (Crashed) return;
             float acc = targetSpeed > Speed ? 3.2f : 7.5f;
@@ -120,7 +121,7 @@ namespace Nainital
             to.y = 0f;
             float want = to.sqrMagnitude > 0.04f ? Vector3.SignedAngle(Forward, to, Vector3.up) : 0f;
             // standing or crawling, the rider walks it round (a U-turn on the spot); faster, the turn rate falls with speed
-            float maxRate = Speed < 0.3f ? (targetSpeed > 0.2f ? 80f : 0f) : Mathf.Lerp(140f, 50f, Mathf.Clamp01(Speed / 14f));
+            float maxRate = Speed < 0.3f ? (targetSpeed > 0.2f || walkRound ? 80f : 0f) : Mathf.Lerp(140f, 50f, Mathf.Clamp01(Speed / 14f));
             if (Mathf.Abs(want) > 70f) Speed = Mathf.Min(Speed, 1.5f);
             yawRate = Mathf.MoveTowards(yawRate, Mathf.Clamp(want * 2.4f, -maxRate, maxRate), 300f * dt);
             yaw += yawRate * dt;
@@ -134,12 +135,40 @@ namespace Nainital
             pitch = this.pitch;
             rb.MovePosition(p);
             rb.MoveRotation(heading * Quaternion.Euler(pitch, 0f, 0f));
+            PushPeople(p, heading);
             lean = Mathf.MoveTowards(lean, Mathf.Clamp(-yawRate * Speed * 0.03f, -30f, 30f), 90f * dt);
             if (model) model.localRotation = Quaternion.Euler(0f, 0f, lean);
             // the handlebar for this turn rate: tan(steer) = yaw rate * wheelbase / speed (walked round: full lock)
             float wb = length * 0.66f;
             float want2 = Mathf.Atan2(yawRate * Mathf.Deg2Rad * wb, Mathf.Max(Speed, 0.6f)) * Mathf.Rad2Deg;
             Steer = Mathf.MoveTowards(Steer, Mathf.Clamp(want2, -35f, 35f), 120f * dt);
+        }
+
+        static readonly Collider[] near = new Collider[8];
+        BoxCollider box;
+
+        /// <summary>The bike moves itself (a kinematic body): nothing physical stops it at a person, so it went straight
+        /// through the player (owner, 21 Nov 2026: "ek gaadi mere aarpaar chala gaya"). Anyone (the player, a townsperson)
+        /// standing in its box at its new place is shoved out sideways, the shorter way, as a car's body would.</summary>
+        void PushPeople(Vector3 at, Quaternion heading)
+        {
+            if (!box) box = GetComponent<BoxCollider>();
+            if (!box) return;
+            Vector3 half = box.size * 0.5f;
+            Vector3 c = at + heading * box.center;
+            int n = Physics.OverlapBoxNonAlloc(c, half, near, heading, (1 << 8) | (1 << 9), QueryTriggerInteraction.Ignore);
+            Vector3 right = heading * Vector3.right;
+            for (int i = 0; i < n; i++)
+            {
+                var cc = near[i] as CharacterController;
+                if (!cc) cc = near[i].GetComponentInParent<CharacterController>();
+                if (!cc || !cc.enabled || cc.transform.IsChildOf(transform)) continue;   // its rider and pillion sit on it
+                Vector3 rel = cc.transform.position - c;
+                float lat = Vector3.Dot(rel, right);
+                float need = half.x + cc.radius + 0.03f - Mathf.Abs(lat);
+                if (need <= 0f) continue;
+                cc.Move(right * (lat >= 0f ? need : -need));
+            }
         }
 
         /// <summary>Standing on its side stand (parked, the rider off): a slight lean to the left.</summary>
@@ -172,6 +201,25 @@ namespace Nainital
             Vector3 local = pc.transform.InverseTransformPoint(transform.position + Vector3.up * 0.6f);
             if (Mathf.Abs(local.x) < hw && Mathf.Abs(local.z) < hl && local.y > -0.5f && local.y < 2.5f)
                 Crash(crb.linearVelocity, pc.gameObject);
+        }
+
+        /// <summary>Down and no longer tumbling (it can be picked up).</summary>
+        public bool Settled => !Crashed || rb.isKinematic || (rb.linearVelocity.sqrMagnitude < 0.5f && rb.angularVelocity.sqrMagnitude < 1f);
+
+        /// <summary>Picked up off the ground (owner, 21 Nov 2026: "maine ek bnde ko bike se giraya..but main uski bike ko drive
+        /// kyun nhi krapata"): upright on its wheels where it lies, facing the way it points, moving itself again.</summary>
+        public void Recover()
+        {
+            if (!Crashed) return;
+            if (!rb.isKinematic) { rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero; }
+            rb.isKinematic = true;
+            Crashed = false;
+            crashT = 0f;
+            Vector3 f = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+            if (f.sqrMagnitude < 0.01f) f = Vector3.ProjectOnPlane(transform.up, Vector3.up);   // lying on its nose / tail
+            Place(transform.position, f);
+            lean = 0f; pitch = 0f; yawRate = 0f; Steer = 0f;
+            if (model) model.localRotation = Quaternion.identity;
         }
 
         /// <summary>Knocked over: a physics body from here on (falls, tumbles, lies there).</summary>

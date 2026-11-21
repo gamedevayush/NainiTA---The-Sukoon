@@ -297,16 +297,24 @@ namespace Nainital
                 Transform car = rb ? rb.transform : col.transform;
                 Vector3 v = Vector3.zero;
                 var tc = car.GetComponent<TrafficCar>();
+                var br = car.GetComponent<BikeRide>();   // a two-wheeler moves itself (kinematic): its own speed
+                bool traffic = tc || car.GetComponent<TrafficBike>();
                 if (tc) v = car.forward * tc.Speed;
+                else if (br) v = br.Forward * br.Speed;
                 else if (rb && !rb.isKinematic) v = rb.linearVelocity;
                 v.y = 0f;
                 float sp = v.magnitude;
-                if (sp < 1.5f) continue;
-                Vector3 fwd = v / sp;
+                Vector3 fwd;
+                float reach;
+                if (sp >= 1.5f) { fwd = v / sp; reach = 4f + sp * 2.2f; }
+                // a traffic vehicle waiting with us in its way: it will not come on until we move, so we move (owner,
+                // 21 Nov 2026: "NPC ke pass gaadi aaye to vo side hojaaye varna jam lagjayega")
+                else if (traffic) { fwd = new Vector3(car.forward.x, 0f, car.forward.z).normalized; reach = 7f; }
+                else continue;
                 Vector3 rel = pos - car.position;
                 rel.y = 0f;
                 float ahead = Vector3.Dot(rel, fwd);
-                if (ahead < -1.5f || ahead > 4f + sp * 2.2f) continue;   // behind it, or more than ~2 s away
+                if (ahead < -1.5f || ahead > reach) continue;   // behind it, or more than ~2 s away
                 Vector3 right = Vector3.Cross(Vector3.up, fwd);
                 float lat = Vector3.Dot(rel, right);
                 var info = car.GetComponent<VehicleInfo>();
