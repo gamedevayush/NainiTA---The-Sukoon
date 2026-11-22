@@ -767,6 +767,16 @@ namespace Nainital.EditorTools
             {
                 Vector2 a = L.p[i] + L.side[i] * off, c = L.p[i + 1] + L.side[i + 1] * off;
                 if (!Here(a)) continue;
+                bool openA = JoggersPark.InOpening(a), openC = JoggersPark.InOpening(c);
+                if (openA && openC) continue;   // a way into City Joggers Park: no parapet, no gate (owner, 22 Nov 2026)
+                if (openA || openC)   // the parapet ends at the last point outside the way in, with a plastered end face
+                {
+                    Vector2 e0 = openC ? a : c, sE = openC ? L.side[i] : L.side[i + 1];
+                    float yE = openC ? L.y[i] : L.y[i + 1];
+                    Vector2 tE = openC ? L.tan[i] : -L.tan[i + 1];   // facing the gap
+                    solid.At(e0)[0].Quad(V(e0 - sE * 0.2f, yE - 1.6f), V(e0 + sE * 0.2f, yE - 1.6f), V(e0 + sE * 0.2f, yE + pH), V(e0 - sE * 0.2f, yE + pH), plaster, Flat(tE));
+                    continue;
+                }
                 if (i % 30 == 14) lowerLampSpots.Add((a, L.y[i] + 0.55f, L.tan[i]));   // a lamp on the parapet every 30 m
                 var b = solid.At(a);
                 float y0 = L.y[i], y1 = L.y[i + 1];
@@ -785,7 +795,7 @@ namespace Nainital.EditorTools
                 }
                 if (i % 2 != 0) continue;
                 Vector2 e = L.p[i + 2] + L.side[i + 2] * off;
-                if (!Here(e)) continue;
+                if (!Here(e) || JoggersPark.InOpening(e)) continue;
                 Vector3 a3 = V(a, y0 + pH), e3 = V(e, L.y[i + 2] + pH);
                 var rot = Quaternion.LookRotation(Flat(L.tan[i]));
                 b[0].Box(a3 + Vector3.up * 0.52f, new Vector3(0.1f, 1.04f, 0.1f), rot, green);

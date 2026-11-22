@@ -198,6 +198,7 @@ namespace Nainital.EditorTools
                 if (d < bd) { bd = d; best = g; }
             }
             if (!best) throw new System.Exception("no gym station");
+            PlayerStats.DebugEnergy(1f);   // a run of workouts empties the bar and the next one only says "too tired"
             Put(best.transform.position - best.transform.forward * 1.2f, best.transform.position);
             Log($"gym '{best.kind}' at {best.transform.position:F1}: muscle {PlayerStats.Get(PlayerStats.Stat.Muscle):F2} stamina {PlayerStats.Get(PlayerStats.Stat.Stamina):F2}");
             best.Interact(P);
@@ -218,6 +219,48 @@ namespace Nainital.EditorTools
         // ------------------------------------------------------------------ #10 umbrellas
         public static void Rain() { Need(); WeatherSystem.Instance.Set(WeatherSystem.Kind.Rain); Log("rain on"); }
         public static void Clear() { Need(); WeatherSystem.Instance.Set(WeatherSystem.Kind.Clear); Log("sky clear"); }
+
+        /// <summary>The player 5 m ahead of the nearest walker under an umbrella, facing it (it walks towards the camera).</summary>
+        public static void UmbrellaView()
+        {
+            Need();
+            Transform best = null;
+            float bd = float.MaxValue;
+            foreach (var t in Object.FindObjectsByType<MeshFilter>(FindObjectsSortMode.None))
+                if (t.name == "Umbrella" && t.gameObject.activeInHierarchy && t.GetComponentInParent<NpcWalker>())
+                {
+                    float d = (t.transform.position - P.transform.position).sqrMagnitude;
+                    if (d < bd) { bd = d; best = t.transform; }
+                }
+            if (!best) throw new System.Exception("no umbrella open");
+            var w = best.GetComponentInParent<NpcWalker>();
+            Put(w.transform.position + w.transform.forward * 5f, w.transform.position);
+            Log($"looking at {w.name} under an umbrella at {w.transform.position:F1}");
+        }
+
+        /// <summary>Why the walkers near the camera have (no) umbrella: each test Umbrellas.Update makes, counted.</summary>
+        public static void UmbrellaWhy()
+        {
+            Need();
+            var cam = Camera.main;
+            Vector3 c = cam ? cam.transform.position : Vector3.zero;
+            int walkers = 0, inAll = 0, near = 0, inCar = 0, noRig = 0, dead = 0, seated = 0, ok = 0, umb = 0;
+            foreach (var t in Object.FindObjectsByType<MeshFilter>(FindObjectsSortMode.None)) if (t.name == "Umbrella" && t.gameObject.activeInHierarchy) umb++;
+            foreach (var w in Object.FindObjectsByType<NpcWalker>(FindObjectsSortMode.None))
+            {
+                if ((w.transform.position - P.transform.position).sqrMagnitude > 90f * 90f) continue;
+                walkers++;
+                if (Interactable.All.Contains(w)) inAll++;
+                if (w.InCar) inCar++;
+                var rig = w.GetComponentInChildren<HumanoidRig>();
+                if (!rig) noRig++; else { if (rig.dead) dead++; if (rig.seated) seated++; }
+                if ((w.transform.position - c).sqrMagnitude <= 90f * 90f) near++;
+                if (w.isActiveAndEnabled && !w.InCar && rig && !rig.dead && !rig.seated && (w.transform.position - c).sqrMagnitude <= 90f * 90f) ok++;
+            }
+            var u = Object.FindAnyObjectByType<Umbrellas>();
+            Log($"umbrella why: Camera.main {(cam ? cam.name : "NULL")} at {c:F0}; Umbrellas object {(u ? "yes" : "NO")}; rain {(WeatherSystem.Instance ? WeatherSystem.Instance.Rain : -1f):F2}; " +
+                $"walkers within 90 m of the player {walkers}: in Interactable.All {inAll}, near the camera {near}, in a car {inCar}, no HumanoidRig {noRig}, dead {dead}, seated {seated} -> eligible {ok} (about half get one); umbrellas open {umb}");
+        }
 
         // ------------------------------------------------------------------ the phone's photos -> the phone's gallery
         /// <summary>The NativeGallery package as PhoneCamera.SaveToDevice finds it (by reflection; used on a phone only):

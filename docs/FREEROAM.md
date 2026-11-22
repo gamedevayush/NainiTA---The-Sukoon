@@ -6,8 +6,29 @@ below is his; build to it, and log what was done (and what is still open) in the
 
 ## HANDOFF - 22 Nov 2026, 05:40 (read this first in a new chat)
 
-**Start here (the owner stopped at 05:40, back in 4-5 hours): the gym camera** - see "Test run 2" below: the fix is
-planned, not written. Then the rest of test run 2 (umbrellas, phone apps). Tripo models: NOT now (he said so again).
+**Update 22 Nov 13:20 (test run 3, main PC, not committed):** the gym camera is fixed and seen (`GymStation.PickView`:
+12 places round the player, the camera's own 0.25 m sphere cast + a ray, 3/4 front preferred; an override view during
+the workout, the old yaw / pitch back after), the new waiter look is seen (white shirt, no pandit), **umbrellas were
+broken and are fixed** (`Umbrellas` picked "odd instance ids" - Unity 6 gives even ids only, so nobody got one; now a
+mixed hash: 8 of 16 walkers in the rain, all folded ~8 s after it stops), the phone's Radio / Stats apps are right in
+English and Hindi (+ a `Waiter` line in `strings_shops.tsv`). Captures: `Shots/sheet_g4_gym_noon.jpg`,
+`sheet_r6a.jpg`, `sheet_r6b.jpg`, `sheet_r8_umbrellas.jpg`. Test helpers: `FreeroamTest.UmbrellaView` / `UmbrellaWhy`,
+`Gym` fills the energy bar first, `Editor/GymCamProbe.cs` (`Run`: what the camera hits; `Ground`: terrain round each
+frame).
+**Update 22 Nov 14:10 - City Joggers Park rebuilt (main PC, not committed; world built twice, Unity closed 18:10).**
+Owner: no gate, not flat ("up down terrain"), ground first, then the equipment. Done (details: TRACKER 22 Nov 13:30):
+the shore moved out to the satellite's edge (`FixJoggersParkShore`, `Editor/JoggersPark.cs`), rolling ground from a
+level earth strip under the parapet down to the stone wall at the water, two openings in the parapet (no gate), 9 level
+spots, the equipment built after the last ground step on concrete footings, and the road's bank rings no longer raise
+the ground behind the Lower Mall parapet (whole Lower Mall). Checked: every frame +0.00 m on its ground; walk in through
+both openings (3.6-3.9 m down into the park) and back up to the road; all three workouts seen, gym camera now gets a
+clear 3/4 front view at 4 m (`Shots/sheet_jp2_a.jpg`, `sheet_jp2_b.jpg`, `sheet_jp_play.jpg`). **Other PCs: Build World.**
+Left: outside the park the Lower Mall bank still has a small wedge at the parapet's foot (its bank starts 1.8 m under
+the road; the 1.46 m heightmap) - same strip trick would fix it, not done (owner's call); at the twister a pine's
+branches can sit in front of the gym camera (leaves have no collider).
+
+**Start here (the owner stopped at 05:40, back in 4-5 hours): the gym camera** - DONE 13:10 (above). Tripo models: NOT
+now (he said so again).
 
 **State.** Every item of the batch (#1-#10) is built and pushed; only the Tripo MODELS are missing (cows, dogs, cats,
 the unbranded fire truck): the owner parked them for later ("tripo ke saare model baad me krenge pr yaad rkhna") -
@@ -104,12 +125,12 @@ Tripo: he left the settings to us ("apne hisaab se set krlena") - keep the polyc
 | 3b | Language: English default, Hindi (Devanagari) everywhere (asked 22 Nov) | done 22 Nov: `Core/Loc.cs`, `Tools/loc/` (see the repo CLAUDE.md), 628 texts, every scene text covered (LocDump) |
 | 3c | Phone UI: curved body, glassmorphism, keypad, Nainital wallpapers (asked 22 Nov) | done 22 Nov (section 3, second pass) |
 | 4 | Petrol pumps + fuel | built 22 Nov (section 4); in the combined build-and-test |
-| 5 | Shops + restaurants (seated people, ordering) | built 22 Nov (section 5); shop buy + wear, restaurant order + waiter + diners verified in Play 22 Nov (test run 2); the waiter's new look not seen yet |
+| 5 | Shops + restaurants (seated people, ordering) | built 22 Nov (section 5); shop buy + wear, restaurant order + waiter + diners verified in Play 22 Nov (test run 2); the waiter's new look seen 22 Nov 13:12 (white shirt) |
 | 6 | House on the zoo road | built 22 Nov (section 6); bed / sleep / save + almari verified in Play 22 Nov; bed blocked while the almari is open |
-| 7 | Gym + stats + hunger | built 22 Nov (section 7); numbers + hunger blur verified; **open: the camera during a workout** (HANDOFF), so the poses are not seen yet |
+| 7 | Gym + stats + hunger | built 22 Nov (section 7); numbers + hunger blur verified; workout camera fixed + the three poses seen (22 Nov 13:10); City Joggers Park ground + equipment rebuilt 22 Nov 14:10 (HANDOFF) |
 | 8 | Cows, dogs, cats | code built 22 Nov (Characters/Animal.cs, AnimalManager.cs; spawns nothing until the models exist); the Tripo models wait for the owner's OK to restart Brave with CDP |
 | 9 | Radio | built 22 Nov (section 9): own music + three original stations |
-| 10 | Umbrellas in the rain | built 22 Nov (Characters/Umbrellas.cs); not yet seen in the rain (test run 2, still to run) |
+| 10 | Umbrellas in the rain | built 22 Nov (Characters/Umbrellas.cs); was giving none (even instance ids) - fixed + seen 22 Nov 13:17: about half the walkers, folded ~8 s after the rain |
 
 ## 2. Night lighting (22 Nov 2026)
 

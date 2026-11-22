@@ -50,11 +50,18 @@ namespace Nainital
             {
                 if (!(it is NpcWalker w) || held.ContainsKey(w)) continue;
                 if (!w.isActiveAndEnabled || w.InCar || Down(w)) continue;
-                if ((Mathf.Abs(w.GetInstanceID()) & 1) == 0) continue;
+                if (!Picked(w)) continue;
                 if ((w.transform.position - c).sqrMagnitude > 90f * 90f) continue;
                 Open(w);
             }
         }
+
+        /// <summary>About half the walkers, the same ones every time: a mixed hash of the instance id. (Its own low bit is no
+        /// use - Unity 6 hands out even instance ids only, so "odd id" picked nobody: 0 umbrellas in the 22 Nov rain test.)</summary>
+        static bool Picked(NpcWalker w) => ((uint)w.GetInstanceID() * 2654435761u >> 15 & 1u) == 1u;
+
+        /// <summary>One of the four umbrellas for this walker (mixed the same way).</summary>
+        static int Pick(NpcWalker w, int n) => (int)(((uint)w.GetInstanceID() * 2246822519u >> 13) % (uint)n);
 
         static bool Down(NpcWalker w)
         {
@@ -76,7 +83,7 @@ namespace Nainital
             var go = new GameObject("Umbrella");
             go.transform.SetParent(h.target, false);
             go.transform.localPosition = new Vector3(0f, -0.08f, 0f);
-            go.AddComponent<MeshFilter>().sharedMesh = meshes[Mathf.Abs(w.GetInstanceID() / 2) % meshes.Length];
+            go.AddComponent<MeshFilter>().sharedMesh = meshes[Pick(w, meshes.Length)];
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = GameAssets.AtlasMaterial;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

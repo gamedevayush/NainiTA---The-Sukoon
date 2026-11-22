@@ -24,6 +24,8 @@ namespace Nainital
         bool initialised;
 
         public Vector3 FlatForward => Quaternion.Euler(0, yaw, 0) * Vector3.forward;
+        /// <summary>What the camera follows instead of the player right now (a vehicle, a boat, the gym view), or null.</summary>
+        public Transform OverrideTarget => overrideTarget;
 
         void Awake()
         {

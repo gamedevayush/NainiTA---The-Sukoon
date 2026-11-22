@@ -22,6 +22,8 @@ namespace Nainital.EditorTools
         {
             bankTrees.Clear();
             bankTreeY.Clear();
+            bankKeep.Clear();
+            JoggersPark.Spots.Clear();
             const float off = LowerHalf + 0.42f + 0.22f;   // the parapet's outer face
             int n = L.Count;
             var along = new float[n];
@@ -40,7 +42,7 @@ namespace Nainital.EditorTools
                 float far = Mathf.Clamp01((34f - ld) / 4f);
                 float jetty = 1f;
                 foreach (var j in ctx.jettyRoots) jetty = Mathf.Min(jetty, Mathf.Clamp01(((a - j).magnitude - 6f) / 8f));
-                wt[i] = ld <= 0.5f ? 0f : Mathf.Min(ends, Mathf.Min(far, jetty));
+                wt[i] = ld <= 0.5f ? 0f : Mathf.Max(Mathf.Min(ends, Mathf.Min(far, jetty)), JoggersPark.Weight(a));   // the park is always shaped
             }
             var w = new float[n];
             for (int i = 0; i < n; i++)
@@ -92,7 +94,29 @@ namespace Nainital.EditorTools
                 float t = Mathf.Clamp01(s / Mathf.Max(w[i] - ledge, 0.8f));
                 float f = Mathf.SmoothStep(0f, 1f, t) * 0.6f + t * 0.4f;
                 float bump = (Mathf.PerlinNoise(p.x * 0.21f, p.y * 0.21f) - 0.5f) * 0.3f * Mathf.Sin(t * Mathf.PI);
-                return Mathf.Lerp(top, bottom, f) + bump;
+                float y = Mathf.Lerp(top, bottom, f) + bump;
+                float pk = JoggersPark.Weight(p);
+                return pk > 0f ? Mathf.Lerp(y, ParkTarget(i, s, p), pk) : y;
+            }
+
+            // City Joggers Park (owner, 22 Nov 2026: "na vo flat hai...up down terrain hai"): open ground from just under the
+            // road, rolling up and down as it falls to the ledge at the water; at the two openings in the parapet it comes up
+            // to the road so you walk in
+            float ParkTarget(int i, float s, Vector2 p)
+            {
+                // a level strip of earth along the parapet first, a hand under the road: the samples under the parapet stay
+                // near the road (its edge must not sag), and with the bank starting lower the 1.46 m heightmap made a
+                // saw-tooth of road-high lumps out from the wall (22 Nov, first build of the park)
+                const float strip = 1.8f;
+                float ledge = Mathf.Min(2.6f, w[i] * 0.3f);
+                float t = Mathf.Clamp01((s - strip) / Mathf.Max(w[i] - ledge - strip, 0.8f));
+                float open = JoggersPark.OpeningK(p);
+                float top = Mathf.Lerp(L.y[i] - 0.15f, L.y[i] - 0.06f, open);
+                float f = t * 0.55f + Mathf.SmoothStep(0f, 1f, t) * 0.45f;
+                float roll = (Mathf.PerlinNoise(p.x * 0.11f + 3.7f, p.y * 0.11f + 1.9f) - 0.5f) * 1.3f
+                           + (Mathf.PerlinNoise(p.x * 0.27f + 9.1f, p.y * 0.27f + 4.4f) - 0.5f) * 0.45f;
+                float env = Mathf.Sin(t * Mathf.PI) * (1f - open * Mathf.Clamp01(1f - t * 3f));   // the road edge, the ledge and the way in stay put
+                return Mathf.Lerp(top, bottom, f) + roll * env;
             }
 
             // shape the ground
@@ -136,17 +160,75 @@ namespace Nainital.EditorTools
                         if (s < 0.15f)
                         {
                             // under the parapet and the edge of the deck (both cover it): down to the bank's top, so the
-                            // ground meets the parapet's outer face cleanly instead of in a saw-tooth
+                            // ground meets the parapet's outer face cleanly instead of in a saw-tooth (in the park's
+                            // openings there is no parapet: up or down to the way in)
                             float under = Target(i, 0f, p), here = tp.y + h[zi, xi] * sz.y;
-                            if (here > under) h[zi, xi] = Mathf.Clamp01((Mathf.Lerp(here, under, wt[i]) - tp.y) / sz.y);
+                            bool opening = JoggersPark.OpeningK(p) > 0.5f;
+                            if (here > under || opening) h[zi, xi] = Mathf.Clamp01((Mathf.Lerp(here, under, wt[i]) - tp.y) / sz.y);
+                            if (opening && s > -0.6f) bankKeep.Add(zi * res + xi);
                             continue;
                         }
                         float y = Target(i, Mathf.Min(s, w[i]), p);
                         if (ctx.LakeDistance(p) < 1.0f) y = ctx.lakeY - 0.6f;   // behind the stone wall at the water, so no ground pokes out in front of it
                         float cur = tp.y + h[zi, xi] * sz.y;
                         h[zi, xi] = Mathf.Clamp01((Mathf.Lerp(cur, y, wt[i]) - tp.y) / sz.y);
+                        if (wt[i] > 0.5f) bankKeep.Add(zi * res + xi);   // the parapet holds this ground: the road's banks leave it (RoadGround)
                         changed++;
                     }
+
+                // City Joggers Park: a piece of the open gym every ~7 m along, each on the flattest place across the bank there
+                // (nearer the road and nearer the water by turns, off the ways in), the ground under it made level; the
+                // equipment itself is built on them after the last ground step (LandmarkBuilder.BuildJoggersPark)
+                float HAt(Vector2 q)
+                {
+                    float fx = (q.x - tp.x) * hx, fz = (q.y - tp.z) * hz;
+                    int x0i = Mathf.Clamp(Mathf.FloorToInt(fx), 0, res - 2), z0i = Mathf.Clamp(Mathf.FloorToInt(fz), 0, res - 2);
+                    float ux = Mathf.Clamp01(fx - x0i), uz = Mathf.Clamp01(fz - z0i);
+                    float r0 = Mathf.Lerp(h[z0i, x0i], h[z0i, x0i + 1], ux), r1 = Mathf.Lerp(h[z0i + 1, x0i], h[z0i + 1, x0i + 1], ux);
+                    return tp.y + Mathf.Lerp(r0, r1, uz) * sz.y;
+                }
+                float[] spotS = { 3f, 14.5f, 21.5f, 28.5f, 35.5f, 41.5f, 52.5f, 59.5f, 66.5f };
+                for (int k = 0; k < spotS.Length; k++)
+                {
+                    int i = Nearest(JoggersPark.World(spotS[k], 10f));
+                    if (i < 0 || wt[i] < 0.9f) continue;
+                    float lo = 3.2f, hi = w[i] - 4.2f;
+                    if (hi < lo) { Debug.LogWarning($"[Nainital] Joggers Park: no room at s {spotS[k]} (bank {w[i]:F1} m)"); continue; }
+                    float best = float.MaxValue;
+                    Vector2 bp = default;
+                    for (float sOut = lo; sOut <= hi + 0.01f; sOut += 0.75f)
+                    {
+                        Vector2 q = L.p[i] + L.side[i] * (off + sOut);
+                        float slope = 0f;
+                        for (int a = 0; a < 3; a++)
+                        {
+                            var o = new Vector2(Mathf.Cos(a * Mathf.PI / 3f), Mathf.Sin(a * Mathf.PI / 3f)) * 1.4f;
+                            slope = Mathf.Max(slope, Mathf.Abs(HAt(q + o) - HAt(q - o)));
+                        }
+                        float row = (sOut - lo) / Mathf.Max(hi - lo, 1f);
+                        float score = slope + (k % 2 == 0 ? row : 1f - row) * 0.45f;
+                        if (score < best) { best = score; bp = q; }
+                    }
+                    JoggersPark.Spots.Add((bp, L.tan[i], k % 3));
+                }
+                foreach (var sp in JoggersPark.Spots)
+                {
+                    float y = HAt(sp.p);
+                    const float R0 = 1.5f, R1 = 3.3f;
+                    int sx0 = Mathf.Max(0, Mathf.FloorToInt((sp.p.x - R1 - tp.x) * hx)), sx1 = Mathf.Min(res - 1, Mathf.CeilToInt((sp.p.x + R1 - tp.x) * hx));
+                    int sz0 = Mathf.Max(0, Mathf.FloorToInt((sp.p.y - R1 - tp.z) * hz)), sz1 = Mathf.Min(res - 1, Mathf.CeilToInt((sp.p.y + R1 - tp.z) * hz));
+                    for (int zi = sz0; zi <= sz1; zi++)
+                        for (int xi = sx0; xi <= sx1; xi++)
+                        {
+                            float dd = Vector2.Distance(new Vector2(tp.x + xi / hx, tp.z + zi / hz), sp.p);
+                            if (dd > R1) continue;
+                            float kk = Mathf.SmoothStep(1f, 0f, Mathf.InverseLerp(R0, R1, dd));
+                            float cur = tp.y + h[zi, xi] * sz.y;
+                            h[zi, xi] = Mathf.Clamp01((Mathf.Lerp(cur, y, kk) - tp.y) / sz.y);
+                            bankKeep.Add(zi * res + xi);
+                        }
+                }
+                Debug.Log($"[Nainital] Joggers Park: {JoggersPark.Spots.Count} level spots for the open gym");
                 td.SetHeights(0, 0, h);
                 UnityEditor.EditorUtility.SetDirty(td);
             }
@@ -173,6 +255,12 @@ namespace Nainital.EditorTools
                         float g = 0.35f + nz * 0.45f, f = 0.85f - g, e = 0.15f;
                         float k = wt[i];
                         float[] want = { g, f, 0f, e };
+                        float pk = JoggersPark.Weight(p);
+                        if (pk > 0f)   // the park: trodden earth and leaf litter more than grass (satellite: brown under the trees), bare round the equipment
+                        {
+                            float bare = JoggersPark.NearSpot(p, 1.9f) ? 0.9f : 0.32f + (1f - nz) * 0.3f;
+                            want = new[] { Mathf.Lerp(g, (1f - bare) * 0.6f, pk), Mathf.Lerp(f, (1f - bare) * 0.4f, pk), 0f, Mathf.Lerp(e, bare, pk) };
+                        }
                         for (int l = 0; l < 4 && l < am.GetLength(2); l++) am[zi, xi, l] = Mathf.Lerp(am[zi, xi, l], want[l], k);
                         painted++;
                     }
@@ -203,6 +291,7 @@ namespace Nainital.EditorTools
                 float s = 1.0f + Mathf.Pow(R(), 1.3f) * Mathf.Max(0.2f, w[i] - 1.9f);   // more of them up near the railing
                 Vector2 p = L.p[i] + L.side[i] * (off + s) + L.tan[i] * (R() - 0.5f);
                 if (ctx.InLake(p)) continue;
+                if (JoggersPark.NearSpot(p, 3.2f) || JoggersPark.OpeningK(p) > 0.2f) continue;   // the open gym's pieces and the ways in
                 float sc = Size();
                 if (s < 2.4f && sc < 1.1f) sc = 1.1f + R() * 0.4f;   // by the railing only grown trees: their crowns stand clear of the road
                 if (!Free(p, (2.4f + sc * 2.4f) * Mathf.Lerp(1.35f, 0.8f, dens) + R() * 1.2f)) continue;

@@ -11,8 +11,7 @@ namespace Nainital.EditorTools
     /// </summary>
     public static partial class LandmarkBuilder
     {
-        // the car's track on Lower Mall (local metres), heading north
-        static readonly Vector2 GymA = new Vector2(784.6f, -646.8f), GymB = new Vector2(748.3f, -591.3f);
+        // the car's track on Lower Mall (local metres), heading north (the open gym's: JoggersPark.A / B)
         static readonly Vector2 BoatsA = new Vector2(672.4f, -416.0f), BoatsB = new Vector2(665.0f, -397.0f);
         static readonly Vector2 SelfieA = new Vector2(646.0f, -363.0f), SelfieB = new Vector2(611.1f, -329.1f);
 
@@ -39,53 +38,8 @@ namespace Nainital.EditorTools
         internal static void BuildLowerMallSights(WorldCtx ctx, Transform parent)
         {
             var sm = new SiteMeshes();
-            var rng = new System.Random(2208);
 
-            // ---- the open gym: frames of yellow posts and red bars, seats and pedals, a board
-            {
-                Vector2 along = (GymB - GymA).normalized, lake = LakeSide(ctx, GymA, along);
-                float len = Vector2.Distance(GymA, GymB);
-                int pieces = 0;
-                for (float s = 6f; s < len - 4f; s += 5.5f + (float)rng.NextDouble() * 3f)
-                {
-                    Vector2 p = Bank(ctx, GymA + along * s, lake, 5.2f + (float)rng.NextDouble() * 1.5f);
-                    float y = ctx.H(p);
-                    Vector3 c = V3(p, y), a3 = new Vector3(along.x, 0f, along.y);
-                    Vector3 p0 = c - a3 * 0.7f, p1 = c + a3 * 0.7f;
-                    sm.atlas.Cylinder(p0, 0.06f, 0.06f, 2.1f, 6, S(Pal.BoatYellow), true);
-                    sm.atlas.Cylinder(p1, 0.06f, 0.06f, 2.1f, 6, S(Pal.BoatYellow), true);
-                    sm.atlas.Limb(p0 + Vector3.up * 2.05f, p1 + Vector3.up * 2.05f, 0.05f, 0.05f, 6, S(Pal.BoatRed), false);
-                    int kind = pieces % 3;
-                    if (kind == 0)   // a swing seat on red arms
-                        foreach (float t in new[] { 0.3f, 0.7f })
-                        {
-                            Vector3 top = Vector3.Lerp(p0, p1, t) + Vector3.up * 2.0f;
-                            sm.atlas.Limb(top, top + Vector3.down * 1.4f, 0.025f, 0.025f, 5, S(Pal.BoatRed), false);
-                            sm.atlas.Box(top + Vector3.down * 1.45f, new Vector3(0.35f, 0.06f, 0.4f), S(Pal.BoatRed));
-                        }
-                    else if (kind == 1)   // pedals on a red frame
-                    {
-                        sm.atlas.Box(c + Vector3.up * 0.55f, new Vector3(0.5f, 0.08f, 0.35f), Quaternion.LookRotation(a3), S(Pal.BoatRed));
-                        sm.atlas.Limb(c + Vector3.up * 0.55f, c + Vector3.up * 1.2f, 0.04f, 0.04f, 5, S(Pal.BoatYellow), false);
-                        sm.atlas.Box(c + Vector3.up * 0.35f + a3 * 0.4f, new Vector3(0.25f, 0.05f, 0.12f), S(Pal.JacketBlack));
-                    }
-                    else   // a twister disc
-                        sm.atlas.Cylinder(c + Vector3.up * 0.15f, 0.35f, 0.35f, 0.08f, 10, S(Pal.BoatRed), true);
-                    // a workout spot the player can use (Runtime/Interaction/GymStation.cs; stats only, 22 Nov 2026)
-                    var gs = new GameObject("Gym spot " + pieces).AddComponent<GymStation>();
-                    gs.transform.SetParent(parent, false);
-                    gs.transform.position = c + Vector3.up * 0.9f;
-                    gs.kind = kind == 0 ? "pull" : kind == 1 ? "pedal" : "twist";
-                    gs.along = a3;   // the top bar's direction (the pull-ups' hands go on it)
-                    gs.radius = 1.8f;
-                    pieces++;
-                }
-                Vector2 bp = Bank(ctx, GymA + along * 3f, lake, 3.6f);
-                float yaw = Mathf.Atan2(-lake.x, -lake.y) * Mathf.Rad2Deg;   // facing the road
-                Board(sm, V3(bp, ctx.H(bp) + 1.7f), yaw, 1.8f, 0.9f, Pal.ShirtWhite, new[] { "CITY JOGGERS PARK", "OPEN GYM" }, new[] { 0.14f, 0.18f },
-                      Pal.BoatBlue, Pal.StoneGrey, ctx.H(bp));
-                Debug.Log($"[Nainital] Lower Mall: open gym, {pieces} pieces");
-            }
+            // ---- the open gym (City Joggers Park) is built by BuildJoggersPark, after the last ground step
 
             // ---- the swan boats moored along the walk
             {
@@ -161,6 +115,75 @@ namespace Nainital.EditorTools
                 Debug.Log($"[Nainital] Lower Mall: Rotary Selfie Point at ({c0.x:F1}, {c0.y:F1}), {len:F0} m");
             }
             sm.Emit(ctx, "Lower Mall lake side (Street View)", parent);
+        }
+
+        /// <summary>
+        /// City Joggers Park's open gym (Street View panoramas 50-56: yellow posts, red bars, swing seats, pedals, twister
+        /// discs, a board): one piece on each level spot the Lower Mall bank made on the park's rolling ground
+        /// (JoggersPark.Spots). Built after "Roads into the terrain", so every post stands on the ground as it finally is
+        /// (22 Nov 2026: built in the Mall Road step, 6 of 9 frames ended 0.7-1.5 m in the ground or on the road). Each post
+        /// goes 0.3 m into the ground on a concrete footing; a workout spot (GymStation) on each.
+        /// </summary>
+        internal static void BuildJoggersPark(WorldCtx ctx)
+        {
+            if (JoggersPark.Spots.Count == 0) { Debug.LogWarning("[Nainital] City Joggers Park: no spots (Mall Road not built?)"); return; }
+            var parent = ctx.worldRoot.Find("Mall Road");
+            if (!parent) parent = ctx.worldRoot;
+            var sm = new SiteMeshes();
+            Vector2 conc = S(Pal.StoneGrey);
+            int pieces = 0;
+            foreach (var (p, along2, kind) in JoggersPark.Spots)
+            {
+                Vector3 a3 = new Vector3(along2.x, 0f, along2.y).normalized;
+                Vector3 c = V3(p, ctx.H(p));
+                Vector3 p0 = c - a3 * 0.7f, p1 = c + a3 * 0.7f;
+                float top = c.y + 2.05f;   // the top bar over the level spot
+                foreach (var post in new[] { p0, p1 })
+                {
+                    float g = ctx.H(new Vector2(post.x, post.z));
+                    sm.atlas.Cylinder(new Vector3(post.x, g - 0.3f, post.z), 0.06f, 0.06f, top + 0.05f - (g - 0.3f), 6, S(Pal.BoatYellow), true);
+                    sm.atlas.Box(new Vector3(post.x, g + 0.03f, post.z), new Vector3(0.3f, 0.12f, 0.3f), Quaternion.LookRotation(a3), conc);   // the footing
+                }
+                p0.y = p1.y = c.y;
+                sm.atlas.Limb(p0 + Vector3.up * 2.05f, p1 + Vector3.up * 2.05f, 0.05f, 0.05f, 6, S(Pal.BoatRed), false);
+                if (kind == 0)   // a swing seat on red arms
+                    foreach (float t in new[] { 0.3f, 0.7f })
+                    {
+                        Vector3 bar = Vector3.Lerp(p0, p1, t) + Vector3.up * 2.0f;
+                        sm.atlas.Limb(bar, bar + Vector3.down * 1.4f, 0.025f, 0.025f, 5, S(Pal.BoatRed), false);
+                        sm.atlas.Box(bar + Vector3.down * 1.45f, new Vector3(0.35f, 0.06f, 0.4f), S(Pal.BoatRed));
+                    }
+                else if (kind == 1)   // pedals on a red frame
+                {
+                    sm.atlas.Box(c + Vector3.up * 0.55f, new Vector3(0.5f, 0.08f, 0.35f), Quaternion.LookRotation(a3), S(Pal.BoatRed));
+                    sm.atlas.Limb(c + Vector3.up * 0.55f, c + Vector3.up * 1.2f, 0.04f, 0.04f, 5, S(Pal.BoatYellow), false);
+                    sm.atlas.Box(c + Vector3.up * 0.35f + a3 * 0.4f, new Vector3(0.25f, 0.05f, 0.12f), S(Pal.JacketBlack));
+                }
+                else   // a twister disc
+                    sm.atlas.Cylinder(c + Vector3.up * 0.15f, 0.35f, 0.35f, 0.08f, 10, S(Pal.BoatRed), true);
+                // a workout spot the player can use (Runtime/Interaction/GymStation.cs; stats only)
+                var gs = new GameObject("Gym spot " + pieces).AddComponent<GymStation>();
+                gs.transform.SetParent(parent, false);
+                gs.transform.position = c + Vector3.up * 0.9f;
+                gs.kind = kind == 0 ? "pull" : kind == 1 ? "pedal" : "twist";
+                gs.along = a3;   // the top bar's direction (the pull-ups' hands go on it)
+                gs.radius = 1.8f;
+                pieces++;
+            }
+            // the board, just inside the south way in, facing the road
+            Vector2 bp = JoggersPark.World(JoggersPark.Openings[0] - 2.6f, 0f);
+            for (int k = 0; k < 30 && JoggersPark.Track(bp).y < 30f; k++)   // out from the track to just past the parapet: the first ground well below the road
+            {
+                if (ctx.H(bp) < ctx.H(JoggersPark.World(JoggersPark.Openings[0] - 2.6f, 0f)) - 0.35f) break;
+                bp += JoggersPark.Lake * 0.5f;
+            }
+            bp += JoggersPark.Lake * 0.9f;
+            float yaw = Mathf.Atan2(-JoggersPark.Lake.x, -JoggersPark.Lake.y) * Mathf.Rad2Deg;   // facing the road
+            float by = ctx.H(bp);
+            Board(sm, V3(bp, by + 1.7f), yaw, 1.8f, 0.9f, Pal.ShirtWhite, new[] { "CITY JOGGERS PARK", "OPEN GYM" }, new[] { 0.14f, 0.18f },
+                  Pal.BoatBlue, Pal.StoneGrey, by);
+            sm.Emit(ctx, "City Joggers Park (open gym)", parent);
+            Debug.Log($"[Nainital] City Joggers Park: {pieces} pieces of the open gym on the park's level spots, board at ({bp.x:F1}, {bp.y:F1})");
         }
     }
 }

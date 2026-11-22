@@ -9,6 +9,12 @@ namespace Nainital.EditorTools
         /// whether the road is painted into the ground), collected by BuildRoads and the Mall Road.</summary>
         static readonly List<(Vector3[] L, Vector3[] R, float lift, bool painted)> roadStrips = new List<(Vector3[], Vector3[], float, bool)>();
 
+        /// <summary>Heightmap samples (z * res + x) of the bank behind Lower Mall's parapet, shaped by LowerMallBank: the
+        /// parapet holds that ground, so the banks beside a painted road leave it. (22 Nov 2026: the final pass raised the
+        /// 3 m behind the parapet 25-60 % of the way back to the road - dark mounds against the wall, the open gym's frames
+        /// 0.7-1.5 m in the ground, the trees by the railing sunk.)</summary>
+        static readonly HashSet<int> bankKeep = new HashSet<int>();
+
         /// <summary>
         /// A road painted into the ground (WorldBuilder.RoadMask.cs) has no slab: the ground under it is set to the road's
         /// smoothed surface, up or down, so the terrain collider is the road and the road has no bumps from the ground
@@ -30,6 +36,7 @@ namespace Nainital.EditorTools
         {
             RoadGround(ctx, true);
             roadStrips.Clear();
+            bankKeep.Clear();
             DeckEndRamps(ctx);
         }
 
@@ -181,7 +188,7 @@ namespace Nainital.EditorTools
                         for (int xi = gx0; xi <= gx1; xi++)
                         {
                             int k = zi * res + xi;
-                            if (ring[k] != 0) continue;
+                            if (ring[k] != 0 || bankKeep.Contains(k)) continue;
                             float s = 0f; int c = 0;
                             for (int dz = -1; dz <= 1; dz++)
                                 for (int dx = -1; dx <= 1; dx++)

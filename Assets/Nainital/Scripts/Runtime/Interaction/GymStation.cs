@@ -19,6 +19,7 @@ namespace Nainital
         /// <summary>The frame's top bar direction (its two posts stand 0.7 m either side along it, the bar 2.05 m up).</summary>
         public Vector3 along;
         float readyAt;
+        Transform camRig;   // the workout's camera view (ThirdPersonCamera override) while it runs
 
         /// <summary>The ground under the frame (this spot is 0.9 m over it).</summary>
         Vector3 Ground => transform.position - Vector3.up * 0.9f;
@@ -70,6 +71,22 @@ namespace Nainital
             if (motor) motor.Teleport(stand + Vector3.up * 0.05f);
             p.transform.rotation = Quaternion.LookRotation(n);
             Vector3 right = Vector3.Cross(Vector3.up, n);
+
+            // the camera: the roomiest 3/4 view of the workout (the old one stayed where it was and the frame's posts / the
+            // bank's trees pulled it into the jacket or low between the trees - 22 Nov test run 2)
+            var tpc = ThirdPersonCamera.Instance;
+            float oldPitch = tpc ? tpc.pitch : 0f, oldYaw = tpc ? tpc.yaw : 0f;   // the view the player walked up with: open ground
+            if (tpc)
+            {
+                float lift = kind == "pull" ? 0.3f : 0f;   // the body hangs 0.16-0.5 m up on the bar
+                const float viewPitch = 11f;               // what ThirdPersonCamera eases an override's pitch to
+                float yaw = PickView(stand + Vector3.up * (tpc.height + lift), n, tpc.collisionMask, viewPitch, out float dist);
+                camRig = new GameObject("Gym camera").transform;
+                camRig.SetPositionAndRotation(stand + Vector3.up * lift, Quaternion.Euler(0f, yaw, 0f));   // the override's yaw = this view
+                tpc.yaw = yaw;
+                tpc.pitch = viewPitch;
+                tpc.SetOverride(camRig, dist);
+            }
 
             // the hands: on the top bar (pull) or the handle post's top (pedal), through the player's HandIK
             var ik = p.GetComponent<HandIK>();
@@ -124,6 +141,7 @@ namespace Nainital
             }
             if (hl) Destroy(hl.gameObject);
             if (hr) Destroy(hr.gameObject);
+            if (ReleaseCamera() && tpc) { tpc.pitch = oldPitch; tpc.yaw = oldYaw; }
             float muscle = kind == "pull" ? 3f : kind == "weights" ? 2.5f : 1.2f;
             float stamina = kind == "pedal" ? 2.5f : kind == "twist" ? 1.5f : 1f;
             PlayerStats.Train(PlayerStats.Stat.Muscle, muscle);
@@ -138,10 +156,53 @@ namespace Nainital
             Haptics.Success();
         }
 
+        /// <summary>The camera back on the player if it still follows this workout's view (a vehicle / boat override set
+        /// meanwhile is left alone). True when it did.</summary>
+        bool ReleaseCamera()
+        {
+            if (!camRig) return false;
+            var tpc = ThirdPersonCamera.Instance;
+            bool ours = tpc && tpc.OverrideTarget == camRig;
+            if (ours) tpc.SetOverride(null, 0f);
+            Destroy(camRig.gameObject);
+            camRig = null;
+            return ours;
+        }
+
+        /// <summary>The camera's yaw (ThirdPersonCamera.yaw: it looks that way, from behind) and distance for the workout:
+        /// of 12 places round the player, the one with the most room - a sphere cast from the camera's pivot the way
+        /// ThirdPersonCamera casts - with a 3/4 front view preferred, then the front, the side, the back.</summary>
+        static float PickView(Vector3 pivot, Vector3 face, LayerMask mask, float pitch, out float dist)
+        {
+            const float want = 4f, least = 2.2f;
+            float faceYaw = Mathf.Atan2(face.x, face.z) * Mathf.Rad2Deg;
+            float bestScore = -1f, bestYaw = faceYaw + 180f, bestRel = 180f;
+            dist = want;
+            for (int i = 0; i < 12; i++)
+            {
+                float rel = i * 30f;                                   // where the camera stands, from the player's facing
+                float a = Mathf.Abs(Mathf.DeltaAngle(0f, rel));
+                float pref = a >= 25f && a <= 65f ? 1f : a < 25f ? 0.85f : a <= 100f ? 0.8f : a <= 155f ? 0.65f : 0.5f;
+                float lookYaw = faceYaw + rel + 180f;                  // the camera at faceYaw + rel, looking back at the player
+                Vector3 back = -(Quaternion.Euler(pitch, lookYaw, 0f) * Vector3.forward);
+                // the camera's own cast (radius 0.25: a fatter sphere starts inside the bank behind the pull-up frame and
+                // misses it, 22 Nov) and a ray, which a collider touching the pivot cannot hide
+                float free = want + 0.4f;
+                if (Physics.SphereCast(pivot, 0.25f, back, out var hit, free, mask, QueryTriggerInteraction.Ignore)) free = hit.distance;
+                if (Physics.Raycast(pivot, back, out var ray, free, mask, QueryTriggerInteraction.Ignore)) free = Mathf.Min(free, ray.distance - 0.25f);
+                float score = pref * Mathf.Clamp01((free - 0.6f) / (want - 0.6f));
+                if (free < least) score *= 0.3f;
+                if (score > bestScore) { bestScore = score; bestYaw = lookYaw; bestRel = rel; dist = Mathf.Clamp(free - 0.35f, 1.6f, want); }
+            }
+            if (Application.isEditor) Debug.Log($"[Nainital] gym camera: {bestRel:F0} deg from the facing, {dist:F1} m (score {bestScore:F2})");
+            return bestYaw;
+        }
+
         protected override void OnDisable()
         {
             base.OnDisable();
             if (busy) { busy = false; PlayerStats.Working = false; GameInput.UiBlocking = FrontEnd.MenuOpen; }
+            ReleaseCamera();
         }
     }
 }

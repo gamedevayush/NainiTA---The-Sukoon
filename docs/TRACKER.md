@@ -515,3 +515,60 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   docs/FREEROAM.md HANDOFF) - the three HandIK poses not seen yet; umbrellas in rain; phone Radio / Stats apps EN + HI.
 - Log trap: Editor.log was 5.6 M lines (old NullReference spam: LakeArea.RandomPointInside 290x, VehicleFX.Update:57
   92x - none in the current sessions); read only the lines after the current Play start.
+
+## 22 Nov 2026 (13:00-13:20, main PC) - test run 3: gym camera, waiter, umbrellas, phone apps
+
+- Owner: "chlo aage ka kro...rukna mt" (the HANDOFF list: gym camera, then umbrellas and the phone apps).
+- Gym camera: `GymStation.Workout` now sets a ThirdPersonCamera override view (`PickView`: 12 places round the player,
+  3/4 front preferred, sized by the camera's own 0.25 m sphere cast + a ray) and puts the old yaw / pitch back after.
+  First try used a 0.3 m sphere: at the pull-up frame it started inside the bank and missed it, the camera's 0.25 m cast
+  hit it at 0.25 m -> still in the jacket (`GymCamProbe.Run` showed it). Now: pull 300 deg / 2.6 m, pedal 90 / 4 m,
+  twist 120 / 4 m; all three poses seen (`Shots/sheet_g4_gym_noon.jpg`).
+- Waiter: the new look (white shirt) brings the momos; no pandit (`sheet_r6a.jpg`).
+- Umbrellas: 0 in full rain with 30 walkers. `UmbrellaWhy`: every walker had an even instance id (Unity 6), the "odd id"
+  half was empty. Mixed hash instead: 8 / 16 eligible under umbrellas, 0 again ~8 s after the rain stops
+  (`sheet_r8_umbrellas.jpg`).
+- Phone Radio / Stats apps in English and Hindi: right (`sheet_r6b.jpg`). On a phone the radio note has no "R" key.
+- Found, left for the owner: the open gym's frames stand below the final ground (`GymCamProbe.Ground`, terrain minus
+  the frame's floor, centre then 8 points 1.2 m round, from south to north):
+  pedal 772.7,-638.4: 0.0 flat | pull 776.7,-644.8: 0.0 flat | twist 768.3,-631.7: +0.4 flat | pull 765.0,-626.8: +0.9 flat |
+  pedal 761.8,-621.8: +1.55 (+1.2..+1.6) | twist 756.9,-616.7: +1.45 (+0.3..+2.3) | pull 754.0,-611.0: +1.45 (+0.3..+2.4) |
+  pedal 750.7,-605.9: +1.28 (+0.1..+2.3) | twist 746.7,-598.4: +0.74 (-0.5..+1.9).
+  Cause: built in the Mall Road step at `ctx.H` of that moment; a later ground step raises the ground there (which one: not traced yet - Lake embankment or "Ground under the roads" are the candidates).
+
+## 22 Nov 2026 (13:30-15:00, main PC) - City Joggers Park: the ground first, then the open gym
+
+- Owner: "actually na to park ka koi gate hai, na vo flat hai...up down terrain hai..pehle terrain theek kro wahan
+  ki...then gym equipements do" (no gate, not flat: rolling ground; fix the ground, then the equipment).
+- Found (`GymCamProbe.Profile` / `Across` / `Wall`, Esri zoom 18 with 5 m ticks across the Street View track):
+  - the lake outline had ONE vertex along the park (747.1, -610.7), ~95 m from the next ones, so the shore cut 4-9 m
+    inside the real edge: the land past Lower Mall was 2-8 m and fell 5 m to the water like a cliff. Satellite: trees
+    and brown ground 20-28 m out from the track.
+  - the open gym's frames were built in the Mall Road step on the ground of that moment; the last "ground under the
+    roads" pass then raised the 3 m behind the parapet 25-60 % of the way back to the road (its two "bank rings"), so 6
+    of 9 frames stood 0.7-1.5 m in the ground and the 3 southern ones on Lower Mall itself. The same rings make the dark
+    mounds against the parapet and half-bury the trees by the railing along the whole Lower Mall bank.
+- Done:
+  - `WorldBuilder.DataFixes.cs` `FixJoggersParkShore`: that vertex -> 8 points read off the satellite (`JoggersPark.Shore`).
+  - `Editor/JoggersPark.cs`: the park in the track's frame (s along, d out), its blend, two openings in the parapet
+    (s 9 and 47, no gate), the equipment spots.
+  - `LowerMallBank`: the park is always shaped (weight 1 there) with its own profile - a 1.8 m level strip of earth a hand
+    under the road along the parapet (else the 1.46 m heightmap makes a saw-tooth of road-high lumps out from the wall),
+    then rolling ground (two Perlin octaves, +-0.4-0.9 m) falling to the ledge at the stone wall; the ground comes up to
+    the road at the openings; 9 level spots (flattest place across the bank, rows near the road / near the water by
+    turns, levelled over 1.5 m, blended to 3.3 m); earth and leaf litter more than grass, bare round the equipment;
+    trees kept 3.2 m off the spots and off the ways in.
+  - `RoadGround`: samples LowerMallBank shaped behind the parapet (`bankKeep`) are left out of the bank rings - for the
+    whole Lower Mall bank, not just the park.
+  - `MallLakeEdge`: no parapet / railing over the two openings, a plastered end face at each side.
+  - `LandmarkBuilder.BuildJoggersPark`: the equipment, in a new step after "Roads into the terrain" (on the ground as it
+    finally is): posts from 0.3 m below each one's own ground on a concrete footing, the bar 2.05 m over the spot, the
+    board just inside the south way in. Removed from `BuildLowerMallSights`.
+- Checked after the second build (the level strip): `GymCamProbe.Ground` every frame +0.00 m (level within 0.1 m over
+  1.2 m round); `Wall`: the ground 0.3 m under the road at the strip's end, then falling evenly (no lumps against the
+  parapet); Play (`walktest`): from Lower Mall through the south / north openings down 3.6 / 3.9 m into the park and
+  back up onto the road; the three workouts, gym camera 30-60 deg from the facing at 4 m (score 1.0). Shots:
+  `Shots/sheet_jp2_a.jpg`, `sheet_jp2_b.jpg`, `sheet_jp_play.jpg`. Build World resets bundleVersion (ProjectSettings) -
+  not to be committed.
+- Left: the small wedge at the parapet's foot outside the park (the bank there starts 1.8 m under the road); a pine's
+  branches in front of the gym camera at the twister.

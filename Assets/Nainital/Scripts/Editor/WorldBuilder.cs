@@ -217,7 +217,7 @@ namespace Nainital.EditorTools
             // after the levelling (its 2.5 m ease beside the walk filled the Capitol's lane up to the walk, 16 Nov) and before the
             // roads are built on the ground
             Step("Capitol terraces and the Mallital bank", () => ShapeCapitolGround(ctx));
-            Step("Roads", () => { roadStrips.Clear(); deckEnds.Clear(); BeginRoadMask(ctx); BuildRoads(ctx); SetGroundToPaintedRoads(ctx); });   // the ground is the road from here on
+            Step("Roads", () => { roadStrips.Clear(); deckEnds.Clear(); bankKeep.Clear(); BeginRoadMask(ctx); BuildRoads(ctx); SetGroundToPaintedRoads(ctx); });   // the ground is the road from here on
             Step("G.O.A.N. plan (civic sites)", () => PlanGoan(ctx));
             Step("Tallital plan", () => PlanTallital(ctx));
             Step("Mallital plan", () => PlanMallital(ctx));
@@ -250,6 +250,7 @@ namespace Nainital.EditorTools
             Step("Surface look (weathering)", () => BuildSurfaceLook(ctx));
             Step("Ground under the roads", () => CarveUnderRoads(ctx));   // last: everything above reads the ground (ctx.H)
             Step("Roads into the terrain", () => FinishRoadMask(ctx));
+            Step("City Joggers Park (open gym)", () => LandmarkBuilder.BuildJoggersPark(ctx));   // on the ground as it finally is (22 Nov)
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
             Step("Placed by hand (Shaktipeeth gate ...)", () => RestorePlacedByHand(ctx));
