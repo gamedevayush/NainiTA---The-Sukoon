@@ -148,9 +148,13 @@ station, stats + hunger + the open gym, the radio (own music folders), umbrellas
 their models. Every piece: `docs/FREEROAM.md` ("The rest of the batch"); test steps: `Editor/FreeroamTest.cs`.
 **Run Nainital > 2. Build World after pulling** (the pumps, the shops' sit-outs, the house and the fire station are built).
 22 Nov (05:40) test run 2 in Play: the restaurant order + waiter + diners, the house bed / sleep / save / wardrobe and the
-gym's numbers work; fixed the waiter's look, the bed with the wardrobe open, a FrontEnd NullReference. **Open: the camera
-during a gym workout** (pulls into the player at the Lower Mall frames), umbrellas in the rain, the phone's Radio / Stats
-apps - `docs/FREEROAM.md`, HANDOFF.
+gym's numbers work; fixed the waiter's look, the bed with the wardrobe open, a FrontEnd NullReference.
+22 Nov (afternoon), test run 3: the gym camera picks the roomiest 3/4 view during a workout; umbrellas in the rain
+(they never opened: Unity 6 instance ids are all even); the phone's Radio / Stats apps checked in English and Hindi.
+**City Joggers Park rebuilt** (owner: no gate, not flat): the lake shore there moved out to the satellite's edge, rolling
+ground with two openings in the Lower Mall parapet, the open gym's 9 pieces on level spots built after the last ground
+step, and the road's bank rings no longer raise the ground behind the Lower Mall parapet. **Run Nainital > 2. Build
+World after pulling.** Details: `docs/FREEROAM.md` HANDOFF, `docs/TRACKER.md` 22 Nov.
 
 ### Changed on 21 Nov (night): ride bikes and scooties, indicators, dipper, no more jams for the townsfolk
 
