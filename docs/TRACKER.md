@@ -627,3 +627,36 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
 4. Aar-paar still open: bike <-> bus up to 1.28 m, people in full traffic, vehicles into houses / G.O.A.N. plinths.
 5. 6 of 171 turns failed (Kunjakharak, #17 -> #27, #83 -> #23, #52 -> Mall Road x2); 13 lane points have no room.
 6. After pulling: **Build World** (the Upper Mall deck, junctions, lanes and boards are built, not in git).
+
+## 22 Nov 2026 (22:30-23:20, main PC) - real mass, real bike drive, getting in / out, jumping out (not committed)
+
+- Owner: "bike waala meri bus ko peeche dhakka ... wheres physics?" then "vehicle objects and characters real mass ki tarah
+  behave ... based on real calculation, badi gaadi choti ko dhakka maarske", "bike scooty itti bekaar kyun chlri..auto braking
+  kyun hori...khade khade mudri hai...actual drive do na usko", "entry exit ka animation bhi nhi chlra", "4 baar tk girke
+  vaapas same vehicle pe baithke chle jaaye...bahut tej thoka to gira rehjaaye", "speed me kisi bhi vehicle se exit krte
+  hain to ragdoll bnke girega..health jayegi based on speed".
+- `BikeRide` is a real dynamic body now (was kinematic = endless mass in PhysX): bike 135 kg / scooty 105 + 70 kg a person
+  aboard (Weigh), box 0.3 m off the ground, one `Machine` for everyone: engine pull falling to 0 at top speed, rolling
+  resistance + air (1/2 rho CdA v^2) + engine braking off the throttle, brakes, the slope's g sin, tyres inside mu = 0.9
+  (forwards + sideways together), turns only as it rolls (omega = v tan(steer)/wheelbase, <= 0.85 mu g / v), lean
+  tan = v omega / g. Player: `Ride(throttle, brake, steer, top, paddleBack)`, no assists (PlayerBike's stop-short cast
+  removed). Traffic / police: `Step` turns aim + target into the same controls; its eyes sweep the bike's box for the
+  stopping distance (0.75 s reaction + v^2/2a), steer for a clear heading and brake in time.
+- Knock-over from the contact impulse PhysX solved: dv > 2 m/s sideways or > 3.5 m/s front/back, or shoved sideways
+  > 1.2 m/s for 0.25 s; then a free body (never kinematic again: it sleeps).
+- Measured (`VehicleTest.BikeBus`): bus 7500 kg at 2.27 m/s into a bike -> 2.18 (momentum 2.23); at 6.55 -> 6.31 (6.43);
+  hatch 950 kg 7.16 -> 5.99 (6.27), bike thrown 11.8 m. Player bike: A/D standing still 0 m / 0 deg, full throttle
+  12.4 m in 3 s (~2.4 m/s2).
+- Traffic riders who fall get up, stand the bike up and ride on, up to 4 falls (`TrafficBike.GetBackOn`); thrown above
+  8.5 m/s, badly hurt (< 25% health) or the 5th fall: they stay down. Bikes > 120 m from the camera are still despawned.
+- Getting in / out is seen (`PlayerController.BoardVehicle / BoardBike / AlightVehicle / AlightBike`): walk to the
+  setup's entry, "Entering Car" (cars, vans, buses) / sitting down (auto, e-rickshaw) / Mount, slide onto the seat; out the
+  same way. Owner: "theek chlra entry exit".
+- Jumping out above 2.5 m/s (`PlayerController.BailOut`, new `Characters/Ragdoll.cs`): a ragdoll on the humanoid bones
+  (70 kg in real shares, RagdollBuilder joint limits, built from the standing pose, on the person's own layer), damage
+  0.45 v^2 - 4 (30 km/h -25, 40 -50, 50 -85, ~55+ dead), gets up with the getting-up clip; the empty car rolls on
+  (no auto handbrake: `coastUntil`), a riderless bike falls. Car bail at 32 km/h checked in a film (-32 health).
+- Not done: the bike bail not filmed yet; the 22 Nov PENDING list (bus test to Khurpatal, crash / island / every-turn
+  re-runs) was not run on this code; traffic bikes still hit each other at junction crossings now and then.
+- New tests: `VehicleTest.BikeBus` (into / bus2 / bus7 / car7), `LogBikeHits`, `CarE` (arg model; again with a speed =
+  jump out), `Throttle`, `Film`, `KnockBike` arg = speed.

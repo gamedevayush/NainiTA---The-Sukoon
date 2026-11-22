@@ -33,6 +33,23 @@ namespace Nainital
             bike = GetComponent<BikeRide>();
             radius = 2.4f;
             if (blockMask < 0) blockMask = ~((1 << 2) | (1 << 4) | (1 << 8) | (1 << 9));
+            bike.OnCrash += Thrown;
+        }
+
+        /// <summary>Knocked over with the player on it (a car hit it, it met a wall hard: BikeRide.Hit): off he goes with the
+        /// speed he had, hurt by it like the traffic's riders.</summary>
+        void Thrown(Vector3 v, GameObject by)
+        {
+            if (!rider) return;
+            var p = rider;
+            rider = null;
+            Riding = null;
+            p.ExitBike(Ground(transform.position - Vector3.ProjectOnPlane(transform.right, Vector3.up).normalized * 0.9f) + Vector3.up * 0.3f);
+            var m = p.GetComponent<CharacterMotor>();
+            if (m) m.impulse += v * 0.7f + Vector3.up * 3f;
+            var h = p.GetComponent<Health>();
+            if (h && v.magnitude > 4.5f) h.Damage(v.magnitude * 3f, transform.position, by);
+            Debug.Log($"[Nainital] player thrown off {name} at {v.magnitude:F1} m/s by {(by ? by.name : "the hit")}");
         }
 
         bool Fallen => Bike && (Bike.Crashed || (GetComponent<TrafficBike>() is TrafficBike t && t.Down));
@@ -48,6 +65,7 @@ namespace Nainital
 
         public override void Interact(PlayerController p)
         {
+            if (p.Boarding || p.Ragdolled) return;   // still climbing on / off, or on the ground
             if (rider == p) { Exit(); return; }
             if (!CanInteract(p)) return;
             traffic = GetComponent<TrafficBike>();
@@ -81,7 +99,7 @@ namespace Nainital
             Riding = this;
             var vl = GetComponent<VehicleLamps>();
             if (vl) vl.signal = 0;   // the traffic's last indicator (its pull-up to the left) is not the player's
-            p.EnterBike(this);
+            p.BoardBike(this);   // to its side, the leg over (Mount), onto the seat, then EnterBike
             if (AudioManager.Instance) AudioManager.Instance.CarEnter(transform.position);
             GameEvents.ShowToast("W/S: race-brake, A/D: mod, Space: brake, E: utro", 3.5f);
         }
@@ -89,15 +107,26 @@ namespace Nainital
         void Exit()
         {
             if (!rider) return;
-            if (Bike.Speed > 3f) { GameEvents.ShowToast("Pehle " + (Scooty ? "scooty" : "bike") + " roko (S / Space)", 1.6f); return; }
             var p = rider;
             var vp = Bike.Parts;
             Vector3 at;
             if (vp && vp.HasSetup) at = vp.WayOut(0, out _);
             else at = transform.position - transform.right * 0.9f;
+            var brb = GetComponent<Rigidbody>();
+            Vector3 vel = brb ? brb.linearVelocity : Bike.Forward * Bike.Speed;
+            if (new Vector3(vel.x, 0f, vel.z).magnitude > PlayerController.BailSpeed)
+            {
+                // moving (owner, 22 Nov 2026: "speed me kisi bhi vehicle se exit krte hain to ragdoll bnke girega"): he jumps
+                // off, a ragdoll hurt by the speed; nobody holds the bike up, so over it goes with what it had
+                p.BailOut(at, vel, at - transform.position);
+                rider = null;
+                Riding = null;
+                Bike.Crash(vel, null, true);
+                return;
+            }
             rider = null;
             Riding = null;
-            p.ExitBike(Ground(at) + Vector3.up * 0.1f);
+            p.AlightBike(this, Ground(at) + Vector3.up * 0.1f);   // the leg back over (Dismount), off to its side
             Bike.Park();
         }
 
@@ -106,33 +135,16 @@ namespace Nainital
 
         void FixedUpdate()
         {
-            if (!rider || !Bike || Bike.Crashed) return;
+            if (!rider || !Bike || Bike.Crashed || rider.Boarding) return;   // climbing on: BikeRide holds it (brakes on)
             float dt = Time.fixedDeltaTime;
             Vector2 mv = GameInput.UiBlocking ? Vector2.zero : GameInput.Move;
             mv.y = VehicleFuel.Drive(this, mv.y, Bike.Speed, dt);   // fuel: burns while riding, no pull once dry (VehicleFuel)
-            float target = mv.y > 0.05f ? mv.y * MaxSpeed : 0f;
-            if (GameInput.JumpHeld || mv.y < -0.05f) target = 0f;
-            // steering: a wide lock walking pace, less as it gathers speed
-            float speed = Bike.Speed;
-            float lockDeg = speed < 1f ? 60f : Mathf.Lerp(40f, 16f, Mathf.Clamp01(speed / MaxSpeed));
-            Vector3 aim = transform.position + Quaternion.Euler(0f, mv.x * lockDeg, 0f) * Bike.Forward * 6f;
-            // walls, vehicles: stop short (the bike moves itself, it does not bounce off)
-            float look = 1.2f + speed * 0.55f;
-            // from above the ground under the front wheel (on a steep road the bike's own height there is in the hill)
-            Vector3 from = Ground(transform.position + Bike.Forward * (Bike.length * 0.5f)) + Vector3.up * 0.75f;
-            // the hill road rising ahead is not a wall: a slope under ~37 deg is ridden up, a steeper face (a hillside cut,
-            // a wall) stops it
-            int n = Physics.SphereCastNonAlloc(from, 0.35f, Bike.Forward, hits, look, blockMask, QueryTriggerInteraction.Ignore);
-            float wall = float.MaxValue;
-            for (int i = 0; i < n; i++)
-            {
-                var h = hits[i];
-                if (h.collider.transform.IsChildOf(transform)) continue;
-                if (h.distance <= 0f ? h.collider is TerrainCollider : h.normal.y > 0.8f) continue;   // the hill it starts in is ground
-                wall = Mathf.Min(wall, h.distance);
-            }
-            if (wall < float.MaxValue) target = Mathf.Min(target, Mathf.Max(0f, wall - 0.6f) * 1.5f);
-            Bike.Drive(aim, target, dt, Mathf.Abs(mv.x) > 0.3f);
+            // the controls straight to the machine (owner, 22 Nov 2026: "auto braking kyun hori...khade khade mudri hai...
+            // actual drive do na usko"): W throttle, S / Space brakes (S standing: walk it back), A/D the handlebar. It turns
+            // only as it rolls, coasts off the throttle, and nothing brakes for the rider - a wall hit hard throws him off.
+            float throttle = Mathf.Clamp01(mv.y);
+            float brake = GameInput.JumpHeld ? 1f : Mathf.Clamp01(-mv.y);
+            Bike.Ride(throttle, brake, Mathf.Clamp(mv.x, -1f, 1f), MaxSpeed, mv.y < -0.5f && !GameInput.JumpHeld, dt);
             if (GameInput.HornPressed) VehicleSound.HornOf(gameObject, transform.position + Vector3.up, false);   // this bike's own horn
         }
 

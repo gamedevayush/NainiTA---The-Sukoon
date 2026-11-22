@@ -361,6 +361,13 @@ namespace Nainital
         /// <summary>Where the person in seat n stands to get in / out (world).</summary>
         public Vector3 EntryWorld(int i) => SeatData(i) is var s && s != null ? Frame.TransformPoint(s.entry) : transform.position;
 
+        /// <summary>Where seat n's person sits and how he faces (world; what Sit places him at).</summary>
+        public Vector3 SeatWorld(int i) => SeatData(i) is var s && s != null ? Frame.TransformPoint(s.pos) : transform.position;
+        public Quaternion SeatRotWorld(int i) => SeatData(i) is var s && s != null ? Frame.rotation * Quaternion.Euler(s.euler) : transform.rotation;
+        public SeatPose PoseOf(int i) => SeatData(i) is var s && s != null ? s.pose : SeatPose.Sit;
+        /// <summary>It has doors that open (a car, a bus; an auto / e-rickshaw has none): getting in is the "Entering Car" clip.</summary>
+        public bool HasDoors => doors.Count > 0;
+
         /// <summary>The old two-seat numbering (0 driver, 1 front passenger: VehicleSeats, PoliceCar) as a setup seat: the
         /// passenger is the seat beside the driver (nearest to him along the vehicle, the other side).</summary>
         public int SeatFor(int legacy)

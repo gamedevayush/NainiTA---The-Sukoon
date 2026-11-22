@@ -108,6 +108,8 @@ namespace Nainital
 
         /// <summary>A driver who got out joins the crowd (recycled like any walker once home or far away).</summary>
         public void Adopt(NpcWalker w) { if (w && !active.Contains(w)) active.Add(w); }
+        /// <summary>Back on a vehicle (a fallen rider rides on, TrafficBike): no longer one of the walkers this manager recycles.</summary>
+        public void Disown(NpcWalker w) => active.Remove(w);
 
         void Start()
         {

@@ -163,7 +163,8 @@ namespace Nainital
 
         void FixedUpdate()
         {
-            if (!net || !bike || down) return;
+            if (!net || !bike) return;
+            if (down) { if (fallenRider) GetBackOn(Time.fixedDeltaTime); return; }
             if (bike.Crashed) { if (giveTo) { giveTo.Released(); giveTo = null; } return; }
             float dt = Time.fixedDeltaTime;
             Vector3 pos = transform.position;
@@ -261,10 +262,17 @@ namespace Nainital
             return vp.z > 0f && vp.z < 120f && vp.x > -0.1f && vp.x < 1.1f && vp.y > -0.1f && vp.y < 1.1f;
         }
 
-        /// <summary>The player's car hit the bike: the rider flies off.</summary>
+        /// <summary>Knocked over (a vehicle hit it, it met a wall hard: BikeRide.Hit): the rider and the pillion fly off. Up to
+        /// MaxFalls times they get up, stand the bike up and ride on (owner, 22 Nov 2026: "4 baar tk to girke vaapas same
+        /// vehicle pe baithke chle jaaye...agar bahut tej thoka to gira rehjaaye"): not after a hard hit (HardFall), nor
+        /// when the rider is dead or badly hurt.</summary>
         void Thrown(Vector3 carVelocity, GameObject by)
         {
             down = true;
+            falls++;
+            fallenRider = fallenPillion = null;
+            float impact = carVelocity.magnitude;
+            bool hard = impact > HardFall || falls > MaxFalls;
             if (pillion)
             {
                 var q = pillion;
@@ -273,7 +281,8 @@ namespace Nainital
                 q.LeaveCar(transform.position - transform.forward * 0.5f + sd * 0.4f, sd);
                 q.Knock(carVelocity * 0.6f + Vector3.up * 3.5f);
                 var qh = q.GetComponent<Health>();
-                if (qh) qh.Damage(carVelocity.magnitude * 3f, transform.position, by);
+                if (qh) qh.Damage(impact * 3f, transform.position, by);
+                if (!hard) fallenPillion = q;
             }
             if (!rider) { Debug.Log($"[Nainital] bike {name} knocked over, no rider"); return; }
             var r = rider;
@@ -282,13 +291,106 @@ namespace Nainital
             r.LeaveCar(transform.position + side * 0.6f, side);
             r.Knock(carVelocity * 0.7f + Vector3.up * 4f);
             var h = r.GetComponent<Health>();
-            bool hurt = h && h.Damage(carVelocity.magnitude * 4f, transform.position, by);
-            Debug.Log($"[Nainital] bike {name} knocked over at {transform.position:F0} ({carVelocity.magnitude:F0} m/s): rider {r.npcName} hurt {hurt} hp {(h ? h.current : -1):F0}");
+            bool hurt = h && h.Damage(impact * 4f, transform.position, by);
+            if (!hard) { fallenRider = r; upT = 0f; walkT = -1f; }
+            Debug.Log($"[Nainital] bike {name} knocked over at {transform.position:F0} ({impact:F0} m/s), fall {falls}: rider {r.npcName} hurt {hurt} hp {(h ? h.current : -1):F0} - " +
+                      (hard ? (impact > HardFall ? "a hard hit, they stay down" : $"fall {falls}, they stay down") : "they will get back on"));
+        }
+
+        public const int MaxFalls = 4;
+        /// <summary>Thrown at more than this (m/s, ~30 km/h): nobody gets up and rides on.</summary>
+        public const float HardFall = 8.5f;
+        int falls;
+        NpcWalker fallenRider, fallenPillion;
+        float upT, walkT;
+
+        /// <summary>Thrown riders back on (Thrown): they lie, get up (NpcWalker's knock, 3.5 s), walk back to the bike, stand it
+        /// up and sit down, then it rides on along its route. Badly hurt (under a quarter of their health), dead, taken by
+        /// someone else or not back within 25 s: they stay where they are (walk home), the bike lies.</summary>
+        void GetBackOn(float dt)
+        {
+            upT += dt;
+            if (!Fit(fallenRider) || upT > 25f) { GiveUp(upT > 25f ? "not back in 25 s" : Why(fallenRider)); return; }
+            if (fallenPillion && !Fit(fallenPillion))
+            {
+                // hurt badly: not walking to the bike (where "home" would make them vanish), home instead
+                var pm0 = PedestrianManager.Instance;
+                if (fallenPillion.gameObject.activeInHierarchy && !fallenPillion.InCar && pm0) fallenPillion.GoHome(pm0.NearestDoor(fallenPillion.transform.position));
+                fallenPillion = null;
+            }
+            if (upT < 4.2f || !bike.Settled) return;   // on the ground, then getting up
+            Vector3 c = transform.position;
+            if (walkT < 0f)
+            {
+                walkT = 0f;
+                fallenRider.GoHome(c);   // walks to the bike (re-seated at 2 m, before "home" at 1.3 m)
+                if (fallenPillion) fallenPillion.GoHome(c);
+            }
+            walkT += dt;
+            var vp = bike.Parts;
+            bool riderBack = rider;
+            if (!riderBack && Flat(fallenRider.transform.position - c) < 2f)
+            {
+                bike.Recover();   // the rider stands it up
+                Seat(fallenRider, 0, vp);
+                rider = fallenRider;
+                riderBack = true;
+            }
+            if (riderBack && fallenPillion && !pillion && Flat(fallenPillion.transform.position - transform.position) < 2f && vp && vp.SeatCount > 1)
+            {
+                Seat(fallenPillion, 1, vp);
+                pillion = fallenPillion;
+            }
+            bool pillionDone = !fallenPillion || pillion || walkT > 8f;
+            if (!riderBack || !pillionDone) return;
+            if (fallenPillion && !pillion) fallenPillion.GoHome(PedestrianManager.Instance ? PedestrianManager.Instance.NearestDoor(fallenPillion.transform.position) : fallenPillion.transform.position);
+            fallenRider = fallenPillion = null;
+            down = false;
+            stuck = 0f;
+            passing = null;
+            Debug.Log($"[Nainital] bike {name}: back on after fall {falls} ({upT:F0} s), rides on at {transform.position:F0}");
+        }
+
+        static float Flat(Vector3 d) => new Vector2(d.x, d.z).magnitude;
+
+        static bool Fit(NpcWalker n)
+        {
+            if (!n || !n.gameObject.activeInHierarchy || n.InCar) return false;
+            var h = n.GetComponent<Health>();
+            return !h || (!h.IsDead && h.current >= h.max * 0.25f);
+        }
+
+        static string Why(NpcWalker n)
+        {
+            if (!n) return "gone";
+            if (!n.gameObject.activeInHierarchy) return "taken away";
+            if (n.InCar) return "in a vehicle";
+            var h = n.GetComponent<Health>();
+            return h ? (h.IsDead ? "dead" : $"hurt, hp {h.current:F0}/{h.max:F0}") : "?";
+        }
+
+        void Seat(NpcWalker n, int seat, VehicleParts vp)
+        {
+            var pm = PedestrianManager.Instance;
+            if (pm) pm.Disown(n);
+            if (vp && vp.HasSetup) n.EnterSeat(vp, seat);
+            else n.EnterBike(bike.model, bike.SeatLocal);
+        }
+
+        /// <summary>Not getting back on: they walk home, the bike stays down.</summary>
+        void GiveUp(string why)
+        {
+            var pm = PedestrianManager.Instance;
+            foreach (var n in new[] { fallenRider, fallenPillion })
+                if (n && n.gameObject.activeInHierarchy && !n.InCar && pm) n.GoHome(pm.NearestDoor(n.transform.position));
+            if (fallenRider) Debug.Log($"[Nainital] bike {name}: its rider does not get back on (fall {falls}, {upT:F1} s): {why}");
+            fallenRider = fallenPillion = null;
         }
 
         void OnDestroy()
         {
             if (bike) bike.OnCrash -= Thrown;   // the player picked it up and rides it (PlayerBike): no thrown handler left behind
+            if (fallenRider || fallenPillion) GiveUp("the bike is gone (despawned / the player's)");   // walking back to it: home instead
             if (rider) Destroy(rider.gameObject);
             if (pillion) Destroy(pillion.gameObject);
         }

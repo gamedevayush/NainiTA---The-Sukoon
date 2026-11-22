@@ -118,14 +118,14 @@ namespace Nainital
         // ------------------------------------------------------------------ enter / exit
         public override void Interact(PlayerController p)
         {
-            if (!initialised) return;
+            if (!initialised || p.Boarding || p.Ragdolled) return;
             if (!driver)
             {
                 driver = p;
                 Driving = this;
                 rb.isKinematic = false;
                 rb.WakeUp();
-                p.EnterVehicle(this);
+                p.BoardVehicle(this);   // to the door, in with the clip (PlayerController.BoardVehicle), then at the wheel
                 if (AudioManager.Instance) AudioManager.Instance.CarEnter(transform.position);
                 // the player sits at the wheel, seen through the windows (VehicleSeats, the Driving clip)
                 GameEvents.ShowToast("W/S: race-brake, A/D: steering, Space: handbrake, E: utro", 3.5f);
@@ -134,7 +134,8 @@ namespace Nainital
             Exit();
         }
 
-        void Exit()
+        /// <summary>The driver out. animated: climbs out with the clip (his own E); else at once (died, arrested).</summary>
+        void Exit(bool animated = true)
         {
             var p = driver;
             if (!p) return;
@@ -156,11 +157,22 @@ namespace Nainital
             Driving = null;
             if (p.Rig && !p.Rig.gameObject.activeSelf) p.Rig.gameObject.SetActive(true);
             if (AudioManager.Instance) AudioManager.Instance.CarExit(transform.position);
-            p.ExitVehicle(at);
+            Vector3 vel = rb.linearVelocity;
+            if (animated && new Vector3(vel.x, 0f, vel.z).magnitude > PlayerController.BailSpeed)
+            {
+                // moving: he jumps (a ragdoll, hurt by the speed) and the empty car rolls on until it stops by itself
+                coastUntil = Time.time + 30f;
+                p.BailOut(at, vel, at - transform.position);
+            }
+            else if (animated) p.AlightVehicle(at);
+            else p.ExitVehicle(at);
             sleepTimer = 0f;
         }
 
-        public void ForceExit() { if (driver) Exit(); }
+        public void ForceExit() { if (driver) Exit(false); }
+
+        /// <summary>Left moving (the driver jumped out): no handbrake till then - it rolls on as a real car would.</summary>
+        float coastUntil = -1f;
 
         /// <summary>A car that has gone through the ground (or is flying off faster than any car can) is put back on top,
         /// at rest: never a black screen with the speed climbing.</summary>
@@ -197,10 +209,10 @@ namespace Nainital
             preVel = rb.linearVelocity;
             preAng = rb.angularVelocity;
             Rescue();
-            bool player = driver != null && !GameInput.UiBlocking && !wrecked;
+            bool player = driver != null && !driver.Boarding && !GameInput.UiBlocking && !wrecked;   // climbing in / out: handbrake on
             bool driving = player || (ai && !wrecked);
             Vector2 mv = player ? GameInput.Move : ai && !wrecked ? new Vector2(0f, aiThrottle) : Vector2.zero;
-            bool handbrake = ai && !wrecked ? aiHandbrake > 0.5f : (!driving || GameInput.JumpHeld);
+            bool handbrake = ai && !wrecked ? aiHandbrake > 0.5f : (!driving ? Time.time > coastUntil : GameInput.JumpHeld);   // left rolling: no hand on the brake
             Vector3 up = transform.up;
             float fwdSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
             if (player) mv.y = VehicleFuel.Drive(this, mv.y, fwdSpeed, dt);   // fuel: burns while the player drives, no pull once dry (VehicleFuel)

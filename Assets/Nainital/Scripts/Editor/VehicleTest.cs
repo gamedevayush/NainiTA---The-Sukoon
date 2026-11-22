@@ -518,7 +518,9 @@ namespace Nainital.EditorTools
             }
             if (!best) throw new System.Exception("no traffic bike with a rider");
             testBike = best.GetComponent<PlayerBike>();
-            Vector3 v = Vector3.Cross(Vector3.up, best.transform.forward) * 9f;   // a car from the side at ~32 km/h
+            // arg = the hit's speed, m/s (default 9: a car from the side at ~32 km/h, a hard hit - they stay down)
+            float sp = float.TryParse(Arg(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var a0) && a0 > 0f ? a0 : 9f;
+            Vector3 v = Vector3.Cross(Vector3.up, best.transform.forward) * sp;
             testBike.Bike.Crash(v, null);
             Debug.Log($"[Nainital] knock: {best.name} at {best.transform.position:F0}, {Mathf.Sqrt(bd):F0} m away");
         }
@@ -622,6 +624,216 @@ namespace Nainital.EditorTools
             }
             Debug.Log("[Nainital] crash report\n" + s);
             File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../Bridge/vehicle_report.txt")), s);
+        }
+
+        // ---- a two-wheeler against a bus: real mass (owner, 22 Nov 2026: "ek bike waala meri bus ko hi dhakka lgaate huye
+        // peeche leaaya ... wheres physics?")
+        static GameObject bbBus, bbBike;
+        static string bbMode;
+        static Vector3 bbBusStart, bbBikeStart;
+        static float bbT0, bbBusPeakV, bbBusMoved, bbPen, bbBusV0, bbBusVAfter, bbBikeMoved;
+        static bool bbTouched;
+        static float bbTouchT, bbLastV;
+
+        /// <summary>Bridge (Play), arg = mode [old]: "into" - a bike rides at 5 m/s into the front of a standing bus (free to
+        /// roll, no handbrake) and keeps trying for 6 s; "bus2" / "bus7" - the bus rolls at ~2 / ~7 m/s into a standing bike
+        /// across its way; "car7" - a 950 kg hatch at ~7 m/s into it (momentum: the car should lose about
+        /// m_bike / (M + m_bike) of its speed). Writes Bridge/bikebus_report.txt after 6 s: how far the vehicle was pushed,
+        /// its peak speed, the deepest bike-in-vehicle overlap, its speed before / after the contact, whether the bike was
+        /// knocked over, how far it went.</summary>
+        public static void BikeBus()
+        {
+            Need();
+            var parts = Arg().ToLowerInvariant().Split(new[] { ' ', ',' }, System.StringSplitOptions.RemoveEmptyEntries);
+            bbMode = parts.Length > 0 ? parts[0] : "into";
+            if (bbBus) Object.Destroy(bbBus);
+            if (bbBike) Object.Destroy(bbBike);
+            var p = PlayerController.Instance;
+            var mat = Object.FindAnyObjectByType<TrafficManager>().material;
+            if (!RoadRoute.ReadyAny()) throw new System.Exception("no road network");
+            int k = RoadRoute.Nearest(p.transform.position, 200f);
+            Vector3 at = RoadRoute.Pos(k), f = RoadRoute.Heading(k);
+            f.y = 0f;
+            f.Normalize();
+            Vector3 r = Vector3.Cross(Vector3.up, f);
+            var lib = VehicleLibrary.Instance;
+            bbBus = bbMode.StartsWith("car") ? VehicleFactory.Create(CarType.Hatchback, Px.CarRed, mat, true, "Test hatch", Model("car_hatch_small"))
+                                             : VehicleFactory.Create(CarType.Bus, Px.CarWhite, mat, true, "Test bus", lib ? lib.Pick(CarType.Bus, 0.3f) : -1);
+            bbBus.transform.SetPositionAndRotation(Ground(at) + Vector3.up * 0.4f, Quaternion.LookRotation(f));
+            var cb = bbBus.GetComponent<CarController>();
+            cb.ai = true;
+            cb.aiThrottle = 0f;
+            cb.aiHandbrake = bbMode == "into" ? 1f : 0f;
+            BikeRide.LogHits = true;
+            var info = bbBus.GetComponent<VehicleInfo>();
+            float half = (info ? info.length : 10f) * 0.5f;
+            var e = lib.PickBike(0.5f);
+            bbBike = BikeRide.Create(e, "Test bike");
+            var bike = bbBike.GetComponent<BikeRide>();
+            bool into = bbMode == "into";
+            bool fast = bbMode.EndsWith("7");
+            float gap = into ? 7f : fast ? 9f : 4f;
+            Vector3 bp = at + f * (half + gap);
+            bike.Place(bp, into ? -f : r);
+            if (into)
+            {
+                var d = bbBike.AddComponent<BikeTestDriver>();
+                d.aim = at;
+                d.speed = 5f;
+            }
+            else bike.Park();
+            p.GetComponent<CharacterMotor>().Teleport(Ground(at + r * 14f + f * (half + 2f)) + Vector3.up * 0.2f);
+            Vector3 look = bp - p.transform.position;
+            look.y = 0f;
+            p.transform.rotation = Quaternion.LookRotation(look.normalized);
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SnapBehind();
+            Physics.SyncTransforms();
+            var rb = bbBus.GetComponent<Rigidbody>();
+            rb.WakeUp();
+            bbBusV0 = into ? 0f : fast ? 7.5f : 2.5f;
+            if (!into) rb.linearVelocity = f * bbBusV0;
+            bbBusStart = bbBus.transform.position;
+            bbBikeStart = bbBike.transform.position;
+            bbT0 = Time.time;
+            bbBusPeakV = bbBusMoved = bbPen = bbBusVAfter = bbBikeMoved = 0f;
+            bbTouched = false;
+            EditorApplication.update -= BikeBusTrack;
+            EditorApplication.update += BikeBusTrack;
+            Debug.Log($"[Nainital] bike-bus test '{bbMode}': bus {bbBus.name} mass {rb.mass} at {at:F0}, bike {e.name} {bike.Mass:F0} kg {gap} m off its nose");
+        }
+
+        /// <summary>Film the Game view: arg "name count seconds-apart" -> Shots/play_name_00.png ... (a move seen in motion,
+        /// not one pose). Bridge (Play): call VehicleTest.Film</summary>
+        public static void Film()
+        {
+            Need();
+            var a = Arg().Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            string nm = a.Length > 0 ? a[0] : "film";
+            int n = a.Length > 1 ? int.Parse(a[1], ci) : 12;
+            double every = a.Length > 2 ? double.Parse(a[2], ci) : 0.25;
+            int i = 0;
+            double next = EditorApplication.timeSinceStartup;
+            string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "../Shots"));
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying || i >= n) { EditorApplication.update -= Tick; return; }
+                if (EditorApplication.timeSinceStartup < next) return;
+                next += every;
+                ScreenCapture.CaptureScreenshot(Path.Combine(dir, $"play_{nm}_{i:00}.png"));
+                i++;
+            }
+            EditorApplication.update += Tick;
+        }
+
+        /// <summary>The player's controls held: arg "seconds steer throttle" (default "3 0 1") through GameInput.TouchMove,
+        /// then let go. Bridge (Play): call VehicleTest.Throttle</summary>
+        public static void Throttle()
+        {
+            Need();
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            var a = Arg().Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            float secs = a.Length > 0 ? float.Parse(a[0], ci) : 3f;
+            var mv = new Vector2(a.Length > 1 ? float.Parse(a[1], ci) : 0f, a.Length > 2 ? float.Parse(a[2], ci) : 1f);
+            double end = EditorApplication.timeSinceStartup + secs;
+            GameInput.TouchMove = mv;
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying || EditorApplication.timeSinceStartup >= end) { GameInput.TouchMove = Vector2.zero; EditorApplication.update -= Tick; }
+            }
+            EditorApplication.update += Tick;
+        }
+
+        static GameObject eCar;
+
+        /// <summary>Getting in and out, seen (owner, 22 Nov 2026: "entry exit ka animation bhi nhi chlra"). Bridge (Play):
+        /// call VehicleTest.CarE - a car (arg = model, default car_sedan_compact... any library name) on the road by the
+        /// player, the player 2.5 m out from its driver's door, E (PlayerController.BoardVehicle); called again while he
+        /// is in it: E (AlightVehicle). Capture frames meanwhile.</summary>
+        public static void CarE()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            if (p.Car)
+            {
+                // arg a number: the car moving at that many m/s when he presses E (a jump-out: PlayerController.BailOut)
+                var c0 = p.Car;
+                if (float.TryParse(Arg(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sp) && sp > 0f)
+                    c0.GetComponent<Rigidbody>().linearVelocity = c0.transform.forward * sp;
+                c0.Interact(p);
+                Debug.Log($"[Nainital] car E: out of {c0.name} at {c0.GetComponent<Rigidbody>().linearVelocity.magnitude:F1} m/s, boarding {p.Boarding}, ragdoll {p.Ragdolled}, hp {p.Health.current:F0}");
+                return;
+            }
+            if (eCar) Object.Destroy(eCar);
+            var mat = Object.FindAnyObjectByType<TrafficManager>().material;
+            if (!RoadRoute.ReadyAny()) throw new System.Exception("no road network");
+            int k = RoadRoute.Nearest(p.transform.position, 200f);
+            Vector3 at = RoadRoute.Pos(k), f = RoadRoute.Heading(k);
+            f.y = 0f;
+            f.Normalize();
+            string model = Arg();
+            int mi = Model(string.IsNullOrEmpty(model) ? "car_hatch_small" : model);
+            eCar = VehicleFactory.Create(CarType.Hatchback, Px.CarRed, mat, true, "Test car E", mi);
+            eCar.transform.SetPositionAndRotation(Ground(at) + Vector3.up * 0.3f, Quaternion.LookRotation(f));
+            Physics.SyncTransforms();
+            var car = eCar.GetComponent<CarController>();
+            var vp = eCar.GetComponent<VehicleParts>();
+            Vector3 e = vp && vp.HasSetup ? vp.EntryWorld(0) : eCar.transform.position + eCar.transform.right * 1.5f;
+            Vector3 outw = e - eCar.transform.position;
+            outw.y = 0f;
+            outw.Normalize();
+            p.GetComponent<CharacterMotor>().Teleport(Ground(e + outw * 2.5f - f * 1f) + Vector3.up * 0.1f);
+            Vector3 look = e - p.transform.position;
+            look.y = 0f;
+            p.transform.rotation = Quaternion.LookRotation(look.normalized);
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SnapBehind();
+            Physics.SyncTransforms();
+            EditorApplication.delayCall += () =>
+            {
+                if (!EditorApplication.isPlaying || !car) return;
+                car.Interact(p);
+                Debug.Log($"[Nainital] car E: into {eCar.name} ({(mi >= 0 ? VehicleLibrary.Instance.entries[mi].name : "default")}), doors {(vp ? vp.HasDoors : false)}, boarding {p.Boarding}");
+            };
+        }
+
+        /// <summary>Log every contact that changes a two-wheeler's velocity by over 1.2 m/s ("[Nainital] bike hit: ..."), and
+        /// every knock-over, for the town's traffic. Bridge (Play): call VehicleTest.LogBikeHits</summary>
+        public static void LogBikeHits() { Need(); BikeRide.LogHits = true; Debug.Log("[Nainital] bike hits logged"); }
+
+        static void BikeBusTrack()
+        {
+            if (!EditorApplication.isPlaying || !bbBus || !bbBike) { EditorApplication.update -= BikeBusTrack; return; }
+            var rb = bbBus.GetComponent<Rigidbody>();
+            var cb = bbBus.GetComponent<CarController>();
+            if (cb) { cb.aiThrottle = 0f; cb.aiHandbrake = bbMode == "into" ? 1f : 0f; }   // "into": a standing bus, brakes on (the owner's case)
+            Vector3 mv = bbBus.transform.position - bbBusStart;
+            mv.y = 0f;
+            bbBusMoved = Mathf.Max(bbBusMoved, mv.magnitude);
+            bbBusPeakV = Mathf.Max(bbBusPeakV, bbMode == "into" ? rb.linearVelocity.magnitude : 0f);
+            Vector3 bm = bbBike.transform.position - bbBikeStart;
+            bm.y = 0f;
+            bbBikeMoved = Mathf.Max(bbBikeMoved, bm.magnitude);
+            var box = bbBike.GetComponent<BoxCollider>();
+            float pen = 0f;
+            foreach (var c in bbBus.GetComponentsInChildren<Collider>())
+            {
+                if (c.isTrigger || !c.enabled) continue;
+                if (Physics.ComputePenetration(box, bbBike.transform.position, bbBike.transform.rotation, c, c.transform.position, c.transform.rotation, out _, out float d))
+                    pen = Mathf.Max(pen, d);
+            }
+            float vNow = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z).magnitude;
+            if ((pen > 0f || bbBike.GetComponent<BikeRide>().Crashed) && !bbTouched) { bbTouched = true; bbTouchT = Time.time; bbBusV0 = bbLastV; }   // its speed just before
+            bbPen = Mathf.Max(bbPen, pen);
+            if (bbTouched && Time.time - bbTouchT < 0.15f) bbBusVAfter = vNow;   // and just after the contact
+            bbLastV = vNow;
+            if (Time.time - bbT0 < 6f) return;
+            EditorApplication.update -= BikeBusTrack;
+            var bike = bbBike.GetComponent<BikeRide>();
+            string s = $"bike-bus '{bbMode}': bus mass {rb.mass}, pushed {bbBusMoved:F2} m" +
+                       (bbMode == "into" ? $", peak speed {bbBusPeakV:F2} m/s" : $", speed {bbBusV0:F2} -> {bbBusVAfter:F2} m/s at contact (momentum, stuck together: {bbBusV0 * rb.mass / (rb.mass + bbBike.GetComponent<BikeRide>().Mass):F2})") +
+                       $"; deepest bike-in-bus {bbPen * 100f:F0} cm, touched {bbTouched}; bike {bike.Mass:F0} kg moved {bbBikeMoved:F2} m, knocked over {bike.Crashed}, speed now {bbBike.GetComponent<Rigidbody>().linearVelocity.magnitude:F1}";
+            Debug.Log("[Nainital] " + s);
+            File.AppendAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../Bridge/bikebus_report.txt")), s + "\n");
         }
 
         /// <summary>The town's traffic now: how many, how fast, how many standing still, knocks taken (wall and car hits

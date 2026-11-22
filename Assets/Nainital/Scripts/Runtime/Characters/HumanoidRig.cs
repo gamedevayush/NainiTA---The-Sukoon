@@ -393,6 +393,24 @@ namespace Nainital
         public void CancelAttack() { attackT = -1f; }
         public void Revive() { dead = false; deadT = 0f; knocked = false; }
 
+        /// <summary>Up from lying where a ragdoll came to rest (Ragdoll): straight into the getting-up clip.</summary>
+        public void GetUpNow()
+        {
+            dead = false; deadT = 0f; knocked = false; wasKnocked = false;
+            risingT = ClipLen("GetUp") * 0.95f;
+            if (anim && anim.isActiveAndEnabled) { anim.SetBool(BoolIds[3], true); anim.Play("GetUp", 0, 0f); }
+        }
+
+        /// <summary>The getting-up clip's length, s.</summary>
+        public float GetUpLength => ClipLen("GetUp");
+
+        /// <summary>Dead where a ragdoll came to rest: the death clip's last frame (lying), not its fall.</summary>
+        public void LieDead()
+        {
+            dead = true;
+            if (anim && anim.isActiveAndEnabled) { anim.SetBool(BoolIds[1], true); anim.Play("Dead", 0, 0.99f); }
+        }
+
         // ------------------------------------------------------------------ construction
         Transform Joint(J j, Transform parent, Vector3 local)
         {
