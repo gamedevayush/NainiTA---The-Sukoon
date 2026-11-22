@@ -438,6 +438,7 @@ namespace Nainital
         void Leave()
         {
             mode = Mode.Wrecked;
+            BusPassenger.Evict(gameObject);   // the player riding in it gets off first (a child would go with it)
             Destroy(gameObject);   // OnDestroy takes the driver too
         }
 
@@ -514,6 +515,15 @@ namespace Nainital
             return Physics.SphereCast(from, 0.6f, dirWorld, out var hit, dist, ~((1 << 2) | (1 << 4)), QueryTriggerInteraction.Ignore)
                    && !hit.collider.transform.IsChildOf(transform) && !(hit.collider is TerrainCollider && Vector3.Angle(hit.normal, Vector3.up) < 35f);
         }
+
+        // ------------------------------------------------------------------ a passenger (BusPassenger)
+        float stopUntil = -1f;
+
+        /// <summary>Stand for this long (someone climbing on / off a bus), then drive on.</summary>
+        public void StopForBoarding(float seconds) => stopUntil = Mathf.Max(stopUntil, Time.time + seconds);
+
+        /// <summary>Drive on now (he is aboard / off).</summary>
+        public void GoOn() => stopUntil = -1f;
 
         // ------------------------------------------------------------------ the player takes the car
         /// <summary>The player wants this car: pull up, let the driver out, then hand it over (TrafficCarEntry).</summary>
@@ -697,6 +707,7 @@ namespace Nainital
             targetSpeed = Mathf.Min(targetSpeed, Feel(pos, speed));
             if (net.NearIsland(pos, 9f)) targetSpeed = Mathf.Min(targetSpeed, 5f);   // round a junction island at a junction's pace
 
+            float freeSpeed = targetSpeed, aheadDist = float.MaxValue;   // the speed it would go with nobody in front (overtaking)
             // something in front? (cars, people, the player): keep a gap of about two seconds, match a car's speed
             float look = 6f + speed * 2f;
             Vector3 from = pos + Vector3.up * 1f + transform.forward * (spec.length * 0.5f + 0.3f);
@@ -710,6 +721,7 @@ namespace Nainital
                 float lead = 0f;
                 if (hit.rigidbody && !hit.rigidbody.isKinematic) lead = Mathf.Max(0f, Vector3.Dot(hit.rigidbody.linearVelocity, transform.forward));
                 bool person = hit.collider.gameObject.layer == 8 || hit.collider.gameObject.layer == 9;
+                aheadDist = hit.distance;
                 float gap = hit.distance - (person ? 3.5f : 2.5f);
                 targetSpeed = gap < 1f ? 0f : Mathf.Min(targetSpeed, lead + gap * 0.45f);
                 if (!person && hit.rigidbody && hit.rigidbody != rb) blocker = hit.rigidbody;
@@ -740,6 +752,7 @@ namespace Nainital
             bool siren = TrafficBike.SirenNear(pos, transform.forward);
             pull = Mathf.MoveTowards(pull, siren ? 1f : oncoming * 0.5f, dt * 0.7f);
             if (siren) targetSpeed = Mathf.Min(targetSpeed, 3f);
+            if (Time.time < stopUntil) targetSpeed = 0f;   // someone getting on / off (BusPassenger)
 
             // a vehicle standing in the lane that will not move: after 3 s, round it on the right (nothing coming); a
             // person who stays put in the road (he did not step aside): after 6 s, round them too
@@ -750,6 +763,48 @@ namespace Nainital
                 if (waitT > (standingPerson ? 6f : 3f)) StartPass(standingPerson ? standingPerson : blocker.transform, pos, standingPerson ? 0.7f : -1f);
             }
             else waitT = 0f;
+
+            // a slower vehicle ahead (owner, 23 Nov 2026: "agar NPC driver ko aisa lgra hai ki aage waala uske comparison me
+            // hlke hain or saamne se koi vehicle nhi aara to overtake krle"): 2 s held well under the speed it wants, on a
+            // straight two-lane stretch with no junction in it, the other lane clear for as far as the pass takes (its own
+            // way past + what an oncoming car covers meanwhile), room to pull in ahead of it - then out on the right, past,
+            // and back in. Something coming after all before it is alongside: it drops back.
+            if (blocker && !still && !passing && !held && !siren && Time.time >= overtakeAt && mode == Mode.Drive)
+            {
+                float leadV = Vector3.Dot(blocker.linearVelocity, transform.forward);
+                bool slower = freeSpeed > 5f && leadV < freeSpeed - 2f && leadV < freeSpeed * 0.8f;
+                slowT = slower ? slowT + dt : 0f;
+                if (slowT > 2f)
+                {
+                    slowT = 0f;
+                    overtakeAt = Time.time + 3f;   // looked: not again at once
+                    if (CanOvertake(pos, blocker, leadV, freeSpeed, aheadDist))
+                    {
+                        StartPass(blocker.transform, pos);
+                        overtaking = passing;
+                        if (overtaking) { Overtakes++; overtakesHere++; }
+                    }
+                }
+            }
+            else if (!passing) slowT = 0f;
+            if (overtaking)
+            {
+                if (!passing) overtaking = false;
+                else
+                {
+                    Vector3 fo = transform.forward; fo.y = 0f; fo.Normalize();
+                    float alongIt = Vector3.Dot(passing.position - pos, fo);
+                    // not yet alongside and somebody now in the other lane close ahead: back in behind it
+                    if (alongIt > 0f && !OtherLaneClear(pos, fo, Mathf.Clamp(speed * 3f + 20f, 25f, 60f), null, 0f, 0f))
+                    {
+                        passing = null;
+                        overtaking = false;
+                        overtakeAt = Time.time + 10f;
+                        Aborts++;
+                    }
+                    else targetSpeed = Mathf.Max(targetSpeed, Mathf.Min(freeSpeed, speed + 3f));   // on the gas past it
+                }
+            }
 
             float err = targetSpeed - fwd;
             car.aiThrottle = Mathf.Clamp(err * 0.35f, -1f, 1f);
@@ -1210,6 +1265,81 @@ namespace Nainital
             var tc = o.GetComponent<TrafficCar>();
             if (!tc) return true;
             return tc.Wrecked || !tc.HasDriver || tc.tries > 0;
+        }
+
+        // ---- overtaking a slower vehicle (owner, 23 Nov 2026)
+        float slowT, overtakeAt;
+        bool overtaking;
+        int overtakesHere;
+        /// <summary>Overtakes started / dropped back from, by all traffic (tests).</summary>
+        public static int Overtakes, Aborts;
+        public bool Overtaking => overtaking;
+        public int OvertakesHere => overtakesHere;
+
+        /// <summary>May it overtake `o` (ahead at `gap` m, going leadV) wanting `want` m/s? Room beside it, no junction near,
+        /// the lane straight (within 10 deg) for its own way past, the other lane clear for that + an oncoming car's way
+        /// meanwhile, and room ahead of it to pull back in.</summary>
+        bool CanOvertake(Vector3 pos, Rigidbody o, float leadV, float want, float gap)
+        {
+            var r = net.roads[road];
+            var oi = o.GetComponent<VehicleInfo>();
+            float ow = oi ? oi.width : 1.9f, ol = oi ? oi.length : 4.4f;
+            if (r.width < spec.width + ow + 1.2f) return false;   // no room beside it
+            if (net.NearIsland(pos, 45f) || route != null && route[route.Count - 1].r == road && (routeGoal - pos).sqrMagnitude < 120f * 120f) return false;
+            float passV = Mathf.Min(want, leadV + 6f), rel = passV - leadV;
+            if (rel < 2f || gap > 40f) return false;
+            float past = gap + ol + spec.length + 10f;   // from behind it to a car's length clear ahead of it
+            float t = past / rel;
+            float own = passV * t, need = own + 12f * t + 15f;   // + what a car coming at ~43 km/h covers meanwhile
+            if (need > 170f) return false;   // too long a pass for a hill road
+            Vector3 f = transform.forward;
+            f.y = 0f;
+            f.Normalize();
+            // the lane straight that far, on this road (a bend is blind; the road's end is a junction)
+            float covered = 0f;
+            Vector3 prev = pos;
+            for (int k = 1; covered < own + 10f; k++)
+            {
+                int i = idx + dir * k;
+                if (k > 120 || i < 0 || i >= Pts.Length) return false;
+                Vector3 q = Lane(i), d = q - pos;
+                d.y = 0f;
+                if (d.magnitude > 6f && Vector3.Angle(f, d) > 10f) return false;
+                covered += Vector3.Distance(new Vector3(prev.x, 0f, prev.z), new Vector3(q.x, 0f, q.z));
+                prev = q;
+            }
+            return OtherLaneClear(pos, f, need, o, gap + ol * 0.5f, gap + ol + spec.length + 8f);
+        }
+
+        static readonly Collider[] laneHits = new Collider[32];
+
+        /// <summary>Nobody in the other lane ahead within `need` m (coming or standing; vehicles and the player), and - from
+        /// mergeFrom to mergeTo ahead in its own lane (the gap ahead of the one it passes) - nobody to pull in on. Sides
+        /// are measured from the road's middle line, so it holds while it is out in the other lane.</summary>
+        bool OtherLaneClear(Vector3 pos, Vector3 f, float need, Rigidbody passed, float mergeFrom, float mergeTo)
+        {
+            var r = net.roads[road];
+            var pts = Pts;
+            Vector3 mid = pts[Mathf.Clamp(idx, 0, pts.Length - 1)];
+            Vector3 right = Vector3.Cross(Vector3.up, f);
+            float half = r.width * 0.5f + 0.5f;
+            Vector3 c = pos + f * (need * 0.5f) + Vector3.up * 1f;
+            c += right * Vector3.Dot(mid - pos, right);   // over the road's middle
+            int n = Physics.OverlapBoxNonAlloc(c, new Vector3(half, 2f, need * 0.5f), laneHits, Quaternion.LookRotation(f),
+                                               (1 << VehicleFactory.VehicleLayer) | (1 << 8), QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var o = laneHits[i].attachedRigidbody;
+                Transform t = o ? o.transform : laneHits[i].transform;
+                if (t == transform || t.IsChildOf(transform) || (passed && o == passed)) continue;
+                Vector3 rel = t.position - pos;
+                float along = Vector3.Dot(rel, f);
+                if (along < -2f) continue;   // behind
+                float side = Vector3.Dot(t.position - mid, right);   // + = the other lane (left-hand traffic)
+                if (side > 0.2f) return false;   // in the other lane ahead
+                if (mergeTo > 0f && along > mergeFrom && along < mergeTo) return false;   // where it would pull back in
+            }
+            return true;
         }
 
         void StartPass(Transform o, Vector3 pos, float width = -1f)

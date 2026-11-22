@@ -150,6 +150,10 @@ namespace Nainital
             MapPressed = Take(ref TouchMap) || (kb != null && kb.mKey.wasPressedThisFrame) || (pad != null && pad.dpad.left.wasPressedThisFrame);
             PausePressed = (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame);
             HornPressed = Take(ref TouchHorn) || (kb != null && kb.gKey.wasPressedThisFrame) || (pad != null && pad.leftShoulder.wasPressedThisFrame);
+            CameraPressed = Take(ref TouchCamera) || (kb != null && kb.vKey.wasPressedThisFrame) || (pad != null && pad.rightStickButton.wasPressedThisFrame);
         }
+
+        /// <summary>The view in a vehicle: behind it / through his own eyes (ThirdPersonCamera, V / the Camera button).</summary>
+        public static bool CameraPressed, TouchCamera;
     }
 }

@@ -117,8 +117,16 @@ namespace Nainital.EditorTools
             var info = go.GetComponent<VehicleInfo>();
             Out($"the bus: {go.name}, {(info ? info.length : 0f):F1} x {(info ? info.width : 0f):F2} m");
 
+            // the player rides in it as a passenger (owner, 22 Nov 2026: "bus me as passenger bethne ka bhi rkho...phir bus
+            // stand se khurpatal tk ka simulation"): the town's traffic and people come up round him all the way
+            var pc = PlayerController.Instance;
+            if (Jetpack.Flying) Jetpack.Toggle(pc);
+            var seatIn = go.AddComponent<BusPassenger>();
+            Physics.SyncTransforms();
+            bool aboard = seatIn.SeatNow(pc);
+            Out($"the player {(aboard ? "sits in it as a passenger" : "could NOT be seated (no free seat / no setup) - flying over it")}");
+            if (!aboard && !Jetpack.Flying) Jetpack.Toggle(pc);
             if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SetOverride(go.transform, 17f);
-            if (!Jetpack.Flying) Jetpack.Toggle(PlayerController.Instance);
 
             // full: the manager's own spawner and rules, only a higher number and asked more often
             manager.maxCars = Mathf.CeilToInt(FullCars / Mathf.Max(0.05f, TownClock.Traffic(TownClock.Hour)));
@@ -146,7 +154,7 @@ namespace Nainital.EditorTools
         public static void Stop()
         {
             EditorApplication.update -= Tick;
-            if (bus) Object.Destroy(bus.gameObject);
+            if (bus) { BusPassenger.Evict(bus.gameObject); Object.Destroy(bus.gameObject); }   // the player off it first
             bus = null;
         }
 

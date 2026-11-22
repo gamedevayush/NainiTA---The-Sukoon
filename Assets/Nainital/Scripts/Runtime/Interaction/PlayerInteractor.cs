@@ -18,7 +18,7 @@ namespace Nainital
             {
                 if (player && player.CurrentMode == PlayerController.Mode.Boat) Current = BoatController.Driving;
                 if (player && player.CurrentMode == PlayerController.Mode.Vehicle) Current = CarController.Driving;
-                if (player && player.CurrentMode == PlayerController.Mode.Mount) Current = Pony.Ridden ? (Interactable)Pony.Ridden : RopewayRide.Riding;
+                if (player && player.CurrentMode == PlayerController.Mode.Mount) Current = Pony.Ridden ? (Interactable)Pony.Ridden : RopewayRide.Riding ? (Interactable)RopewayRide.Riding : BusPassenger.Riding;
                 if (player && player.CurrentMode == PlayerController.Mode.Bike) Current = PlayerBike.Riding;
                 if (Current && GameInput.InteractPressed && !GameInput.UiBlocking) Current.Interact(player);
                 return;

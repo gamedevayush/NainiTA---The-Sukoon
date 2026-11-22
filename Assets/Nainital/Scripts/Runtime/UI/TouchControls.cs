@@ -156,6 +156,9 @@ namespace Nainital
                 .GetComponentInChildren<Text>();
             fightButtons.Add(Hold(hud, root, "Roll", new Vector2(-560, 90), 105, () => GameInput.TouchRoll = true, null));
             interactButton = Hold(hud, root, "Use", new Vector2(-90, 470), 130, () => GameInput.TouchInteract = true, null);
+            // seated in a vehicle: behind it / through his own eyes (ThirdPersonCamera.FirstPerson; drag to look round)
+            cameraButton = Hold(hud, root, "Camera", new Vector2(-90, 625), 110, () => GameInput.TouchCamera = true, null);
+            cameraButton.SetActive(false);
 
             // driving: steer with the left thumb, accelerator and brake under the right thumb, horn and handbrake above
             var dg = new GameObject("DriveControls", typeof(RectTransform));
@@ -263,23 +266,30 @@ namespace Nainital
 
         /// <summary>The right-hand buttons change with what the player is doing: on foot (fight), flying the jetpack
         /// (Upar / Neeche / Utro) or driving (Brake = handbrake, Horn; the stick steers and accelerates).</summary>
+        GameObject cameraButton;
+
         void Update()
         {
             if (lastMode == 2) GameInput.TouchMove = new Vector2(steerR - steerL, gas - brake);
             bool fly = Jetpack.Flying;
             bool drive = CarController.Driving != null;
-            int mode = fly ? 1 : drive ? 2 : 0;
+            var pc = PlayerController.Instance;
+            // 3: a passenger (a bus, the ropeway, the pony): only Utro + Camera; 4: on a bike: the stick, Brake, Utro, Camera
+            bool ride = pc && pc.CurrentMode == PlayerController.Mode.Mount;
+            bool bike = pc && pc.CurrentMode == PlayerController.Mode.Bike;
+            int mode = fly ? 1 : drive ? 2 : ride ? 3 : bike ? 4 : 0;
             if (mode == lastMode) return;
             lastMode = mode;
             wasFlying = fly;
-            if (jumpLabel) jumpLabel.text = Loc.T(mode == 1 ? "Upar" : "Jump");
+            if (jumpLabel) jumpLabel.text = Loc.T(mode == 1 ? "Upar" : mode == 4 ? "Brake" : "Jump");
             if (blockLabel) blockLabel.text = Loc.T(mode == 1 ? "Neeche" : "Block");
             if (useLabel) useLabel.text = Loc.T(mode == 0 ? "Use" : "Utro");
             foreach (var b in fightButtons) if (b) b.SetActive(mode == 0);
-            if (jumpLabel) jumpLabel.transform.parent.gameObject.SetActive(mode != 2);
-            if (blockLabel) blockLabel.transform.parent.gameObject.SetActive(mode != 2);
-            if (stickArea) stickArea.SetActive(mode != 2);
+            if (jumpLabel) jumpLabel.transform.parent.gameObject.SetActive(mode == 0 || mode == 1 || mode == 4);
+            if (blockLabel) blockLabel.transform.parent.gameObject.SetActive(mode == 0 || mode == 1);
+            if (stickArea) stickArea.SetActive(mode != 2 && mode != 3);
             if (driveGroup) driveGroup.SetActive(mode == 2);
+            if (cameraButton) cameraButton.SetActive(mode >= 2);
             if (stick) stick.Release();
             steerL = steerR = gas = brake = 0f;
             GameInput.TouchMove = Vector2.zero;

@@ -744,6 +744,63 @@ namespace Nainital.EditorTools
             EditorApplication.update += Tick;
         }
 
+        /// <summary>The seated view: arg "toggle" (V / the Camera button) or "yaw pitch" to look round in first person.
+        /// Bridge (Play): call VehicleTest.Cam</summary>
+        public static void Cam()
+        {
+            Need();
+            var a = Arg().Trim();
+            var tpc = ThirdPersonCamera.Instance;
+            if (a == "toggle" || a.Length == 0) GameInput.TouchCamera = true;
+            else
+            {
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                var p = a.Split(' ');
+                tpc.LookAround(float.Parse(p[0], ci), p.Length > 1 ? float.Parse(p[1], ci) : 0f);
+            }
+            Debug.Log($"[Nainital] cam: first person {ThirdPersonCamera.FirstPerson} (before this frame), arg '{a}'");
+        }
+
+        static GameObject eBus;
+
+        /// <summary>A passenger of a bus (owner, 22 Nov 2026: "bus me as passenger bethne ka bhi rkho"). Bridge (Play): call
+        /// VehicleTest.BusRide - a standing bus on the road by the player, him 2.5 m from its passenger door, E
+        /// (BusPassenger: walk up, climb in, sit); called again while he rides: E (off at the door). Film meanwhile.</summary>
+        public static void BusRide()
+        {
+            Need();
+            var p = PlayerController.Instance;
+            if (BusPassenger.Riding) { var r0 = BusPassenger.Riding; r0.Interact(p); Debug.Log($"[Nainital] bus ride: E to get off {r0.name}, boarding {p.Boarding}"); return; }
+            if (eBus) Object.Destroy(eBus);
+            var mat = Object.FindAnyObjectByType<TrafficManager>().material;
+            if (!RoadRoute.ReadyAny()) throw new System.Exception("no road network");
+            int k = RoadRoute.Nearest(p.transform.position, 200f);
+            Vector3 at = RoadRoute.Pos(k), f = RoadRoute.Heading(k);
+            f.y = 0f;
+            f.Normalize();
+            var lib = VehicleLibrary.Instance;
+            eBus = VehicleFactory.Create(CarType.Bus, Px.CarWhite, mat, true, "Test bus ride", lib ? lib.Pick(CarType.Bus, 0.3f) : -1);
+            eBus.transform.SetPositionAndRotation(Ground(at) + Vector3.up * 0.4f, Quaternion.LookRotation(f));
+            Physics.SyncTransforms();
+            var bp = eBus.AddComponent<BusPassenger>();
+            Vector3 door = bp.Point, outw = door - eBus.transform.position;
+            outw.y = 0f;
+            outw.Normalize();
+            p.GetComponent<CharacterMotor>().Teleport(Ground(door + outw * 2.5f) + Vector3.up * 0.1f);
+            Vector3 look = door - p.transform.position;
+            look.y = 0f;
+            p.transform.rotation = Quaternion.LookRotation(look.normalized);
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SnapBehind();
+            Physics.SyncTransforms();
+            EditorApplication.delayCall += () =>
+            {
+                if (!EditorApplication.isPlaying || !bp) return;
+                Debug.Log($"[Nainital] bus ride: E at {eBus.name} - prompt \"{bp.Prompt}\", can {bp.CanInteract(p)}");
+                bp.Interact(p);
+                Debug.Log($"[Nainital] bus ride: boarding {p.Boarding}, mode {p.CurrentMode}, riding {(BusPassenger.Riding ? BusPassenger.Riding.name : "-")}");
+            };
+        }
+
         static GameObject eCar;
 
         /// <summary>Getting in and out, seen (owner, 22 Nov 2026: "entry exit ka animation bhi nhi chlra"). Bridge (Play):
@@ -855,7 +912,7 @@ namespace Nainital.EditorTools
             }
             int bikes = 0, bikesDown = 0;
             foreach (var b in Object.FindObjectsByType<TrafficBike>(FindObjectsSortMode.None)) { bikes++; if (b.Down) bikesDown++; }
-            string s = $"t {Time.time:F0}s traffic cars {n}: mean speed {(n > 0 ? sum / n : 0):F1} m/s, standing {still}, knocks taken {hits}, upside down {flipped}, wrecked {wrecked}; bikes {bikes} (down {bikesDown})";
+            string s = $"t {Time.time:F0}s traffic cars {n}: mean speed {(n > 0 ? sum / n : 0):F1} m/s, standing {still}, knocks taken {hits}, upside down {flipped}, wrecked {wrecked}; bikes {bikes} (down {bikesDown}); overtakes {TrafficCar.Overtakes}, dropped back {TrafficCar.Aborts}";
             Debug.Log("[Nainital] " + s);
             File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../Bridge/vehicle_report.txt")), s);
         }

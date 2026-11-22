@@ -108,9 +108,10 @@ namespace Nainital
 
         public void ExitMount(Vector3 at)
         {
+            StopBoarding();
             transform.SetParent(null, true);
             transform.rotation = Quaternion.LookRotation(Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized + Vector3.forward * 1e-4f, Vector3.up);
-            rig.seated = false;
+            rig.seated = false; rig.driving = false; rig.riding = false; rig.pillion = false;
             CurrentMode = Mode.Normal;
             motor.Controller.enabled = true;
             motor.Teleport(at);
@@ -175,6 +176,34 @@ namespace Nainital
             Transform seatOn = b.Bike.model ? b.Bike.model : b.transform;
             Begin(BoardRoutine(entry, () => setup ? vp.SeatWorld(0) : seatOn.TransformPoint(b.Bike.SeatLocal), () => setup ? vp.SeatRotWorld(0) : b.transform.rotation,
                                rig.HasRideClips ? "Mount" : "StandToSit", 1.1f, 0.9f, SeatPose.Ride, null, () => EnterBike(b)));
+        }
+
+        /// <summary>A passenger of a bus (BusPassenger): to its door, climbs in and sits on `seat` (Mode.Mount: a ride he
+        /// does not steer, like the ropeway), then SitPassenger.</summary>
+        public void BoardPassenger(VehicleParts vp, int seat)
+        {
+            CurrentMode = Mode.Mount;
+            Vector3 entry = vp.WayOut(seat, out _);   // (opens the bus's doors)
+            Begin(BoardRoutine(entry, () => vp.SeatWorld(seat), () => vp.SeatRotWorld(seat), "StandToSit", 1.1f, 1.6f, vp.PoseOf(seat),
+                               null, () => SitPassenger(vp, seat)));
+        }
+
+        /// <summary>On a passenger seat of a vehicle he does not drive: its pose, hands / feet free, the camera on the vehicle.</summary>
+        public void SitPassenger(VehicleParts vp, int seat)
+        {
+            StopBoarding();
+            CurrentMode = Mode.Mount;
+            motor.Controller.enabled = false;
+            vp.Sit(transform, rig, seat);
+            rig.speed = 0f;
+            if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SetOverride(vp.transform, 13f);
+        }
+
+        /// <summary>Off a bus that stands (BusPassenger): up from the seat (SitToStand) and out to its door, then on foot.</summary>
+        public void AlightPassenger(VehicleParts vp, Vector3 at)
+        {
+            if (vp) vp.Leave(transform);
+            Begin(AlightRoutine(at, "SitToStand", 1.0f, 1.4f, () => ExitMount(at)));
         }
 
         /// <summary>His E in a car (CarController.Exit): the door opens, the Mixamo "Exiting Car" clip (no doors: standing
@@ -602,6 +631,7 @@ namespace Nainital
             if (CurrentMode == Mode.Boat && boat) boat.ForceExit();
             if (CurrentMode == Mode.Vehicle && car) car.ForceExit();
             if (CurrentMode == Mode.Mount && Pony.Ridden) Pony.Ridden.Interact(this);
+            if (CurrentMode == Mode.Mount && BusPassenger.Riding) BusPassenger.Riding.ForceExit();   // a bus passenger: off at once
             if (CurrentMode == Mode.Bike && PlayerBike.Riding) PlayerBike.Riding.ForceExit();
             CurrentMode = Mode.Dead;
             rig.dead = true;
@@ -618,6 +648,7 @@ namespace Nainital
             if (CurrentMode == Mode.Boat && boat) boat.ForceExit();
             if (CurrentMode == Mode.Vehicle && car) car.ForceExit();
             if (CurrentMode == Mode.Mount && Pony.Ridden) Pony.Ridden.Interact(this);
+            if (CurrentMode == Mode.Mount && BusPassenger.Riding) BusPassenger.Riding.ForceExit();   // a bus passenger: off at once
             if (CurrentMode == Mode.Bike && PlayerBike.Riding) PlayerBike.Riding.ForceExit();
             if (CurrentMode == Mode.Seated) { rig.seated = false; motor.Controller.enabled = true; }
             if (Jetpack.Flying) Jetpack.Toggle(this);

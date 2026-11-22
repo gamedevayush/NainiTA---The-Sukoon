@@ -47,6 +47,7 @@ namespace Nainital
                     far = vp.z < 0 || vp.x < -0.1f || vp.x > 1.1f || vp.y < -0.1f || vp.y > 1.1f;
                     thinned = far;
                 }
+                if (far && BusPassenger.Carries(car.gameObject)) far = false;   // the player rides in it
                 if (far)
                 {
                     Destroy(car.gameObject);
@@ -152,6 +153,7 @@ namespace Nainital
                 entry.paint = paint;
                 entry.model = model;
                 entry.material = material;
+                if (type == CarType.Bus) go.AddComponent<BusPassenger>();   // and ride in a bus (its passenger door)
                 active.Add(t);
                 return;
             }

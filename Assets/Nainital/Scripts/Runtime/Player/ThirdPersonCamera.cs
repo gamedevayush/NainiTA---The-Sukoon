@@ -31,6 +31,38 @@ namespace Nainital
         {
             Instance = this;
             cam = GetComponent<Camera>();
+            if (cam) near = cam.nearClipPlane;
+        }
+
+        // ---- through his own eyes in a vehicle (owner, 23 Nov 2026: "bus me ek camera option jisse fpv me rotate krskte"):
+        // V / the Camera button while seated (a bus passenger, at the wheel, on a bike); look round with the mouse / a drag,
+        // the view turning with the vehicle
+        /// <summary>First-person while seated (V / the Camera button flips it).</summary>
+        public static bool FirstPerson;
+        float fpYaw, fpPitch, near = 0.3f;
+
+        /// <summary>Set the first-person look (degrees from the vehicle's heading; tests).</summary>
+        public void LookAround(float yawDeg, float pitchDeg) { fpYaw = yawDeg; fpPitch = pitchDeg; }
+
+        static bool Seated(PlayerController p) =>
+            p && !p.Boarding && !p.Ragdolled && (p.CurrentMode == PlayerController.Mode.Mount || p.CurrentMode == PlayerController.Mode.Vehicle || p.CurrentMode == PlayerController.Mode.Bike);
+
+        /// <summary>The eyes: just in front of the face (the head bone a little up and forward), turned by his look round the
+        /// vehicle's heading. False: no head to look from.</summary>
+        bool EyeView(PlayerController p)
+        {
+            var a = p.Rig ? p.Rig.Anim : null;
+            Transform head = a && a.isHuman ? a.GetBoneTransform(HumanBodyBones.Head) : null;
+            var body = p.GetComponentInParent<Rigidbody>();
+            Transform veh = body ? body.transform : p.transform.parent ? p.transform.parent : p.transform;
+            fpYaw = Mathf.Clamp(fpYaw + GameInput.Look.x, -165f, 165f);
+            fpPitch = Mathf.Clamp(fpPitch - GameInput.Look.y, -70f, 60f);
+            Vector3 up = veh.up.y > 0.3f ? veh.up : Vector3.up;
+            Quaternion look = Quaternion.Euler(0f, veh.eulerAngles.y + fpYaw, 0f) * Quaternion.Euler(fpPitch, 0f, 0f);
+            Vector3 eye = (head ? head.position : p.transform.position + Vector3.up * 1.25f) + up * 0.09f + look * Vector3.forward * 0.16f;
+            transform.SetPositionAndRotation(eye, look);
+            if (cam) { cam.nearClipPlane = 0.04f; cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, 70f, 1f - Mathf.Exp(-6f * Time.deltaTime)); }
+            return true;
         }
 
         public void SetOverride(Transform t, float dist)
@@ -47,6 +79,17 @@ namespace Nainital
 
         void LateUpdate()
         {
+            var pcv = PlayerController.Instance;
+            bool seated = Seated(pcv);
+            if (seated && GameInput.CameraPressed)
+            {
+                FirstPerson = !FirstPerson;
+                fpYaw = fpPitch = 0f;
+                GameEvents.ShowToast(FirstPerson ? "Camera: aankhon se (ghumane ke liye drag / mouse)" : "Camera: peeche se", 1.6f);
+            }
+            if (FirstPerson && seated && EyeView(pcv)) return;
+            if (cam && cam.nearClipPlane != near) cam.nearClipPlane = near;   // back from the eyes
+
             Transform t = overrideTarget ? overrideTarget : target;
             if (!t) return;
             float dt = Time.deltaTime;

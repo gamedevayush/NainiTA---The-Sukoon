@@ -660,3 +660,35 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   re-runs) was not run on this code; traffic bikes still hit each other at junction crossings now and then.
 - New tests: `VehicleTest.BikeBus` (into / bus2 / bus7 / car7), `LogBikeHits`, `CarE` (arg model; again with a speed =
   jump out), `Throttle`, `Film`, `KnockBike` arg = speed.
+
+## 22 Nov 2026 (23:30-, main PC) - riding a bus as a passenger, the bus simulation with the player aboard
+
+- Owner: "bus me as passenger bethne ka bhi rkho....or ye hojaaye to ek bus stand se khurpatal tk ka simulation chlaao".
+- New `Vehicles/BusPassenger.cs` (on every traffic bus from TrafficManager, and on TrafficBusTest's bus): E at the passenger
+  door (the setup's seat-1 way in, else the left side) - a moving traffic bus pulls up first (`TrafficCar.StopForBoarding`)
+  - walk up, climb in (StandToSit), sit on a free passenger seat (`PlayerController.BoardPassenger / SitPassenger`,
+  Mode.Mount like the ropeway, camera on the bus). E again: off at the door when it stands (`AlightPassenger`), a ragdoll
+  jump when it moves (`BailOut`). Died / arrested: off at once. A bus with the player in it is never despawned
+  (TrafficManager) or destroyed (TrafficCar.Leave, TrafficBusTest.Stop evict him first).
+- Checked in a film (`VehicleTest.BusRide`): walk to the door, sit, "Bus se utro", off beside the bus.
+- `TrafficBusTest.Run` now seats the player in its bus as a passenger (no jetpack); results below.
+- Run 3 (23:35, full traffic, player aboard as a passenger the whole way): bus stand -> Mall Road in 108 s (768 m, 0
+  stops), then stuck at the north end of Upper Mall Road / the Mallital junction from 236 s: 17 stops, 7 contacts (4 of
+  them "gave way"), 1 pass; FAIL, no progress for 120 s at (87.8, 114.0) after 649 s, 1698 m. In front of it the whole
+  time: another traffic bus 3.6 m ahead that never got through the junction (shots play_bus_06..39). Same place as run 1
+  (1636 m). Not reached: Eco Cave Park, Lovers Point, Khurpatal. Next: why a bus cannot clear the Mallital junction
+  (the turn from Upper Mall's end onto the Mall towards the Flats / Kaladhungi road) - its turn path, the booth / gate,
+  oncoming give-way.
+- 23 Nov (00:10) owner: "agar NPC driver ko aisa lgra hai ki aage waala uske comparison me hlke hain or saamne se koi
+  vehicle nhi aara to overtake krle...and also bus me ek camera option jisse fpv me rotate krskte".
+  - Overtaking (TrafficCar `CanOvertake / OtherLaneClear`): 2 s held under 80% (and 2 m/s under) the speed it wants,
+    room beside it on the road, no junction island within 45 m, the lane within 10 deg straight for its own way past,
+    the other lane clear (vehicles, the player) for that + what a car at 12 m/s covers meanwhile (capped 170 m), room to
+    pull in ahead of it; out on the right (StartPass), on the gas, back in once past; something in the other lane close
+    ahead before it is alongside: drops back (`Aborts`). Bikes: the same idea (TrafficBike `RightClear`, 3 s of closing).
+    Counts in `VehicleTest.TrafficStats` (overtakes, dropped back).
+  - First-person view while seated (bus passenger, at the wheel, on a bike): V / the new "Camera" touch button
+    (`GameInput.CameraPressed`, `ThirdPersonCamera.FirstPerson`): the eyes just in front of the head bone, look round
+    +-165 deg / -70..60 deg with the mouse or a drag, turning with the vehicle; near clip 0.04 m. Checked: forward,
+    left, right, back through the bus windows (`VehicleTest.Cam`, Shots/play_fpv_*).
+  - HUD: a passenger (Mount) shows only Use / Camera now (no fight buttons); on a bike the jump button reads Brake.

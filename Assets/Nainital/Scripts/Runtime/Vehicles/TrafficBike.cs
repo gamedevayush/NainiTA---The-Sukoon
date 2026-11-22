@@ -110,6 +110,26 @@ namespace Nainital
         Rigidbody passing;
         float passOff, passWant, passT, waitT;
 
+        float slowT;
+        static readonly Collider[] rightHits = new Collider[16];
+
+        /// <summary>Nobody (a vehicle, the player) in the space to the right of its lane for `d` m ahead, but the one it passes.</summary>
+        bool RightClear(Vector3 pos, float d, Rigidbody passed)
+        {
+            Vector3 f = bike.Forward, right = Vector3.Cross(Vector3.up, f);
+            Vector3 c = pos + f * (d * 0.5f) + right * 2f + Vector3.up;
+            int n = Physics.OverlapBoxNonAlloc(c, new Vector3(1.6f, 1.5f, d * 0.5f), rightHits, Quaternion.LookRotation(f),
+                                               (1 << VehicleFactory.VehicleLayer) | (1 << 8), QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var o = rightHits[i].attachedRigidbody;
+                Transform t = o ? o.transform : rightHits[i].transform;
+                if (t == transform || t.IsChildOf(transform) || (passed && o == passed)) continue;
+                return false;
+            }
+            return true;
+        }
+
         void StartPass(Rigidbody o, Vector3 pos)
         {
             var info = o.GetComponent<VehicleInfo>();
@@ -214,6 +234,21 @@ namespace Nainital
             if (!blocker) blocker = bike.BlockedBy;   // stopped against its side, out of the look ahead
             if (blocker && !passing && TrafficCar.WontMove(blocker)) { waitT += dt; if (waitT > 2f) StartPass(blocker, pos); }
             else waitT = 0f;
+            // a slower one ahead (a bus, an auto, a truck): past it on the right when nothing is coming in that space for
+            // ~3 s of closing (owner, 23 Nov 2026: "aage waala uske comparison me hlke hain or saamne se koi vehicle nhi aara
+            // to overtake krle")
+            if (blocker && !passing && !TrafficCar.WontMove(blocker) && net.roads[road].width >= 5f)
+            {
+                float leadV = Vector3.Dot(blocker.linearVelocity, bike.Forward);
+                slowT = leadV < cruise - 2f && leadV < cruise * 0.8f ? slowT + dt : 0f;
+                if (slowT > 1.5f && RightClear(pos, Mathf.Clamp((cruise + 12f) * 3f, 25f, 75f), blocker))
+                {
+                    StartPass(blocker, pos);
+                    slowT = 0f;
+                    if (passing) TrafficCar.Overtakes++;
+                }
+            }
+            else slowT = 0f;
 
             // an accident ahead: stop short; a siren behind: over to the left, slow
             if (IncidentManager.HoldAhead(pos, bike.Forward, out float hd)) target = Mathf.Min(target, Mathf.Max(0f, (hd - 8f) * 0.6f));
