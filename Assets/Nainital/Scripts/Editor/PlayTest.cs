@@ -31,6 +31,8 @@ namespace Nainital.EditorTools
         /// <summary>Touch controls on, a 2316 x 1080 Game view (the S22 Ultra's default screen), then Play.</summary>
         public static void Begin()
         {
+            TestSave.Take();   // the player's own save comes back when Play ends
+            TestSave.Fed();    // (and until then: no hunger blur over the screenshots)
             PlayerPrefs.SetInt(TouchPref, 1);
             PlayerPrefs.SetInt(SkipMenuPref, 1);   // straight into the game, no main menu (FrontEnd)
             PlayerPrefs.Save();

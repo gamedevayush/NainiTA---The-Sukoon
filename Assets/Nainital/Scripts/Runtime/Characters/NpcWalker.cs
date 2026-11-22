@@ -52,6 +52,14 @@ namespace Nainital
         CharacterController cc;
         float pause, talkTimer, knockTimer, scanTimer, fleeTimer, sideTimer, homeTimer;
         Vector3 fleeDir, sideStep, homeDoor, lastDir;
+        // out of a car's way: kept out of its strip until it has passed, and to the other side where a wall is in the way
+        Vector3 holdDir, fleeFrom;
+        float holdTimer, fleeShutT, fleeOtherT;
+        bool fleeMayCross;
+        /// <summary>How far in front of a traffic vehicle's middle people clear its way. A car matches the pace of someone
+        /// walking ahead of it and settles 9-11 m behind (TrafficCar's gap): 7 m never reached them, and the 22 Nov 2026
+        /// route test crawled up Upper Mall at 1.1 m/s for six minutes.</summary>
+        const float TrafficReach = 14f;
         bool hidden;
         Health health;
         static readonly Collider[] hits = new Collider[16];
@@ -309,8 +317,9 @@ namespace Nainital
                 if (sp >= 1.5f) { fwd = v / sp; reach = 4f + sp * 2.2f; }
                 // a traffic vehicle waiting with us in its way: it will not come on until we move, so we move (owner,
                 // 21 Nov 2026: "NPC ke pass gaadi aaye to vo side hojaaye varna jam lagjayega")
-                else if (traffic) { fwd = new Vector3(car.forward.x, 0f, car.forward.z).normalized; reach = 7f; }
+                else if (traffic) { fwd = new Vector3(car.forward.x, 0f, car.forward.z).normalized; reach = TrafficReach; }
                 else continue;
+                if (traffic) reach = Mathf.Max(reach, TrafficReach);
                 Vector3 rel = pos - car.position;
                 rel.y = 0f;
                 float ahead = Vector3.Dot(rel, fwd);
@@ -319,12 +328,27 @@ namespace Nainital
                 float lat = Vector3.Dot(rel, right);
                 var info = car.GetComponent<VehicleInfo>();
                 float half = (info ? info.width : 1.8f) * 0.5f + 1.2f;
-                if (Mathf.Abs(lat) > half) continue;
-                fleeDir = right * (lat >= 0f ? 1f : -1f);
+                if (Mathf.Abs(lat) > half)
+                {
+                    // just out of its way: along beside it, not back into the lane before it has passed
+                    if (traffic && Mathf.Abs(lat) < half + 1.5f) { holdDir = right * Mathf.Sign(lat); holdTimer = 0.6f; }
+                    continue;
+                }
+                if (fleeOtherT <= 0f) fleeDir = right * (lat >= 0f ? 1f : -1f);   // (else: that side was shut, see Update)
+                if (fleeTimer <= 0f) { fleeShutT = 0f; fleeFrom = pos; }
+                fleeMayCross = sp < 3f;   // over to the other side only in front of one that waits or crawls
                 fleeTimer = Mathf.Max(fleeTimer, 1.2f);
                 talkTimer = 0f;
                 return;
             }
+        }
+
+        /// <summary>A wall, railing or trunk within a step that way.</summary>
+        bool WallBeside(Vector3 way)
+        {
+            return Physics.Raycast(transform.position + Vector3.up * 0.7f, way, out var hit, 0.9f,
+                                   ~((1 << 2) | (1 << 4) | (1 << 8) | (1 << 9) | (1 << VehicleFactory.VehicleLayer)), QueryTriggerInteraction.Ignore)
+                   && hit.normal.y < 0.6f;
         }
 
         /// <summary>Someone right in front, coming the other way or standing: step to the left for a moment.</summary>
@@ -379,9 +403,21 @@ namespace Nainital
             Vector3 desired = Vector3.zero;
             Vector3 face = transform.forward;
             float run = 1f;
+            if (fleeOtherT > 0f) fleeOtherT -= dt;
             if (fleeTimer > 0f)   // out of a car's way first, whatever else
             {
                 fleeTimer -= dt;
+                // half a second of running and hardly moved: a wall / railing that side, so over to the other
+                fleeShutT += dt;
+                if (fleeShutT > 0.5f)
+                {
+                    Vector3 moved = transform.position - fleeFrom;
+                    moved.y = 0f;
+                    // (hardly moved is not enough: whoever walked the other way has only just turned - a wall must be there)
+                    if (moved.sqrMagnitude < 0.36f && fleeOtherT <= 0f && fleeMayCross && WallBeside(fleeDir)) { fleeDir = -fleeDir; fleeOtherT = 2.5f; }
+                    fleeShutT = 0f;
+                    fleeFrom = transform.position;
+                }
                 desired = fleeDir * 3.8f;
                 face = fleeDir;
             }
@@ -440,13 +476,19 @@ namespace Nainital
                     face = aim;
                 }
             }
+            if (holdTimer > 0f)
+            {
+                holdTimer -= dt;
+                float into = Vector3.Dot(desired, holdDir);
+                if (fleeTimer <= 0f && into < 0f) desired -= holdDir * into;
+            }
             if (sideTimer > 0f && fleeTimer <= 0f && desired.sqrMagnitude > 0.01f)
             {
                 sideTimer -= dt;
                 desired = (desired.normalized + sideStep * 0.9f).normalized * desired.magnitude;
             }
             if (desired.sqrMagnitude > 0.01f) lastDir = new Vector3(desired.x, 0f, desired.z).normalized;
-            if (!sit) motor.Move(desired * run, 6f, dt);
+            if (!sit) motor.Move(desired * run, fleeTimer > 0f ? 16f : 6f, dt);   // out of a car's way: off at once
             motor.FaceTowards(face, fleeTimer > 0f ? 720f : 300f, dt);
             rig.speed = sit ? 0f : motor.HorizontalVelocity.magnitude;
             rig.seated = sit;

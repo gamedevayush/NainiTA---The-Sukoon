@@ -74,6 +74,12 @@ namespace Nainital
             if (bikes.Count < bikeTarget) TrySpawnBike(c, cam);
         }
 
+        /// <summary>Something already there - a parked car, a police jeep, a two-wheeler, a person, the player's car: the
+        /// distance checks only knew the traffic's own lists, and a car made inside another one is shoved out of it or stays
+        /// in it (owner, 22 Nov 2026: "gaadiyan aar paar jaari hain kabhi kabhi").</summary>
+        static bool Occupied(Vector3 p, float r) =>
+            Physics.CheckSphere(p + Vector3.up * 1.2f, r, (1 << VehicleFactory.VehicleLayer) | (1 << 8) | (1 << 9), QueryTriggerInteraction.Ignore);
+
         void TrySpawnBike(Vector3 c, Camera cam)
         {
             var lib = VehicleLibrary.Instance;
@@ -92,7 +98,7 @@ namespace Nainital
                 bool clear = true;
                 foreach (var a in active) if (a && (a.transform.position - pos).sqrMagnitude < 144f) { clear = false; break; }
                 if (clear) foreach (var a in bikes) if (a && (a.transform.position - pos).sqrMagnitude < 100f) { clear = false; break; }
-                if (!clear) continue;
+                if (!clear || Occupied(pos, 3f)) continue;
                 var e = lib.PickBike(Random.value);
                 if (e == null) return;
                 var go = BikeRide.Create(e, "Traffic " + e.name);
@@ -120,7 +126,7 @@ namespace Nainital
                 if (d < 140f && vp.z > 0 && vp.x > -0.1f && vp.x < 1.1f && vp.y > -0.1f && vp.y < 1.1f) continue; // don't pop in view
                 bool clear = true;
                 foreach (var a in active) if (a && (a.transform.position - pos).sqrMagnitude < 400f) { clear = false; break; }
-                if (!clear) continue;
+                if (!clear || Occupied(pos, 4.5f)) continue;
 
                 // Nainital's roads: mostly white hill taxis, then private cars, goods pickups and tourist coaches
                 float roll = Random.value;

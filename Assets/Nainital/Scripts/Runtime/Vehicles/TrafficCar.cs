@@ -20,11 +20,11 @@ namespace Nainital
         public Transform[] wheels;   // CarController turns them
         public float cruise = 11f;
 
-        enum Mode { Drive, TurnAcross, TurnBack, PullUp, Wrecked }
+        enum Mode { Drive, TurnAcross, TurnBack, Path, PullUp, Wrecked }
 
         int road, idx, dir;
         Mode mode;
-        float stuck, hornCooldown, blocked, turnTimer, shaken, pullTimer, pull, wayT, waySign, oncoming, feelSteer, backT, stillT;
+        float stuck, hornCooldown, blocked, turnTimer, shaken, pullTimer, pull, wayT, waySign, oncoming, feelSteer, stillT;
         float frontWall = float.MaxValue;
         static int wallMask = -1;
         int turnSteps;
@@ -48,23 +48,28 @@ namespace Nainital
         public bool Wrecked => mode == Mode.Wrecked;
         public bool PullingUp => mode == Mode.PullUp;
         public string State => mode + (driver ? ", driver in" : ", no driver") + $", road {road} idx {idx} dir {dir} t {turnTimer:F1} steps {turnSteps} thr {(car ? car.aiThrottle : 0f):F2} steer {(car ? car.aiSteer : 0f):F0} hb {(car ? car.aiHandbrake : 0f):F0} stuck {stuck:F0}" +
-                               $" tries {tries}{(ramT > 0f ? " RAM" : "")}{(passing ? " PASS" : "")}{(ghosts.Count > 0 ? $" ghosts {ghosts.Count}" : "")}";
+                               $" tries {tries}{(bump != Bump.None ? " HIT:" + bump : "")}{(passing ? " PASS" : "")}";
 
         // ------------------------------------------------------------------ getting unstuck
-        // owner, 21 Nov 2026: "gaadi atke na... back krke kahin na kahin se nikaal hi le..vrna thok ke lejaaye..agar 4-5
-        // attempt me na gyi to". Wedged (pressing on and not moving): back out, each try on another lock and a little
-        // longer; the 5th time it rams its way through (full throttle up the lane, shoved over a kerb, through the static
-        // thing it is pressed against - never a person); unseen and still stuck after that, it is put on its lane ahead.
+        // owner, 21 Nov 2026: "gaadi atke na... back krke kahin na kahin se nikaal hi le"; 22 Nov 2026, watching it: "NPC ki
+        // gaadi thukne ke baad bhi accelerator diye jaari hain... thuke ruke or back krke nikaal le". So: the moment it
+        // hits something with the end it is moving on, off the accelerator and brake; a short pause; back out the other
+        // way, the wheel turned from what it hit; then a clear way round it (DrivePath). Never pressed on against it and
+        // never through it (the 5-second ram and its pass-through are gone). Four times at one place on a two-way road:
+        // it turns round; unseen and still stuck, it is put on its lane ahead.
         // A standing vehicle in its lane that will not move (parked, abandoned, wedged, wrecked) is passed on the right.
         int tries;
         Vector3 troubleAt;
-        float ramT, slowT, shoveCd, freeT, backSteer, passOff, passWant, passT, waitT, ghostT, dodgeT, dodgeWant;
+        float freeT, passOff, passWant, passT, waitT, dodgeT, dodgeWant;
         Transform passing;
-        float climbT;
-        readonly List<Collider> ghosts = new List<Collider>();
-        /// <summary>How often the traffic rammed through / was put back on its lane / went round a standing vehicle
+        float climbT, behindT;
+        /// <summary>What it last hit with the end it was driving on (checks: TrafficLab).</summary>
+        public string LastHit { get; private set; } = "-";
+        /// <summary>How long it has been held to a walking pace by someone on foot in front (checks: TrafficLab).</summary>
+        public float BehindWalker => behindT;
+        /// <summary>How often the traffic hit something / was put back on its lane / went round a standing vehicle
         /// (checks: VehicleTest.JamReport).</summary>
-        public static int Rams, Hops, Passes, BackOffs;
+        public static int Hits, Hops, Passes, BackOffs;
         public int Tries => tries;
         /// <summary>Test hook (VehicleTest.PassTest): the point of its lane about `metres` ahead and the lane's way there.</summary>
         public Vector3 LaneAhead(float metres, out Vector3 way)
@@ -85,11 +90,15 @@ namespace Nainital
             way = way.sqrMagnitude > 1e-4f ? way.normalized : transform.forward;
             return Lane(i);
         }
-        int mostTries, ramsHere, passesHere;
+        int mostTries, hitsHere, passesHere, hopsHere;
+        public int HopsHere => hopsHere;
         public int MostTries => mostTries;
-        public int RamsHere => ramsHere;
+        public int HitsHere => hitsHere;
         public int PassesHere => passesHere;
-        public bool Ramming => ramT > 0f;
+        /// <summary>Braking after a hit / backing out of one.</summary>
+        public bool BackingOut => bump != Bump.None;
+        /// <summary>The throttle it gives now (checks: TrafficLab.CrashTest).</summary>
+        public float Throttle => car ? car.aiThrottle : 0f;
         public bool Passing => passing;
         public bool HasDriver => driver;
         /// <summary>An ambulance or police car is stuck against this one (RouteDriver): back off out of its way if it is
@@ -102,6 +111,78 @@ namespace Nainital
             waySign = Vector3.Dot(rel, transform.forward) > 0f ? -1f : 1f;
             wayT = 2.6f;
             stuck = 0f;
+        }
+
+        // ------------------------------------------------------------------ a route (tests, later missions)
+        List<(int r, int d)> route;
+        int routeAt;
+        Vector3 routeGoal;
+        /// <summary>Reached the end of its route (it stands there).</summary>
+        public bool Arrived { get; private set; }
+        /// <summary>Where it is on its route: step / steps, the road and the way.</summary>
+        public string RouteInfo => route == null ? "no route" : $"step {routeAt + 1}/{route.Count} road {road} '{net.roads[road].name}' idx {idx}/{Pts.Length} dir {dir}{(Arrived ? " ARRIVED" : "")}";
+        public int Road => road;
+        public int Idx => idx;
+        public int Dir => dir;
+
+        /// <summary>Drive these roads in turn (road, way), the first being the one it is on, and stop at `goal` on the last
+        /// (TrafficLab.RouteDrive: bus stand to the DSA ground).</summary>
+        public void FollowRoute(List<(int r, int d)> steps, Vector3 goal)
+        {
+            route = steps;
+            routeAt = 0;
+            routeGoal = goal;
+            Arrived = false;
+        }
+
+        (int r, int d)? RouteWant() => route != null && routeAt + 1 < route.Count && route[routeAt].r == road ? route[routeAt + 1] : ((int, int)?)null;
+
+        readonly List<(int r, int i, int d, int at)> branches = new List<(int r, int i, int d, int at)>();
+        float branchLimit;
+
+        /// <summary>A route's turn off the middle of this road (Khurpatal's road leaves the Kaladhungi road like that; at
+        /// a road's end: Advance): the indicator from 30 m, slowed for, taken there. True: it turns by a planned way.</summary>
+        bool RouteBranch(Vector3 pos)
+        {
+            branchLimit = float.MaxValue;
+            var want = RouteWant();
+            if (!want.HasValue) return false;
+            net.Branches(road, idx, dir, branches);
+            foreach (var b in branches)
+            {
+                if (b.r != want.Value.r || b.d != want.Value.d) continue;
+                var p = Pts;
+                var q = net.roads[b.r].pts;
+                Vector3 to = p[b.at] - pos;
+                to.y = 0f;
+                int past = (idx - b.at) * dir;
+                if (past < 0 && to.magnitude > 3f)
+                {
+                    if (to.magnitude > RoadChoice.PlanAhead || past < -24) return false;
+                    Vector3 hin = p[b.at] - p[Mathf.Clamp(b.at - dir * 3, 0, p.Length - 1)];
+                    Vector3 hout = q[Mathf.Clamp(b.i + b.d * 3, 0, q.Length - 1)] - q[b.i];
+                    hin.y = hout.y = 0f;
+                    float turn = Vector3.SignedAngle(hin, hout, Vector3.up);
+                    plan.Branching(Mathf.Abs(turn) < RoadChoice.TurnAngle ? 0 : turn > 0f ? 1 : -1);
+                    float corner = Mathf.Lerp(cruise, 2.5f, Mathf.Clamp01(Mathf.Abs(turn) / 90f));
+                    branchLimit = Mathf.Sqrt(corner * corner + 2f * 1.5f * Mathf.Max(0f, to.magnitude - spec.length * 0.5f));
+                    return false;
+                }
+                int fromRoad = road, fromIdx = idx;
+                road = b.r;
+                idx = b.i;
+                dir = b.d;
+                RouteStep();
+                SharpEntry(fromRoad, fromIdx);
+                return mode != Mode.Drive;
+            }
+            return false;
+        }
+
+        void RouteStep()
+        {
+            if (route == null) return;
+            for (int k = routeAt + 1; k < route.Count; k++) if (route[k].r == road) { routeAt = k; return; }
         }
 
         /// <summary>Test hook (PlayTest.UTurn): turn round here.</summary>
@@ -221,7 +302,7 @@ namespace Nainital
             if (d.sqrMagnitude < 1e-4f) return pts[i];
             Vector3 left = Vector3.Cross(d.normalized, Vector3.up);   // Unity: forward x up = left
             float off = net.roads[road].oneWay != 0 ? 0f : Mathf.Max(1.1f, net.roads[road].width * 0.25f);   // one-way: down the middle
-            return pts[i] + left * (off + pull * 1.3f - passOff);   // pull: over to the left for a siren (EmergencyLights); passOff: round a standing vehicle
+            return pts[i] + left * (off + net.roads[road].Shift(dir, i) + pull * 1.3f - passOff);   // pull: over to the left for a siren (EmergencyLights); passOff: round a standing vehicle
         }
 
         static readonly int groundMask = ~((1 << VehicleFactory.VehicleLayer) | (1 << 8) | (1 << 9) | (1 << 2) | (1 << 4));
@@ -243,15 +324,20 @@ namespace Nainital
             var pts = Pts;
             if (idx > 0 && idx < pts.Length - 1) return;
             // the road planned (and signalled) 30 m back, else one picked now
+            int fromRoad = road, fromIdx = Mathf.Clamp(idx, 0, pts.Length - 1);
             var planned = plan.Take(road, dir);
-            if (planned.HasValue) { road = planned.Value.r; idx = planned.Value.i; dir = planned.Value.d; return; }
+            if (planned.HasValue) { road = planned.Value.r; idx = planned.Value.i; dir = planned.Value.d; RouteStep(); SharpEntry(fromRoad, fromIdx); return; }
             var ok = RoadChoice.Onward(net, road, idx);   // onward roads, never the wrong way down a one-way road
             if (ok.Count > 0)
             {
                 var c = ok[Random.Range(0, ok.Count)];
+                var w = RouteWant();
+                if (w.HasValue) foreach (var o in RoadChoice.Onward(net, road, idx, true)) if (o.r == w.Value.r && o.d == w.Value.d) { c = o; break; }
                 road = c.r;
                 idx = c.i;
                 dir = c.d;
+                RouteStep();
+                SharpEntry(fromRoad, fromIdx);
             }
             else if (net.roads[road].oneWay == 0) TurnRound();
             else Leave();   // the end of a one-way road with nowhere to go: this car leaves
@@ -266,10 +352,87 @@ namespace Nainital
             Vector3 h = Lane(idx + dir * 2) - Lane(idx);
             h.y = 0;
             turnHeading = h.sqrMagnitude > 0.01f ? h.normalized : -transform.forward;
+            turnSignal = 1;   // a turn round: the right indicator, as on Indian roads
+            prevRoad = -1;
             mode = Mode.TurnAcross;
             turnTimer = 0f;
             turnSteps = 0;
             phaseStart = transform.position;
+        }
+
+        int turnSignal = 1, prevRoad = -1, prevIdx;
+
+        /// <summary>
+        /// Onto a road that leaves at a hairpin (more than 100 degrees from where the car points: 24 such junctions, e.g. the
+        /// roads that come down to the Mall at a sharp angle): steering for the lane alone, the car ran its nose into the
+        /// wall on the outside of the bend, backed straight off and ran into it again (owner, 22 Nov 2026: "glt mudne pe ...
+        /// back krti hai to same direction me phirse chli jaati hai"). A driver takes it in two or three goes: forward on
+        /// full lock, back on the other lock, forward - the turn-round manoeuvre with the new road's heading, the edge
+        /// checked against both roads. Pressed against something (`backFirst`), it starts by backing.
+        /// </summary>
+        void StartManoeuvre(Vector3 heading, int fromRoad, int fromIdx, bool backFirst)
+        {
+            heading.y = 0f;
+            if (heading.sqrMagnitude < 0.01f) return;
+            turnHeading = heading.normalized;
+            float off = Vector3.SignedAngle(new Vector3(transform.forward.x, 0f, transform.forward.z), turnHeading, Vector3.up);
+            turnSignal = off >= 0f ? 1 : -1;
+            prevRoad = fromRoad;
+            prevIdx = fromIdx;
+            mode = backFirst ? Mode.TurnBack : Mode.TurnAcross;
+            turnTimer = 0f;
+            turnSteps = 0;
+            phaseStart = transform.position;
+            Manoeuvres++;
+        }
+
+        float wrongT;
+        int astray;
+        /// <summary>How often a car gave up turning and drove on the way it faced (checks: TrafficLab).</summary>
+        public static int Astrays;
+
+        /// <summary>
+        /// Pointing against its lane (a turn it gave up, a shove): not on ahead the same wrong way (owner, 22 Nov 2026).
+        /// It turns to its lane; after two failed goes on a two-way road it takes that road the way it faces, in that way's
+        /// own lane, as a driver who cannot turn there would. True while it starts such a turn.
+        /// </summary>
+        bool Astray(float dt, Vector3 pos)
+        {
+            Vector3 w = Lane(idx + dir * 2) - Lane(idx), f = transform.forward;
+            w.y = f.y = 0f;
+            bool wrong = w.sqrMagnitude > 0.01f && Vector3.Angle(f, w) > 110f && !Arrived && !net.NearIsland(pos, 10f);
+            wrongT = wrong ? wrongT + dt : 0f;
+            if (wrongT < 0.8f) return false;
+            wrongT = 0f;
+            astray++;
+            if (astray > 2 && route == null && net.roads[road].oneWay == 0)
+            {
+                dir = -dir;
+                astray = 0;
+                Astrays++;
+                Relocate();
+                return false;
+            }
+            if (astray > 4 && !Seen(pos) && Hop()) { astray = 0; return true; }
+            if (PathToLane()) return true;
+            StartManoeuvre(w, -1, 0, Blocked(transform.forward, 2f));
+            return true;
+        }
+
+        float edgeFrom;
+
+        /// <summary>How many hairpin / wedged three-point turns the traffic made (checks: TrafficLab).</summary>
+        public static int Manoeuvres;
+
+        /// <summary>Just onto a new road: if it leaves at a hairpin from where the car points, take it in goes.</summary>
+        void SharpEntry(int fromRoad, int fromIdx)
+        {
+            if (net.NearIsland(transform.position, 10f)) return;   // round the island is the turn
+            Vector3 h = Lane(idx + dir * 3) - Lane(idx);
+            h.y = 0f;
+            Vector3 f = new Vector3(transform.forward.x, 0f, transform.forward.z);
+            if (h.sqrMagnitude > 0.01f && f.sqrMagnitude > 0.01f && Vector3.Angle(f, h) > 100f && !PathToLane())
+                StartManoeuvre(h, fromRoad, fromIdx, false);
         }
 
         void Leave()
@@ -294,7 +457,9 @@ namespace Nainital
         }
 
         /// <summary>The point the car steers for, lookAhead metres up the lane from where it is.</summary>
-        Vector3 Aim(float lookAhead)
+        Vector3 Aim(float lookAhead) => net.RoundIslands(transform.position, AlongLane(lookAhead), spec.width * 0.5f);
+
+        Vector3 AlongLane(float lookAhead)
         {
             Vector3 prev = transform.position;
             for (int k = 1; k < 14; k++)
@@ -313,15 +478,26 @@ namespace Nainital
         float SteerTo(Vector3 worldPoint)
         {
             Vector3 local = transform.InverseTransformPoint(worldPoint);
-            return Mathf.Atan2(local.x, Mathf.Max(local.z, 0.1f)) * Mathf.Rad2Deg * 1.15f;
+            local.y = 0f;
+            if (local.sqrMagnitude < 0.01f) return 0f;
+            // a point behind: full lock towards it (straight behind it gave next to no lock: on ahead, the same wrong way)
+            if (local.z < 0.1f) return local.x < 0f ? -90f : 90f;
+            return Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg * 1.15f;
         }
 
         /// <summary>How far the given point is from the middle of the road (for a turn in a narrow road).</summary>
         float OffCentre(Vector3 p)
         {
-            var pts = Pts;
+            float best = OffCentreOf(road, idx, p);
+            if (prevRoad >= 0 && prevRoad < net.roads.Length) best = Mathf.Min(best, OffCentreOf(prevRoad, prevIdx, p));   // a hairpin: the junction is road too
+            return best;
+        }
+
+        float OffCentreOf(int r, int near, Vector3 p)
+        {
+            var pts = net.roads[r].pts;
             float best = float.MaxValue;
-            for (int k = Mathf.Max(0, idx - 8); k < Mathf.Min(pts.Length - 1, idx + 8); k++)
+            for (int k = Mathf.Max(0, near - 8); k < Mathf.Min(pts.Length - 1, near + 8); k++)
             {
                 Vector3 a = pts[k], b = pts[k + 1];
                 Vector2 a2 = new Vector2(a.x, a.z), b2 = new Vector2(b.x, b.z), p2 = new Vector2(p.x, p.z);
@@ -419,7 +595,6 @@ namespace Nainital
 
         void OnDestroy()
         {
-            if (ghosts.Count > 0) RestoreGhosts(true);
             if (driver) Destroy(driver.gameObject);
             foreach (var w in passengers) if (w) Destroy(w.gameObject);
             passengers.Clear();
@@ -437,8 +612,8 @@ namespace Nainital
 
             // the indicator: the turn planned ahead, right through a turn round (owner, 21 Nov 2026)
             if (!lampsRef) lampsRef = GetComponent<VehicleLamps>();
-            if (mode == Mode.Drive) plan.Tick(net, road, dir, pos, dt);
-            if (lampsRef) lampsRef.signal = mode == Mode.TurnAcross || mode == Mode.TurnBack ? 1 : mode == Mode.Drive ? plan.Signal : 0;
+            if (mode == Mode.Drive) { plan.want = RouteWant(); plan.Tick(net, road, dir, pos, dt); }
+            if (lampsRef) lampsRef.signal = mode == Mode.TurnAcross || mode == Mode.TurnBack || mode == Mode.Path ? turnSignal : mode == Mode.Drive ? plan.Signal : 0;
 
             if (mode == Mode.PullUp)
             {
@@ -454,29 +629,18 @@ namespace Nainital
                 return;
             }
 
+            if (bump != Bump.None) { Bumped(dt, pos, fwd); return; }   // it hit something: before anything else
             if (mode == Mode.TurnAcross || mode == Mode.TurnBack)
             {
                 Turning(dt, pos, fwd);
                 return;
             }
+            if (mode == Mode.Path) { OnPath(dt, pos, fwd); return; }
+            pathCd -= dt;
 
             // free again: well away from where the trouble began, or rolling for a while
             freeT = Mathf.Abs(fwd) > 3f ? freeT + dt : 0f;
             if (tries > 0 && (freeT > 4f || (pos - troubleAt).sqrMagnitude > 15f * 15f)) tries = 0;
-            if (ghosts.Count > 0 && ramT <= 0f && (ghostT += dt) > 3f) RestoreGhosts();
-
-            if (ramT > 0f) { Ram(dt, pos); return; }   // the 5th try: through
-
-            if (backT > 0f)   // nosed into something: back off on the lock chosen for this try, then go again
-            {
-                backT -= dt;
-                car.aiHandbrake = 0f;
-                car.aiSteer = backSteer;   // (it was worked out from aiSteer each step, so it flipped every step: straight back)
-                car.aiThrottle = fwd > 0.3f ? -1f : -0.6f;
-                if (backT <= 0f) { Relocate(); stillT = 0f; }
-                return;
-            }
-
             // going round a standing vehicle: until it is behind
             if (passing)
             {
@@ -498,33 +662,47 @@ namespace Nainital
                 return;
             }
 
+            if (EnterIsland(pos)) return;   // a junction island ahead: the whole way round it first
+            if (!this) return;
+            if (RouteBranch(pos)) return;
+
             // keep to the lane: the next point is passed once it is close, or behind
             for (int guard = 0; guard < 4; guard++)
             {
-                Vector3 nx = Lane(idx + dir) - pos;
+                Vector3 lp = Lane(idx + dir), nx = lp - pos;
                 nx.y = 0;
-                if (nx.magnitude < 2.5f || (nx.magnitude < 9f && Vector3.Dot(nx, transform.forward) < 0f)) { Advance(); if (mode != Mode.Drive || !this) return; }
+                if (nx.magnitude < 2.5f || (nx.magnitude < 9f && Vector3.Dot(nx, transform.forward) < 0f) || net.InIsland(lp, pos, spec.width * 0.5f)) { Advance(); if (mode != Mode.Drive || !this) return; }
                 else break;
             }
+            if (freeT > 4f) astray = 0;
+            if (Astray(dt, pos)) return;
 
             float speed = Mathf.Abs(fwd);
             car.aiSteer = SteerTo(Aim(Mathf.Clamp(speed * 0.9f, 4.5f, 13f)));
 
             // bends ahead set the speed: the sharpest turn of the lane over the next ~30 m, and how soon it comes
-            float targetSpeed = BendSpeed(pos);
+            float targetSpeed = Mathf.Min(BendSpeed(pos), branchLimit);
             Vector3 ahead = Lane(idx + dir * 4) - pos;
             ahead.y = 0;
             float bend = Vector3.Angle(transform.forward, ahead);   // (the horn before a blind bend: Manners)
             if (shaken > 0f) { shaken -= dt; targetSpeed = 0f; }
+            if (route != null && route[route.Count - 1].r == road)   // the last road of a route: stop at the goal
+            {
+                Vector3 g = routeGoal - pos; g.y = 0f;
+                if (g.magnitude < 9f) Arrived = true;
+                targetSpeed = Arrived ? 0f : Mathf.Min(targetSpeed, Mathf.Sqrt(2f * 3f * Mathf.Max(0f, g.magnitude - 6f)) + 0.5f);
+            }
 
             // walls, railings, parked cars, the hillside, a drop at the road's edge: feelers ahead steer it off and slow it
             targetSpeed = Mathf.Min(targetSpeed, Feel(pos, speed));
+            if (net.NearIsland(pos, 9f)) targetSpeed = Mathf.Min(targetSpeed, 5f);   // round a junction island at a junction's pace
 
             // something in front? (cars, people, the player): keep a gap of about two seconds, match a car's speed
             float look = 6f + speed * 2f;
             Vector3 from = pos + Vector3.up * 1f + transform.forward * (spec.length * 0.5f + 0.3f);
             Rigidbody blocker = null;
             Transform standingPerson = null;
+            bool personAhead = false;
             if (Physics.SphereCast(from, 0.9f, transform.forward, out var hit, look, obstacleMask, QueryTriggerInteraction.Ignore) &&
                 !hit.collider.transform.IsChildOf(transform) &&
                 !(passing && (hit.rigidbody ? hit.rigidbody.transform : hit.collider.transform) == passing && hit.distance > 0.8f))   // the one it goes round
@@ -535,9 +713,21 @@ namespace Nainital
                 float gap = hit.distance - (person ? 3.5f : 2.5f);
                 targetSpeed = gap < 1f ? 0f : Mathf.Min(targetSpeed, lead + gap * 0.45f);
                 if (!person && hit.rigidbody && hit.rigidbody != rb) blocker = hit.rigidbody;
-                if (person && hit.collider.GetComponent<CharacterController>() is CharacterController pc && pc.velocity.sqrMagnitude < 0.09f)
-                    standingPerson = hit.collider.transform;   // someone standing in the road (a policeman at his post, the player)
+                personAhead = person;
+                // someone standing in the road (a policeman at his post, the player), or walking on ahead and not moving over
+                if (person && hit.collider.GetComponent<CharacterController>() is CharacterController pc && (pc.velocity.sqrMagnitude < 0.09f || behindT > 4f))
+                    standingPerson = hit.collider.transform;
             }
+            // the cast above never reports what it starts inside: right at the bumper is looked at by itself
+            var atNose = PersonAtNose();
+            if (atNose)
+            {
+                personAhead = true;
+                // going round them it creeps, else it stands: never the pedal down against somebody
+                targetSpeed = Mathf.Min(targetSpeed, passing == atNose.transform ? 1.2f : 0f);
+                if (atNose.velocity.sqrMagnitude < 0.09f || behindT > 4f) standingPerson = atNose.transform;
+            }
+            behindT = personAhead && targetSpeed < 3f ? behindT + dt : Mathf.Max(0f, behindT - dt);
             targetSpeed = AnimalManager.CowAhead(transform, spec.width, spec.length, look, targetSpeed, ref standingPerson);   // a cow in the lane: wait + honk, never round / through it (Characters/AnimalManager.cs)
 
             // a narrow road and a car coming the other way: over to the left and slow, like on a hill road
@@ -575,12 +765,197 @@ namespace Nainital
             Manners(dt, pos, targetSpeed, bend);
 
             // stuck (blocked for long, or wedged against something): turn round where the road allows
-            if (speed < 0.3f && !held && !siren) stuck += dt; else stuck = 0f;   // waiting at an accident is not being stuck
+            if (speed < 0.3f && !held && !siren && !Arrived) stuck += dt; else stuck = 0f;   // waiting at an accident (or parked at its goal) is not being stuck
             // nosed into something (a wall the ray missed, a kerb, another car's corner): pressing on and not moving
             stillT = speed < 0.4f && (frontWall < 3.5f || car.aiThrottle > 0.5f) ? stillT + dt : 0f;
-            if (stillT > 2.5f) { stillT = 0f; Wedged(pos); }
-            if (stuck > 20f && stuck - dt <= 20f && net.roads[road].oneWay == 0) TurnRound();   // held up for long: turn round
+            // (a touch it feels acts at once: Touched. This is for what gives no contact - a kerb under the wheels, a thing it
+            // stopped short of; a steep start needs its 2 s of climbing throttle)
+            if (stillT > (frontWall < 1.5f ? 0.5f : climb > 0.06f ? 2.5f : 1.2f)) { stillT = 0f; Wedged(pos); }
+            var ahead2 = blocker ? blocker.GetComponent<TrafficCar>() : null;
+            bool inQueue = ahead2 && Vector3.Dot(ahead2.transform.forward, transform.forward) > 0.3f;
+            // two that wait for each other (nose to nose, or across each other in a junction): one backs and goes round
+            if (ahead2 && !inQueue && !held && !siren && stuck > 5f && ahead2.stuck > 3f && GivesWay(ahead2) && !Blocked(-transform.forward, 2.5f))
+            {
+                LastHit = $"gave way to {ahead2.name} at ({pos.x:F1},{pos.z:F1})";
+                stuck = 0f;
+                BeginBump(1, 0f);
+                return;
+            }
+            // held up for long: turn round - never out of a queue, never in a junction, never a coach
+            if (stuck > 20f && stuck - dt <= 20f && route == null && !inQueue && spec.length <= 6.5f && net.roads[road].oneWay == 0 && JunctionEnd() < 0) TurnRound();
             if (stuck > 40f && !Seen(pos) && !Hop()) Leave();   // wedged for good: on its lane ahead once nobody is looking, else gone
+        }
+
+        // ------------------------------------------------------------------ a planned way (DrivePath)
+        readonly List<DrivePath.Point> path = new List<DrivePath.Point>();
+        int pathAt, pathRoad, pathIdx, pathDir;
+        float pathT, pathStill, pathWait, pathCd;
+        bool pathShift;
+        Vector3 pathLastPos;
+        /// <summary>How many planned ways the traffic drove to their end / gave up (checks: TrafficLab).</summary>
+        public static int PathsDone, PathsDropped;
+
+        /// <summary>A clear way to lane point i of the road it is on, facing along the lane.</summary>
+        bool PathTo(int i)
+        {
+            var pts = Pts;
+            if (i < 0 || i >= pts.Length) return false;
+            float keepOff = passOff, keepPull = pull;
+            passOff = 0f;   // the lane itself, not the dodge of the moment
+            pull = 0f;
+            Vector3 goal = Lane(i), way = Lane(i + dir) - Lane(i - dir);
+            passOff = keepOff;
+            pull = keepPull;
+            way.y = 0f;
+            if (way.sqrMagnitude < 0.01f) return false;
+            Vector3 half = new Vector3(spec.width * 0.5f, 0f, spec.length * 0.5f);
+            var box = GetComponent<BoxCollider>();
+            if (box) half = new Vector3(box.size.x * 0.5f + 0.06f, 0f, box.size.z * 0.5f + 0.06f);
+            if (!DrivePath.Find(rb, transform.position, transform.forward, half, spec.steer, spec.length * 0.62f, goal, way, path)) return false;
+            mode = Mode.Path;
+            pathAt = 1;
+            pathRoad = road; pathIdx = i; pathDir = dir;
+            pathT = pathStill = pathWait = 0f;
+            pathShift = false;
+            pathLastPos = transform.position;
+            float turn = Vector3.SignedAngle(new Vector3(transform.forward.x, 0f, transform.forward.z), way, Vector3.up);
+            turnSignal = Mathf.Abs(turn) < RoadChoice.TurnAngle ? 0 : turn > 0f ? 1 : -1;
+            dodgeT = 0f;
+            passing = null;
+            passOff = 0f;
+            stuck = stillT = 0f;
+            return true;
+        }
+
+        /// <summary>A clear way back onto its lane 10, 15 or 6 m on (the first there is).</summary>
+        bool PathToLane()
+        {
+            if (pathCd > 0f) return false;
+            pathCd = 1f;   // a search is a few milliseconds: not every step
+            Relocate();
+            foreach (float metres in new[] { 10f, 15f, 6f })
+            {
+                int i = idx;
+                float run = 0f;
+                while (run < metres && i + dir >= 0 && i + dir < Pts.Length) { run += Vector3.Distance(Pts[i], Pts[i + dir]); i += dir; }
+                if (i != idx && PathTo(i)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>The lane runs into a junction island within ~14 m: onto the road it takes there now, and one way round
+        /// the island to that road's lane beyond it (the side is the search's: the nearest that this body fits).</summary>
+        bool EnterIsland(Vector3 pos)
+        {
+            if (pathCd > 0f || !net.IslandNear(pos, 11f, out var island)) return false;
+            var pts = Pts;
+            int end = dir > 0 ? pts.Length - 1 : 0;
+            Vector3 c = island.centre;
+            float Off(Vector3 p) => new Vector2(p.x - c.x, p.z - c.z).magnitude;
+            bool endsThere = Off(pts[end]) < island.radius + 1f && Mathf.Abs(end - idx) <= 6;
+            bool startsThere = Off(pts[Mathf.Clamp(idx, 0, pts.Length - 1)]) < island.radius + 1f;
+            if (!endsThere && !startsThere) return false;
+            if (endsThere)
+            {
+                idx = end - dir;
+                Advance();
+                if (!this || mode != Mode.Drive) return true;
+            }
+            pathCd = 1f;
+            foreach (float beyond in new[] { 7f, 11f, 4.5f })
+            {
+                int i = idx;
+                while (i + dir >= 0 && i + dir < Pts.Length && Off(Pts[i]) < island.radius + beyond) i += dir;
+                if (i != idx && PathTo(i)) return true;
+            }
+            return false;
+        }
+
+        void EndPath(bool done)
+        {
+            mode = Mode.Drive;
+            prevRoad = -1;
+            stillT = 0f;
+            if (done)
+            {
+                PathsDone++;
+                road = pathRoad; idx = pathIdx; dir = pathDir;
+                tries = 0;
+                astray = 0;
+                pathCd = 0.5f;
+            }
+            else
+            {
+                PathsDropped++;
+                pathCd = 0f;
+                Relocate();
+            }
+            path.Clear();
+        }
+
+        /// <summary>Along the planned way, leg by leg (a stop at each change of gear); people and moving vehicles in it are
+        /// waited for, standing ones after 4 s planned round.</summary>
+        void OnPath(float dt, Vector3 pos, float fwd)
+        {
+            pathT += dt;
+            car.aiHandbrake = 0f;
+            if (pathAt >= path.Count) { EndPath(true); return; }
+            int gear = path[pathAt].gear, last = pathAt;
+            while (last + 1 < path.Count && path[last + 1].gear == gear) last++;
+            while (pathAt <= last)
+            {
+                Vector3 rel = pos - path[pathAt].pos;
+                rel.y = 0f;
+                float short_ = pathAt == last ? 0.35f : 0.1f;   // a little before a leg's end: it still rolls
+                if (Vector3.Dot(rel, path[pathAt].forward * gear) < -short_) break;
+                pathAt++;
+            }
+            if (pathAt > last)
+            {
+                if (pathAt >= path.Count) { EndPath(true); return; }
+                pathShift = true;
+            }
+            if (pathShift)
+            {
+                if (Mathf.Abs(fwd) > 0.5f) { car.aiThrottle = -Mathf.Sign(fwd); return; }
+                pathShift = false;
+                gear = path[pathAt].gear;
+                last = pathAt;
+                while (last + 1 < path.Count && path[last + 1].gear == gear) last++;
+            }
+
+            Vector3 off = pos - path[pathAt].pos;
+            off.y = 0f;
+            if (off.magnitude > 3f || pathT > 25f) { EndPath(false); return; }   // knocked off it
+
+            int aimAt = pathAt;
+            while (aimAt < last && (path[aimAt].pos - pos).sqrMagnitude < 2.2f * 2.2f) aimAt++;
+            Vector3 aim = path[aimAt].pos;
+            if (aimAt == last) aim += path[last].forward * (gear * 1.5f);   // on through the leg's end, straight
+            Vector3 local = transform.InverseTransformPoint(aim);
+            float d2 = Mathf.Max(local.x * local.x + local.z * local.z, 1f);
+            car.aiSteer = Mathf.Clamp(Mathf.Atan(2f * spec.length * 0.62f * local.x / d2) * Mathf.Rad2Deg * 1.15f, -spec.steer, spec.steer);
+
+            Vector3 d = transform.forward * gear;
+            Vector3 from = pos + Vector3.up + d * (spec.length * 0.5f + 0.1f);
+            bool inWay = Physics.SphereCast(from, 0.6f, d, out var hit, 1.8f, obstacleMask, QueryTriggerInteraction.Ignore) && !hit.collider.transform.IsChildOf(transform);
+            if (inWay)
+            {
+                pathWait += dt;
+                car.aiThrottle = Mathf.Abs(fwd) > 0.3f ? -Mathf.Sign(fwd) : 0f;
+                car.aiHandbrake = Mathf.Abs(fwd) < 1f ? 1f : 0f;
+                if (pathWait > 4f && hit.collider.gameObject.layer == VehicleFactory.VehicleLayer) EndPath(false);
+                pathT -= dt;   // waiting is not failing
+                return;
+            }
+            pathWait = 0f;
+            float want = gear > 0 ? (last - pathAt > 4 ? 3.2f : 1.8f) : -1.6f;
+            float climb = transform.forward.y * 2.5f;
+            car.aiThrottle = Mathf.Clamp((want - fwd) * 0.6f + climb, -1f, 1f);
+
+            pathStill = (pos - pathLastPos).sqrMagnitude < 0.15f * 0.15f ? pathStill + dt : 0f;
+            if (pathStill == 0f) pathLastPos = pos;
+            if (pathStill > 1f) { EndPath(false); Wedged(pos); }   // pressed on something the boxes did not see: the next way
         }
 
         bool Seen(Vector3 pos)
@@ -591,120 +966,207 @@ namespace Nainital
             return vp.z > 0 && vp.x > -0.1f && vp.x < 1.1f && vp.y > -0.1f && vp.y < 1.1f && vp.z < 120f;
         }
 
-        /// <summary>Pressing on and not moving: tries 1-4 back out (towards the lane, straight, towards it, the other
-        /// way; a little longer each time), the 5th and later ram through; from the 7th, unseen, it is put on its lane ahead.</summary>
-        void Wedged(Vector3 pos)
+        // ------------------------------------------------------------------ hit: stop, back out, round it
+        enum Bump { None, Brake, Pause, Out, Settle }
+        Bump bump;
+        int bumpEnd;   // the end that hit: +1 the front, -1 the back
+        float bumpT, bumpWait, bumpSide, outWant;
+        Vector3 outFrom;
+
+        static readonly Collider[] atBumper = new Collider[8];
+
+        /// <summary>Someone on foot within 1.2 m of the front bumper, in the car's width.</summary>
+        CharacterController PersonAtNose()
         {
+            Vector3 half = new Vector3(spec.width * 0.5f, 0.6f, 0.65f);
+            Vector3 c = transform.position + transform.up * 0.95f + transform.forward * (spec.length * 0.5f + 0.55f);
+            int n = Physics.OverlapBoxNonAlloc(c, half, atBumper, transform.rotation, (1 << 8) | (1 << 9), QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+                if (atBumper[i] is CharacterController who && who.enabled && !who.transform.IsChildOf(transform)) return who;
+            return null;
+        }
+
+        void OnCollisionEnter(Collision c) => Touched(c);
+        void OnCollisionStay(Collision c) => Touched(c);
+
+        /// <summary>Contact at the end it is driving on (a wall, a pole, a board, a steep bank, a vehicle - not the road
+        /// under it, not a person: CarController.People; not being run into from behind, not brushing along its side).</summary>
+        void Touched(Collision c)
+        {
+            if (!car || Arrived || mode == Mode.Wrecked || mode == Mode.PullUp) return;
+            var o = c.collider;
+            if (!o || o.gameObject.layer == 8 || o.gameObject.layer == 9) return;
+            float fwd = car.ForwardSpeed, half = spec.length * 0.5f;
+            // the way it is driving: the pedal, unless it still rolls the other way
+            int going = Mathf.Abs(fwd) > 0.6f ? (fwd > 0f ? 1 : -1) : car.aiThrottle > 0.05f ? 1 : car.aiThrottle < -0.05f ? -1 : 0;
+            if (bump == Bump.Out) going = -bumpEnd;
+            else if (bump != Bump.None) return;   // braking already
+            else if (c.relativeVelocity.sqrMagnitude > 4f && going == 0) going = fwd >= 0f ? 1 : -1;   // the knock itself took its speed
+            if (going == 0) return;
+            Vector3 f = transform.forward;
+            for (int i = 0; i < c.contactCount; i++)
+            {
+                var k = c.GetContact(i);
+                if (k.normal.y > 0.6f) continue;   // the ground
+                Vector3 local = transform.InverseTransformPoint(k.point);
+                if (local.z * going < half * 0.6f) continue;        // not the end that leads
+                if (Vector3.Dot(k.normal, f) * going > -0.35f) continue;   // along its side, or pushed from behind
+                if (bump == Bump.Out) { bump = Bump.Settle; bumpT = 0f; Off(fwd); return; }   // as far back as there is room
+                LastHit = $"{o.name}{(o.transform.parent ? "<" + o.transform.parent.name : "")} at ({k.point.x:F1},{k.point.y:F1},{k.point.z:F1}) at its ({local.x:F1},{local.z:F1})";
+                BeginBump(going, local.x);
+                return;
+            }
+        }
+
+        /// <summary>Off the accelerator, the brake on.</summary>
+        void Off(float fwd)
+        {
+            car.aiThrottle = Mathf.Abs(fwd) > 1.05f ? -Mathf.Sign(fwd) : 0f;   // (against the roll that is the brake; slower, the handbrake)
+            car.aiHandbrake = 1f;
+        }
+
+        void BeginBump(int end, float side)
+        {
+            Vector3 pos = transform.position;
             if (tries == 0) troubleAt = pos;
             tries++;
             mostTries = Mathf.Max(mostTries, tries);
+            Hits++;
+            hitsHere++;
+            if (mode == Mode.Path) EndPath(false);
+            mode = Mode.Drive;
+            bump = Bump.Brake;
+            bumpEnd = end;
+            bumpSide = side;
+            bumpT = 0f;
+            bumpWait = Random.Range(0.35f, 0.8f);   // two that met head-on do not move off in step
+            stillT = climbT = wayT = dodgeT = 0f;
+            passing = null;
+            Off(car.ForwardSpeed);
+        }
+
+        /// <summary>The end of its road (0 / 1) whose junction it stands in, else -1.</summary>
+        int JunctionEnd()
+        {
+            int last = Pts.Length - 1;
+            int end = idx <= 5 ? 0 : idx >= last - 5 ? 1 : -1;
+            if (end < 0) return -1;
+            var links = net.Links(road, end);
+            return links != null && links.Count > 0 ? end : -1;
+        }
+
+        /// <summary>Another road out of this junction, the one it already faces most.</summary>
+        void OtherWay(int end)
+        {
+            int at = end == 0 ? 0 : Pts.Length - 1;
+            Vector3 f = transform.forward;
+            float best = float.MinValue;
+            (int r, int i, int d) pick = (-1, 0, 0);
+            foreach (var o in RoadChoice.Onward(net, road, at, true))
+            {
+                var q = net.roads[o.r].pts;
+                Vector3 w = q[Mathf.Clamp(o.i + o.d * 3, 0, q.Length - 1)] - transform.position;
+                w.y = 0f;
+                float face = Vector3.Dot(f, w.normalized);
+                if (face > best) { best = face; pick = o; }
+            }
+            if (pick.r < 0) return;
+            road = pick.r;
+            idx = pick.i;
+            dir = pick.d;
+            astray = 0;
+        }
+
+        /// <summary>Of two that wait for each other, the one that backs: the shorter (a coach keeps its place), else one of
+        /// the two, always the same; after 15 s whichever can.</summary>
+        bool GivesWay(TrafficCar other)
+        {
+            if (stuck > 15f) return true;
+            if (Mathf.Abs(spec.length - other.spec.length) > 1f) return spec.length < other.spec.length;
+            return GetInstanceID() < other.GetInstanceID();
+        }
+
+        /// <summary>Not moving though nothing was felt (a kerb under the wheels, a thing just short of the bumper): the
+        /// same as a hit at the front.</summary>
+        void Wedged(Vector3 pos)
+        {
             if (tries >= 7 && !Seen(pos) && Hop()) return;
-            if (tries >= 5) { StartRam(); return; }
-            BackOffs++;
-            // reversing with the wheel one way swings the nose the other: back out on the lock that brings the nose to the lane
-            float toLane = Mathf.Sign(SteerTo(Aim(8f)));
-            float[] pattern = { -1f, 0f, -1f, 1f };
-            backSteer = pattern[(tries - 1) % 4] * toLane * spec.steer * 0.85f;
-            backT = 1.6f + 0.4f * tries;
-            if (Blocked(-transform.forward, 1.2f)) backT = 0.7f;   // something right behind: a short one
-            // from the 2nd try, as a driver would: out of its lane to the right, round whatever is in it (the 3rd try
-            // further out); only the whole road shut makes it ram
-            if (tries >= 2)
+            if (bump == Bump.None) { LastHit = $"wedged at ({pos.x:F1},{pos.z:F1})"; BeginBump(1, 0f); }
+        }
+
+        void Bumped(float dt, Vector3 pos, float fwd)
+        {
+            bumpT += dt;
+            int way = -bumpEnd;   // the way out
+            switch (bump)
             {
-                var r = net.roads[road];
-                float lane = r.oneWay != 0 ? r.width * 0.3f : Mathf.Max(1.1f, r.width * 0.25f) * 2f;
-                dodgeWant = lane * (tries >= 3 ? 1.25f : 1f);
-                dodgeT = backT + 7f;
+                case Bump.Brake:
+                    car.aiSteer = 0f;
+                    Off(fwd);
+                    if (Mathf.Abs(fwd) < 0.4f || bumpT > 1.5f) { bump = Bump.Pause; bumpT = 0f; }
+                    return;
+
+                case Bump.Pause:
+                    Off(fwd);
+                    if (bumpT < bumpWait) return;
+                    bump = Bump.Out;
+                    bumpT = 0f;
+                    outFrom = pos;
+                    outWant = 2f + 0.8f * Mathf.Min(tries - 1, 3);   // further back each time at the same place
+                    BackOffs++;
+                    // the nose swung from what it hit (backing, the nose goes against the wheel); head-on: towards the lane
+                    float turn = Mathf.Abs(bumpSide) > 0.25f ? Mathf.Sign(bumpSide) : -Mathf.Sign(SteerTo(Aim(8f)));
+                    car.aiSteer = (bumpEnd > 0 ? turn : 0f) * spec.steer * 0.8f;
+                    return;
+
+                case Bump.Out:
+                    Vector3 d = transform.forward * way;
+                    if ((pos - outFrom).sqrMagnitude > outWant * outWant || bumpT > 4f || Blocked(d, 0.7f) || Edge(pos, d))
+                    {
+                        bump = Bump.Settle;
+                        bumpT = 0f;
+                        Off(fwd);
+                        return;
+                    }
+                    car.aiHandbrake = 0f;
+                    car.aiThrottle = Mathf.Clamp((way * 1.7f - fwd) * 0.6f + transform.forward.y * 2.5f, -1f, 1f);
+                    return;
+
+                case Bump.Settle:
+                    Off(fwd);
+                    if (Mathf.Abs(fwd) > 0.4f && bumpT < 1.2f) return;
+                    bump = Bump.None;
+                    GetOut(pos);
+                    return;
             }
         }
 
-        void StartRam()
+        /// <summary>No road under the end that leads: a drop, the lake.</summary>
+        bool Edge(Vector3 pos, Vector3 d)
         {
-            ramT = 5f;
-            slowT = 0f;
-            shoveCd = 0f;
-            Rams++;
-            ramsHere++;
-            VehicleSound.HornOf(gameObject, transform.position + Vector3.up, type == CarType.Bus || type == CarType.Pickup);
+            Vector3 at = pos + d * (spec.length * 0.5f + 0.4f);
+            return !Physics.Raycast(at + Vector3.up * 1.5f, Vector3.down, out var g, 3.5f, groundMask, QueryTriggerInteraction.Ignore) || g.point.y < at.y - 0.9f;
         }
 
-        /// <summary>Full throttle up the lane. Stopped by a person (never through one); slowed to a crawl (a kerb, a bump,
-        /// the hillside) it gets a shove towards the lane and up; a static thing it presses on is passed through
-        /// (OnCollisionStay: Ghost) - other vehicles are just pushed.</summary>
-        void Ram(float dt, Vector3 pos)
+        /// <summary>Backed out: by another way, not at the same thing again.</summary>
+        void GetOut(Vector3 pos)
         {
-            ramT -= dt;
-            Vector3 aim = Aim(6f);
-            car.aiHandbrake = 0f;
-            car.aiSteer = SteerTo(aim);
-            car.aiThrottle = 1f;
-            Vector3 from = pos + Vector3.up * 1f + transform.forward * (spec.length * 0.5f + 0.3f);
-            if (Physics.SphereCast(from, 0.9f, transform.forward, out _, 5f, (1 << 8) | (1 << 9), QueryTriggerInteraction.Ignore))
+            Relocate();
+            stillT = 0f;
+            pathCd = 0f;
+            if (tries >= 7 && !Seen(pos) && Hop()) return;
+            if (tries >= 4 && tries % 4 == 0 && route == null)
             {
-                car.aiThrottle = 0f;
-                car.aiHandbrake = 1f;
-                return;
+                // shut. In a junction never a three-point turn (a coach across it stopped the whole Mall): another of its
+                // roads, not at the same thing again. On the road between: back the way it came.
+                int end = JunctionEnd();
+                if (end >= 0) OtherWay(end);
+                else if (net.roads[road].oneWay == 0) { TurnRound(); return; }
             }
-            slowT = Speed < 0.6f ? slowT + dt : 0f;
-            shoveCd -= dt;
-            if (slowT > 0.8f && shoveCd <= 0f)
-            {
-                Vector3 to = aim - pos;
-                to.y = 0f;
-                to = to.sqrMagnitude > 0.01f ? to.normalized : transform.forward;
-                rb.AddForce(to * 3f + Vector3.up * 2.2f, ForceMode.VelocityChange);
-                shoveCd = 1.3f;
-                slowT = 0f;
-            }
-            if (ramT <= 0f) { Relocate(); stillT = 0f; }
-        }
-
-        void OnCollisionEnter(Collision c) { if (ramT > 0f) Ghost(c); }
-        void OnCollisionStay(Collision c) { if (ramT > 0f) Ghost(c); }
-
-        /// <summary>Ramming: through a static thing it is pressed against from the side or the front (a wall corner, a
-        /// pole, a post) - not the ground under it, not the terrain, not a person, not another vehicle.</summary>
-        void Ghost(Collision c)
-        {
-            var o = c.collider;
-            if (!o || o is TerrainCollider || ghosts.Contains(o)) return;
-            int l = o.gameObject.layer;
-            if (l == 8 || l == 9 || l == VehicleFactory.VehicleLayer) return;
-            if (o.attachedRigidbody && !o.attachedRigidbody.isKinematic) return;
-            if (c.contactCount > 0 && c.GetContact(0).normal.y > 0.5f) return;   // under it
-            foreach (var m in Mine()) Physics.IgnoreCollision(m, o, true);
-            ghosts.Add(o);
-            ghostT = 0f;
-        }
-
-        Collider[] mine;
-        Collider[] Mine()
-        {
-            if (mine == null)
-            {
-                var all = new List<Collider>();
-                foreach (var m in GetComponentsInChildren<Collider>(true)) if (m && !m.isTrigger && m.attachedRigidbody == rb) all.Add(m);
-                mine = all.ToArray();
-            }
-            return mine;
-        }
-
-        /// <summary>Solid again against whatever it went through, once it is out of it.</summary>
-        void RestoreGhosts(bool force = false)
-        {
-            for (int g = ghosts.Count - 1; g >= 0; g--)
-            {
-                var o = ghosts[g];
-                if (!o) { ghosts.RemoveAt(g); continue; }
-                bool inside = false;
-                if (!force)
-                    foreach (var m in Mine())
-                        if (m && Physics.ComputePenetration(m, m.transform.position, m.transform.rotation, o, o.transform.position, o.transform.rotation, out _, out _)) { inside = true; break; }
-                if (inside) continue;
-                foreach (var m in Mine()) if (m) Physics.IgnoreCollision(m, o, false);
-                ghosts.RemoveAt(g);
-            }
-            ghostT = 0f;
+            if (PathToLane()) return;
+            float away = bumpSide > 0.25f ? -1f : 1f;   // the side away from what it hit first
+            float open = OpenSide(pos, new[] { away * 1.4f, away * 2.6f, -away * 1.4f, -away * 2.6f }, 6f);
+            if (open != 0f) { dodgeWant = open; dodgeT = 7f; }
         }
 
         /// <summary>Put on its lane a little ahead (only where nobody sees it, the place clear of everything but the ground).</summary>
@@ -724,14 +1186,14 @@ namespace Nainital
                 bool clear = true;
                 for (int j = 0; j < n && clear; j++) if (!(near[j] is TerrainCollider) && near[j].attachedRigidbody != rb) clear = false;
                 if (!clear) continue;
-                RestoreGhosts(true);
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
                 transform.SetPositionAndRotation(p + Vector3.up * 0.35f, rot);
                 Physics.SyncTransforms();
                 idx = i;
-                tries = 0; stuck = 0f; stillT = 0f; backT = 0f; ramT = 0f; dodgeT = 0f;
+                tries = 0; stuck = 0f; stillT = 0f; bump = Bump.None; dodgeT = 0f;
                 Hops++;
+                hopsHere++;
                 return true;
             }
             return false;
@@ -747,7 +1209,7 @@ namespace Nainital
             if (o.linearVelocity.sqrMagnitude > 0.25f) return false;
             var tc = o.GetComponent<TrafficCar>();
             if (!tc) return true;
-            return tc.Wrecked || !tc.HasDriver || tc.tries > 0 || tc.ramT > 0f;
+            return tc.Wrecked || !tc.HasDriver || tc.tries > 0;
         }
 
         void StartPass(Transform o, Vector3 pos, float width = -1f)
@@ -780,7 +1242,9 @@ namespace Nainital
             if (Mathf.Abs(off) < 28f || turnSteps > 8)
             {
                 mode = Mode.Drive;
+                prevRoad = -1;
                 Relocate();
+                stillT = 0f;
                 return;
             }
             float moved = Vector3.Distance(pos, phaseStart);
@@ -792,14 +1256,18 @@ namespace Nainital
             {
                 car.aiSteer = side * spec.steer;
                 car.aiThrottle = Mathf.Clamp((1.8f - fwd) * 0.5f, -1f, 0.6f);
-                bool edge = turnTimer > 0.6f && (OffCentre(pos + fw * hl + rt * hw) > half - 0.35f || OffCentre(pos + fw * hl - rt * hw) > half - 0.35f);
+                float reach = Mathf.Max(OffCentre(pos + fw * hl + rt * hw), OffCentre(pos + fw * hl - rt * hw));
+                if (turnTimer < 0.15f) edgeFrom = reach;   // already past the edge (that is how it got wedged): only further out counts
+                bool edge = turnTimer > 0.6f && reach > Mathf.Max(half - 0.35f, edgeFrom + 0.1f);
                 if (edge || stalled || Blocked(fw, 1.4f) || turnTimer > 8f || moved > 9f) NextPhase(Mode.TurnBack, pos);
             }
             else
             {
                 car.aiSteer = -side * spec.steer;
                 car.aiThrottle = fwd > 0.3f ? -0.6f : Mathf.Clamp((-1.6f - fwd) * 0.5f, -0.6f, 1f);
-                bool edge = turnTimer > 0.6f && (OffCentre(pos - fw * hl + rt * hw) > half - 0.35f || OffCentre(pos - fw * hl - rt * hw) > half - 0.35f);
+                float reach = Mathf.Max(OffCentre(pos - fw * hl + rt * hw), OffCentre(pos - fw * hl - rt * hw));
+                if (turnTimer < 0.15f) edgeFrom = reach;
+                bool edge = turnTimer > 0.6f && reach > Mathf.Max(half - 0.35f, edgeFrom + 0.1f);
                 if (edge || stalled || Blocked(-fw, 1.2f) || turnTimer > 5f || moved > 3.5f) NextPhase(Mode.TurnAcross, pos);
             }
         }
@@ -858,6 +1326,13 @@ namespace Nainital
             {
                 frontWall = h.distance;
                 limit = Mathf.Sqrt(2f * 4f * Mathf.Max(0f, h.distance - 1.8f));
+                // a thing standing in the lane (a post, a sign, a bench's end): round it on an open side with ground, the
+                // left first, the right only with nobody coming (a wall right across has no open side: the lane steers it)
+                if (h.distance < 10f && dodgeT <= 0f && !passing && !(h.collider is TerrainCollider) && Vector3.Dot(-h.normal, fwd) > 0.7f && !net.NearIsland(pos, 10f))
+                {
+                    float open = OpenSide(pos, oncoming > 0.2f ? leftOnly : eitherSide, h.distance + 3f);
+                    if (open != 0f) { dodgeWant = open; dodgeT = 3.5f; Dodges++; }
+                }
             }
             else frontWall = float.MaxValue;
             float push = 0f;
@@ -872,6 +1347,43 @@ namespace Nainital
             feelSteer = Mathf.MoveTowards(feelSteer, Mathf.Clamp(push, -1f, 1f), Time.fixedDeltaTime * 4f);
             car.aiSteer = Mathf.Clamp(car.aiSteer + feelSteer * spec.steer * 0.33f, -spec.steer, spec.steer);
             return limit;
+        }
+
+        /// <summary>How often the traffic went round a small thing in its lane (checks: TrafficLab).</summary>
+        public static int Dodges;
+
+        static readonly RaycastHit[] clearHits = new RaycastHit[8];
+        static readonly float[] eitherSide = { -1.4f, 1.4f, -2.6f, 2.6f }, leftOnly = { -1.4f, -2.6f };
+
+        /// <summary>The first of these moves across (+ = right) with a clear path ahead and ground under it at the road's
+        /// level (not off the hill, not into the lake), or 0.</summary>
+        float OpenSide(Vector3 pos, float[] moves, float dist)
+        {
+            Vector3 fwd = transform.forward, right = transform.right;
+            float hl = spec.length * 0.5f;
+            foreach (float s in moves)
+            {
+                if (!ClearAhead(pos + Vector3.up * 0.95f + right * s + fwd * (hl * 0.9f), Mathf.Min(spec.width * 0.4f, 0.7f), fwd, dist)) continue;
+                Vector3 at = pos + right * s + fwd * (hl + Mathf.Min(dist, 5f));
+                if (!Physics.Raycast(at + Vector3.up * 2f, Vector3.down, out var g, 4f, groundMask, QueryTriggerInteraction.Ignore) || Mathf.Abs(g.point.y - at.y) > 0.9f) continue;
+                return s;
+            }
+            return 0f;
+        }
+
+        /// <summary>Nothing but the ground along this path (a sphere of the car's half width).</summary>
+        static bool ClearAhead(Vector3 from, float radius, Vector3 dirWorld, float dist)
+        {
+            if (wallMask < 0) wallMask = ~((1 << VehicleFactory.VehicleLayer) | (1 << 8) | (1 << 9) | (1 << 2) | (1 << 4));
+            int n = Physics.SphereCastNonAlloc(from, radius, dirWorld, clearHits, dist, wallMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var c = clearHits[i].collider;
+                if (c is TerrainCollider && clearHits[i].normal.y > 0.6f) continue;   // the road going up or down
+                if (clearHits[i].distance <= 0f && clearHits[i].point == Vector3.zero && c is TerrainCollider) continue;
+                return false;
+            }
+            return true;
         }
 
         /// <summary>A car coming the other way close ahead on a narrow road.</summary>
@@ -900,7 +1412,7 @@ namespace Nainital
             var au = AudioManager.Instance;
             hornCooldown -= dt;
             float speed = Speed;
-            if (targetSpeed < 0.5f && speed < 1f) blocked += dt; else blocked = 0f;
+            if ((targetSpeed < 0.5f && speed < 1f) || behindT > 0.8f) blocked += dt; else blocked = 0f;   // (crawling behind someone on foot is held up too: horn, dipper)
             if (au && hornCooldown <= 0f)
             {
                 if (blocked > 1.2f || (bend > 45f && speed > 5f && Random.value < 0.3f))

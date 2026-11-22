@@ -512,6 +512,8 @@ namespace Nainital.EditorTools
                 col.Box(b + Vector3.up * 0.5f, new Vector3(2.2f, 1f, 0.5f), rot, Vector2.zero);
             }
             ctx.MeshObject("Tallital traffic post", parent, mb, ctx.mats.atlas, col);
+            // the island with its barricades (3.4 m out, 2.2 m long): the traffic drives round it (RoadNetwork.RoundIslands)
+            trafficIslands.Add(new RoadNetwork.Island { centre = c, radius = 3.85f });
         }
 
         /// <summary>The paved yard in front of the canopy where the buses stand.</summary>

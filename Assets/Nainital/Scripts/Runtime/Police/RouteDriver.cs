@@ -99,6 +99,40 @@ namespace Nainital
             return offRoad ? Goal : prev;
         }
 
+        void OnCollisionEnter(Collision c) => Touched(c);
+        void OnCollisionStay(Collision c) => Touched(c);
+
+        /// <summary>It hit something: off the accelerator, brake, back out on the lock away from it (owner, 22 Nov 2026:
+        /// "thuke ruke or back krke nikaal le"). A police car ramming the player's car in a chase is meant to.</summary>
+        void Touched(Collision c)
+        {
+            if (!car || stop || !HasGoal || Arrived) return;
+            int layer = c.collider.gameObject.layer;
+            if (layer == 8 || layer == 9) return;
+            if (ram && c.rigidbody && CarController.Driving && c.rigidbody.gameObject == CarController.Driving.gameObject) return;
+            float end = reverseT > 0f ? -1f : 1f;
+            if (end > 0f && car.aiThrottle <= 0.05f && car.ForwardSpeed < 0.6f) return;
+            for (int i = 0; i < c.contactCount; i++)
+            {
+                var k = c.GetContact(i);
+                if (k.normal.y > 0.6f) continue;
+                Vector3 local = transform.InverseTransformPoint(k.point);
+                if (local.z * end < spec.length * 0.3f || Vector3.Dot(k.normal, transform.forward) * end > -0.35f) continue;
+                if (end < 0f) reverseT = 0f;   // as far back as there is room
+                else
+                {
+                    reverseT = 1.8f;
+                    reverseSteer = (Mathf.Abs(local.x) > 0.25f ? Mathf.Sign(local.x) : -Mathf.Sign(car.aiSteer == 0f ? 1f : car.aiSteer)) * spec.steer;
+                    stuckT = 0f;
+                    avoidT = 0f;
+                    hopCount++;
+                }
+                car.aiThrottle = 0f;
+                car.aiHandbrake = 1f;
+                return;
+            }
+        }
+
         void Brake()
         {
             float fwd = car.ForwardSpeed;
@@ -133,7 +167,8 @@ namespace Nainital
             while (ri < route.Count - 1)
             {
                 Vector3 to = Flat(route[ri] - pos);
-                if (to.magnitude < 4f || (to.magnitude < 12f && Vector3.Dot(to, transform.forward) < 0f)) ri++;
+                if (to.magnitude < 4f || (to.magnitude < 12f && Vector3.Dot(to, transform.forward) < 0f) ||
+                    (RoadRoute.Net && RoadRoute.Net.InIsland(route[ri], pos, spec.width * 0.5f))) ri++;
                 else break;
             }
             float toGoal = Flat(Goal - pos).magnitude;
@@ -141,6 +176,7 @@ namespace Nainital
             float toEnd = Flat(end - pos).magnitude;
             bool direct = route.Count < 2 || (offRoad && (toGoal < 30f || ri >= route.Count - 1));
             Vector3 aim = direct ? Goal : Aim(pos, Mathf.Clamp(speed * 0.9f, 5f, 14f));
+            if (!direct && RoadRoute.Net) aim = RoadRoute.Net.RoundIslands(pos, aim, spec.width * 0.5f);
             float left = direct ? toGoal : toEnd + (offRoad ? Flat(Goal - end).magnitude : 0f);
             RouteLeft = left;
             Arrived = left < arriveDist || (!offRoad && toGoal < arriveDist);
@@ -200,7 +236,7 @@ namespace Nainital
             // stuck: held up by a car in front for long, or pushing into something
             if (speed < 0.6f) { if (wall) blockedT += dt; else stuckT += dt; }
             else { blockedT = Mathf.Max(0f, blockedT - dt * 2f); stuckT = 0f; }
-            if (stuckT > 2.2f)   // pressing on and not moving: back up on the other lock
+            if (stuckT > 1.2f)   // pressing on and not moving: back up on the other lock
             {
                 stuckT = 0f;
                 reverseT = 1.4f;

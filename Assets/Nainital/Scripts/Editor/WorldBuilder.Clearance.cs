@@ -89,6 +89,39 @@ namespace Nainital.EditorTools
             return clearance;
         }
 
+        /// <summary>
+        /// An information board off the roads (owner, 22 Nov 2026: "gaadi fsgyi hai" - the Tallital Boat Stand's board stood
+        /// in Mall Road's mouth at the chowk, the taxi's nose on it; the Mall Road and Bus Station boards stood in lanes
+        /// too): one on a road moves to the nearest clear ground at about its height (out of the lake, nothing standing
+        /// there), within 16 m. A board already clear stays exactly where its builder put it.
+        /// </summary>
+        internal static Vector3 BoardSpot(WorldCtx ctx, string title, Vector3 pos)
+        {
+            const float pad = 1f;   // the board's half diagonal
+            var roads = Clearance(ctx);
+            var at = new Vector2(pos.x, pos.z);
+            if (!roads.Blocked(at, pad)) return pos;
+            float ground = ctx.H(at), over = pos.y - ground;
+            Physics.SyncTransforms();
+            for (float r = 0.5f; r <= 16f; r += 0.5f)
+                for (int k = 0; k < 32; k++)
+                {
+                    float a = k * Mathf.PI / 16f;
+                    Vector2 q = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                    if (roads.Blocked(q, pad) || ctx.InLake(q)) continue;
+                    float h = ctx.H(q);
+                    if (Mathf.Abs(h - ground) > 1.5f) continue;
+                    bool taken = false;
+                    foreach (var c in Physics.OverlapBox(new Vector3(q.x, h + 1.1f, q.y), new Vector3(0.8f, 0.75f, 0.8f)))
+                        if (!(c is TerrainCollider) && !c.isTrigger) { taken = true; break; }
+                    if (taken) continue;
+                    Debug.Log($"[Nainital] board '{title}' off the road: ({at.x:F1}, {at.y:F1}) -> ({q.x:F1}, {q.y:F1}), {r:F1} m");
+                    return new Vector3(q.x, h + over, q.y);
+                }
+            Debug.LogWarning($"[Nainital] board '{title}' at ({at.x:F1}, {at.y:F1}) stands on a road and found no clear place within 16 m");
+            return pos;
+        }
+
         /// <summary>Where a pole beside road point p may stand: offset to the side given, or the other side when that one is
         /// on a road. False when both sides are taken (then no pole here).</summary>
         static bool PoleSpot(WorldCtx ctx, Vector2 p, Vector2 side, float offset, out Vector2 spot, out Vector2 usedSide)

@@ -26,6 +26,43 @@ namespace Nainital.EditorTools
         /// </summary>
         static void SetGroundToPaintedRoads(WorldCtx ctx) => RoadGround(ctx, false);
 
+        /// <summary>The Upper Mall slab's height every 2 m (BuildRoads), for MallPath, and its top over that height.</summary>
+        static float[] upperDeck;
+        static float upperDeckLift;
+
+        /// <summary>The paving along Upper Mall's hill side (MallHillEdge: inner edge a-b, the outer edge and an apron
+        /// c-d): the ground is held under it too, or the hill's triangles stood up through the cobbles in a saw-tooth.</summary>
+        static readonly List<(Vector3 a, Vector3 b, Vector3 c, Vector3 d)> footways = new List<(Vector3, Vector3, Vector3, Vector3)>();
+
+        /// <summary>
+        /// The Upper Mall's level: the ground every 2 m averaged over +-12 m, twice (the window shrinking at the ends, which
+        /// stay at their junctions). From the raw ground the southern half - where the centre line runs along the step
+        /// between the levels - rippled up to 0.67 m every 4 m (owner, 22 Nov 2026: "upper mall road pe ab bhi unchi niche
+        /// mesh hai zoo road side"); tried on that profile: no kink over 2 cm, 7.6 % the steepest (53 % before).
+        /// </summary>
+        static float[] DeckLevel(float[] ground)
+        {
+            var h = ground;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                var o = new float[h.Length];
+                for (int i = 0; i < h.Length; i++)
+                {
+                    int r = Mathf.Min(6, Mathf.Min(i, h.Length - 1 - i));
+                    float t = 0f;
+                    for (int k = -r; k <= r; k++) t += h[i + k];
+                    o[i] = t / (2 * r + 1);
+                }
+                h = o;
+            }
+            return h;
+        }
+
+        /// <summary>How far beyond the slab's edge the ground is held under it (a heightmap cell's diagonal and a little),
+        /// and how far under: a sample left high just outside pulled the ground's triangle up through the slab (the jagged
+        /// rock along the hill side of Upper Mall).</summary>
+        const float SlabApron = 2.25f, ApronClearance = 0.05f;
+
         /// <summary>How far the ground lies under a road that is still a slab (the Upper Mall deck).</summary>
         const float SlabClearance = 0.4f;
 
@@ -38,10 +75,71 @@ namespace Nainital.EditorTools
             roadStrips.Clear();
             bankKeep.Clear();
             DeckEndRamps(ctx);
+            DeckEndSides(ctx);
         }
 
         /// <summary>Each end of a road that is still a slab (the Upper Mall deck): its two corners and a point a little way in.</summary>
         static readonly List<(Vector3 L, Vector3 R, Vector3 inward)> deckEnds = new List<(Vector3, Vector3, Vector3)>();
+
+        /// <summary>The deck's middle line over its first 12 m from each end (its top), and half its width.</summary>
+        static readonly List<(Vector3[] line, float half)> deckEndLines = new List<(Vector3[] line, float half)>();
+
+        /// <summary>
+        /// For the last 10 m at each end of the deck the ground beside it climbs to the top, so the junction is one surface
+        /// (22 Nov 2026, the owner's bus test: Lower Mall's only way in at Mallital crosses that corner, between the police
+        /// chowki and a 0.3-0.4 m step - a taxi backed off it 52 times and the whole Mall stood behind).
+        /// </summary>
+        static void DeckEndSides(WorldCtx ctx)
+        {
+            var t = ctx.terrain;
+            if (!t || deckEndLines.Count == 0) return;
+            var td = t.terrainData;
+            int res = td.heightmapResolution;
+            Vector3 tp = t.transform.position, sz = td.size;
+            float sx = (res - 1) / sz.x, sz2 = (res - 1) / sz.z;
+            const float Full = 7f, Fade = 3f, Side = 2.5f, Highest = 0.9f;
+            int changed = 0;
+            foreach (var (line, half) in deckEndLines)
+            {
+                float reach = Full + Fade + half + Side + 2f;
+                int x0 = Mathf.Clamp(Mathf.FloorToInt((line[0].x - reach - tp.x) * sx), 0, res - 1), x1 = Mathf.Clamp(Mathf.CeilToInt((line[0].x + reach - tp.x) * sx), 0, res - 1);
+                int z0 = Mathf.Clamp(Mathf.FloorToInt((line[0].z - reach - tp.z) * sz2), 0, res - 1), z1 = Mathf.Clamp(Mathf.CeilToInt((line[0].z + reach - tp.z) * sz2), 0, res - 1);
+                var h = td.GetHeights(x0, z0, x1 - x0 + 1, z1 - z0 + 1);
+                for (int zi = 0; zi <= z1 - z0; zi++)
+                    for (int xi = 0; xi <= x1 - x0; xi++)
+                    {
+                        var p = new Vector2(tp.x + (x0 + xi) / sx, tp.z + (z0 + zi) / sz2);
+                        float best = float.MaxValue, along = 0f, top = 0f, run = 0f;
+                        bool beyond = false;   // past the end: DeckEndRamps' own ground
+                        for (int i = 0; i + 1 < line.Length; i++)
+                        {
+                            Vector2 a = new Vector2(line[i].x, line[i].z), ab = new Vector2(line[i + 1].x, line[i + 1].z) - a;
+                            float len = ab.magnitude;
+                            if (len < 1e-3f) continue;
+                            float u = Vector2.Dot(p - a, ab) / (len * len), uc = Mathf.Clamp01(u);
+                            float d = (p - (a + ab * uc)).magnitude;
+                            if (d < best)
+                            {
+                                best = d;
+                                along = run + uc * len;
+                                top = Mathf.Lerp(line[i].y, line[i + 1].y, uc);
+                                beyond = i == 0 && u < 0f;
+                            }
+                            run += len;
+                        }
+                        if (beyond || along > Full + Fade || best > half + Side) continue;
+                        float cur = tp.y + h[zi, xi] * sz.y, want = top - ApronClearance;
+                        if (cur >= want || want - cur > Highest) continue;   // only up, and never up a real drop
+                        float k = Mathf.SmoothStep(1f, 0f, Mathf.Clamp01((best - half - 0.2f) / (Side - 0.2f))) * Mathf.SmoothStep(1f, 0f, Mathf.Clamp01((along - Full) / Fade));
+                        if ((want - cur) * k < 0.005f) continue;
+                        h[zi, xi] = Mathf.Clamp01((Mathf.Lerp(cur, want, k) - tp.y) / sz.y);
+                        changed++;
+                    }
+                td.SetHeights(x0, z0, h);
+            }
+            Debug.Log($"[Nainital] deck ends: {deckEndLines.Count} with the ground beside them up to the top, {changed} samples");
+            deckEndLines.Clear();
+        }
 
         /// <summary>
         /// Where the Upper Mall deck begins, the painted ground of the junction rises to the deck's top over 7 m, and lies just
@@ -108,8 +206,14 @@ namespace Nainital.EditorTools
             var sum = new float[res * res];
             var cnt = new ushort[res * res];
             int bx0 = res, bz0 = res, bx1 = -1, bz1 = -1, lowered = 0;
+            float[] ceiling = null;   // the highest the ground may be by a slab: the painted roads and their banks keep under it too
+            if (slabs)
+            {
+                ceiling = new float[res * res];
+                for (int k = 0; k < ceiling.Length; k++) ceiling[k] = 1f;
+            }
 
-            void Tri(Vector3 a, Vector3 b, Vector3 c, float lift, bool exact)
+            void Tri(Vector3 a, Vector3 b, Vector3 c, float lift, bool exact, float clearance = SlabClearance)
             {
                 int x0 = Mathf.Max(0, Mathf.FloorToInt((Mathf.Min(a.x, Mathf.Min(b.x, c.x)) - tp.x) * sx));
                 int x1 = Mathf.Min(res - 1, Mathf.CeilToInt((Mathf.Max(a.x, Mathf.Max(b.x, c.x)) - tp.x) * sx));
@@ -137,7 +241,9 @@ namespace Nainital.EditorTools
                         }
                         else if (slabs)
                         {
-                            float n = Mathf.Clamp01((surf - SlabClearance - tp.y) / sz.y);
+                            float n = Mathf.Clamp01((surf - clearance - tp.y) / sz.y);
+                            int k = zi * res + xi;
+                            if (n < ceiling[k]) ceiling[k] = n;
                             if (n < h[zi, xi]) { h[zi, xi] = n; lowered++; }
                         }
                     }
@@ -158,9 +264,25 @@ namespace Nainital.EditorTools
                     Vector3 l0 = Inset(L[i], R[i]), r0 = Inset(R[i], L[i]), l1 = Inset(L[i + 1], R[i + 1]), r1 = Inset(R[i + 1], L[i + 1]);
                     Tri(l0, r0, r1, lift, painted);
                     Tri(l0, r1, l1, lift, painted);
+                    if (painted) continue;
+                    Vector3 Beyond(Vector3 p, Vector3 other)
+                    {
+                        Vector3 d = p - other;
+                        d.y = 0f;
+                        return p + d.normalized * SlabApron;
+                    }
+                    Vector3 lo0 = Beyond(l0, r0), lo1 = Beyond(l1, r1), ro0 = Beyond(r0, l0), ro1 = Beyond(r1, l1);
+                    Tri(lo0, l0, l1, lift, false, ApronClearance); Tri(lo0, l1, lo1, lift, false, ApronClearance);
+                    Tri(r0, ro0, ro1, lift, false, ApronClearance); Tri(r0, ro1, r1, lift, false, ApronClearance);
                 }
             }
 
+            if (slabs)
+                foreach (var (a, b, c, d) in footways)
+                {
+                    Tri(a, b, d, 0f, false, ApronClearance);
+                    Tri(a, d, c, 0f, false, ApronClearance);
+                }
             int set = 0, banked = 0;
             if (bx1 >= 0)
             {
@@ -173,6 +295,7 @@ namespace Nainital.EditorTools
                         int k = zi * res + xi;
                         if (cnt[k] == 0) continue;
                         float n = Mathf.Clamp01(sum[k] / cnt[k]);
+                        if (ceiling != null) n = Mathf.Min(n, ceiling[k]);
                         delta[k] = n - h[zi, xi];
                         h[zi, xi] = n;
                         ring[k] = 1;
@@ -202,6 +325,7 @@ namespace Nainital.EditorTools
                     {
                         int zi = k / res, xi = k % res;
                         h[zi, xi] = Mathf.Clamp01(h[zi, xi] + d * f);
+                        if (ceiling != null) h[zi, xi] = Mathf.Min(h[zi, xi], ceiling[k]);
                         delta[k] = d * f;
                         ring[k] = to;
                         banked++;

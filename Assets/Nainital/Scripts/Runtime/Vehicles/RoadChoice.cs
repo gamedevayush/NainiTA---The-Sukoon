@@ -13,26 +13,39 @@ namespace Nainital
     {
         public const float PlanAhead = 30f, TurnAngle = 25f, HoldAfter = 2.5f;
 
-        /// <summary>The roads onward from this end of `road` (end = 0 or the last index): never the wrong way down a
-        /// one-way road. (road, entry index, direction).</summary>
-        public static List<(int r, int i, int d)> Onward(RoadNetwork net, int road, int endIdx)
+        public const float HairpinAngle = 115f;
+
+        /// <summary>The ways onward from this end of `road` (end = 0 or the last index): (road, entry index, direction),
+        /// never the wrong way down a one-way road. A hairpin (over HairpinAngle: back down the road just driven, the
+        /// acute arm of a Y) is offered only where there is nothing gentler, as a driver would choose - unless `all` (a
+        /// route needs it).</summary>
+        public static List<(int r, int i, int d)> Onward(RoadNetwork net, int road, int endIdx, bool all = false)
         {
-            var ok = new List<(int r, int i, int d)>();
-            var links = net.Links(road, endIdx <= 0 ? 0 : 1);
-            if (links == null) return ok;
+            var gentle = new List<(int r, int i, int d)>();
+            var sharp = new List<(int r, int i, int d)>();
+            int e = endIdx <= 0 ? 0 : 1;
+            var links = net.Links(road, e);
+            if (links == null) return gentle;
+            var p = net.roads[road].pts;
+            int end = e == 0 ? 0 : p.Length - 1, before = e == 0 ? Mathf.Min(3, p.Length - 1) : Mathf.Max(0, p.Length - 4);
+            Vector3 hin = p[end] - p[before];
+            hin.y = 0f;
             foreach (var (r, i) in links)
             {
                 if (r == road) continue;
                 var q = net.roads[r].pts;
                 int ow = net.roads[r].oneWay;
-                if (ow != 0)
+                for (int d = 1; d >= -1; d -= 2)
                 {
-                    if ((ow > 0 && i >= q.Length - 2) || (ow < 0 && i <= 1)) continue;   // would enter at its exit end
-                    ok.Add((r, i, ow));
+                    if (ow != 0 && d != ow) continue;
+                    if (d > 0 ? i >= q.Length - 2 : i <= 1) continue;   // no road left that way / its exit end
+                    Vector3 hout = q[Mathf.Clamp(i + 3 * d, 0, q.Length - 1)] - q[i];
+                    hout.y = 0f;
+                    (Vector3.Angle(hin, hout) > HairpinAngle ? sharp : gentle).Add((r, i, d));
                 }
-                else ok.Add((r, i, i <= 0 ? 1 : i >= q.Length - 1 ? -1 : (Random.value < 0.5f ? 1 : -1)));
             }
-            return ok;
+            if (all) gentle.AddRange(sharp);
+            return gentle.Count > 0 ? gentle : sharp;
         }
 
         /// <summary>The indicator for going from the end of `road` (driving `dir`) onto `next`: -1 left, +1 right, 0 on
@@ -56,6 +69,9 @@ namespace Nainital
     public class TurnPlan
     {
         public (int r, int i, int d) next = (-1, 0, 0);
+        /// <summary>A road this vehicle has to take next (a route: TrafficCar.FollowRoute), with the way to drive it; null
+        /// = pick one at random.</summary>
+        public (int r, int d)? want;
         int road = -1, dir;
         bool planned, uturn;
         int sign, holdSign;
@@ -74,7 +90,12 @@ namespace Nainital
             if (to.magnitude > RoadChoice.PlanAhead) return;
             var ok = RoadChoice.Onward(net, curRoad, end);
             road = curRoad; dir = curDir; planned = true;
-            if (ok.Count > 0) { next = ok[Random.Range(0, ok.Count)]; uturn = false; sign = RoadChoice.Sign(net, curRoad, curDir, next); }
+            (int r, int i, int d)? wanted = null;
+            if (want.HasValue)
+                foreach (var o in RoadChoice.Onward(net, curRoad, end, true))
+                    if (o.r == want.Value.r && o.d == want.Value.d) { wanted = o; break; }
+            if (wanted.HasValue) { next = wanted.Value; uturn = false; sign = RoadChoice.Sign(net, curRoad, curDir, next); }
+            else if (ok.Count > 0) { next = ok[Random.Range(0, ok.Count)]; uturn = false; sign = RoadChoice.Sign(net, curRoad, curDir, next); }
             else { next = (-1, 0, 0); uturn = net.roads[curRoad].oneWay == 0; sign = uturn ? 1 : 0; }
         }
 
@@ -87,6 +108,14 @@ namespace Nainital
             holdSign = sign; hold = RoadChoice.HoldAfter;
             if (next.r < 0) return null;
             return next;
+        }
+
+        /// <summary>A turn off the middle of the road coming up (a route): its indicator.</summary>
+        public void Branching(int turnSign)
+        {
+            planned = false;
+            holdSign = turnSign;
+            hold = RoadChoice.HoldAfter;
         }
 
         /// <summary>Turning round (a three-point turn): the right indicator through it.</summary>

@@ -134,6 +134,45 @@ namespace Nainital
             float pitch = Mathf.Clamp(-Mathf.Atan2(front.y - back.y, length * 0.7f) * Mathf.Rad2Deg, -14f, 14f);   // a kerb under one wheel is not a ramp
             this.pitch = Mathf.MoveTowards(this.pitch, pitch, 40f * dt);
             pitch = this.pitch;
+            if (backT > 0f && BackOut(dt)) return;
+            bool intoCar = IntoVehicle(p, heading);
+            bool pinned = false;
+            if (!intoCar && avoidStatics && IntoStatic(p, heading * Quaternion.Euler(pitch, 0f, 0f)))
+            {
+                // a kinematic body went through boards, the toll booth, parapets: along the nearest clear heading instead
+                intoCar = true;
+                pinned = true;
+                float creep = Mathf.Clamp(Speed, 1.2f, 2.5f);
+                foreach (float a in SideSteps)
+                {
+                    Quaternion h2 = Quaternion.Euler(0f, yaw + a, 0f);
+                    Vector3 q = transform.position + h2 * Vector3.forward * creep * dt;
+                    q.y = p.y;
+                    if (IntoStatic(q, h2) || IntoVehicle(q, h2)) continue;
+                    // it turns only a few degrees a step: clear as it will really stand, not just as it will end up
+                    float yawNow = yaw + Mathf.Clamp(a, -200f * dt, 200f * dt);
+                    Quaternion h3 = Quaternion.Euler(0f, yawNow, 0f);
+                    if (IntoStatic(q, h3 * Quaternion.Euler(pitch, 0f, 0f))) continue;
+                    yaw = yawNow;
+                    heading = h3;
+                    p = q;
+                    Speed = creep;
+                    intoCar = false;
+                    pinned = false;
+                    break;
+                }
+            }
+            if (intoCar && avoidStatics && IntoStatic(transform.position, heading * Quaternion.Euler(pitch, 0f, 0f)) && !IntoStatic(transform.position, transform.rotation))
+            {
+                // nor swung round into it on the spot (22 Nov 2026: into the Army Rest wall at the narrow lane's corner)
+                yaw = transform.eulerAngles.y;
+                yawRate = 0f;
+                heading = Quaternion.Euler(0f, yaw, 0f);
+            }
+            // no way on at all: stop, then walk it back and round (the owner's rule: hit -> stop -> back -> get out)
+            pinnedT = pinned ? pinnedT + dt : 0f;
+            if (pinnedT > 0.6f) { pinnedT = 0f; backT = 1.4f; backSide = want >= 0f ? 1f : -1f; }
+            if (intoCar) { p = transform.position; Speed = 0f; }   // a kinematic body: nothing else stops it going into a car
             rb.MovePosition(p);
             rb.MoveRotation(heading * Quaternion.Euler(pitch, 0f, 0f));
             PushPeople(p, heading);
@@ -145,8 +184,78 @@ namespace Nainital
             Steer = Mathf.MoveTowards(Steer, Mathf.Clamp(want2, -35f, 35f), 120f * dt);
         }
 
+        float pinnedT, backT, backSide;
+
+        /// <summary>Walked backwards a little, the nose coming round to where it wants to go; false: no room behind.</summary>
+        bool BackOut(float dt)
+        {
+            backT -= dt;
+            float yawNow = yaw + backSide * 45f * dt;
+            Quaternion h = Quaternion.Euler(0f, yawNow, 0f);
+            Vector3 q = transform.position - Forward * 1.1f * dt;
+            q.y = GroundAt(q, out _).y;
+            // (already touching it, it may move away from it: only never deeper into a vehicle)
+            if (IntoVehicle(q, h) || (IntoStatic(q, h) && !IntoStatic(transform.position, transform.rotation))) { backT = 0f; return false; }
+            yaw = yawNow;
+            yawRate = 0f;
+            Speed = 0f;
+            rb.MovePosition(q);
+            rb.MoveRotation(h * Quaternion.Euler(pitch, 0f, 0f));
+            return true;
+        }
+
         static readonly Collider[] near = new Collider[8];
+        static readonly Collider[] nearCars = new Collider[8];
         BoxCollider box;
+
+        /// <summary>The traffic's bikes (TrafficBike): solid to static things, steering round them.</summary>
+        [System.NonSerialized] public bool avoidStatics;
+        static readonly float[] SideSteps = { -20f, 20f, -40f, 40f, -65f, 65f, -90f, 90f, -125f, 125f };
+        static readonly Collider[] nearStatic = new Collider[8];
+
+        /// <summary>Its own wall test where it stands now (checks: TrafficLab.Inside).</summary>
+        public bool InStaticNow => IntoStatic(transform.position, transform.rotation);
+
+        bool IntoStatic(Vector3 at, Quaternion rot)
+        {
+            if (!box) box = GetComponent<BoxCollider>();
+            if (!box) return false;
+            Vector3 half = new Vector3(box.size.x * 0.45f, 0.45f, box.size.z * 0.43f);   // 0.4-1.3 m up: clear of kerbs and the road, not of low stalls
+            int n = Physics.OverlapBoxNonAlloc(at + rot * new Vector3(box.center.x, 0.85f, box.center.z), half, nearStatic, rot,
+                                               ~((1 << 2) | (1 << 4) | (1 << 8) | (1 << 9) | (1 << VehicleFactory.VehicleLayer)), QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+                if (!(nearStatic[i] is TerrainCollider) && !nearStatic[i].transform.IsChildOf(transform)) return true;
+            return false;
+        }
+
+        /// <summary>The vehicle it stopped against in its last step (TrafficBike goes round it), or null.</summary>
+        public Rigidbody BlockedBy { get; private set; }
+
+        /// <summary>Would this step take the bike's box into another vehicle? It moves itself (kinematic), so physics never
+        /// stopped it: a traffic scooty went 0.3 m into a car at a junction, the car's side out of its forward look (owner,
+        /// 22 Nov 2026: "gaadiyan aar paar jaari hain"; TrafficLab.Overlaps). Touching one already, only a step along or
+        /// away from it is allowed - never deeper.</summary>
+        bool IntoVehicle(Vector3 at, Quaternion heading)
+        {
+            BlockedBy = null;
+            if (!box) box = GetComponent<BoxCollider>();
+            if (!box) return false;
+            int n = Physics.OverlapBoxNonAlloc(at + heading * box.center, box.size * 0.48f, nearCars, heading, 1 << VehicleFactory.VehicleLayer, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var c = nearCars[i];
+                if (!c || c.transform.IsChildOf(transform) || (c.attachedRigidbody && c.attachedRigidbody == rb)) continue;
+                if (Physics.ComputePenetration(box, box.transform.position, box.transform.rotation, c, c.transform.position, c.transform.rotation, out var outWay, out _))
+                {
+                    Vector3 step = at - transform.position;
+                    step.y = outWay.y = 0f;
+                    if (Vector3.Dot(step.normalized, outWay.normalized) >= -0.15f) continue;
+                }
+                BlockedBy = c.attachedRigidbody;
+                return true;
+            }
+            return false;
+        }
 
         /// <summary>The bike moves itself (a kinematic body): nothing physical stops it at a person, so it went straight
         /// through the player (owner, 21 Nov 2026: "ek gaadi mere aarpaar chala gaya"). Anyone (the player, a townsperson)

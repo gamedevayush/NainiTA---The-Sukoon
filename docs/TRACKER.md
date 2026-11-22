@@ -572,3 +572,58 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   not to be committed.
 - Left: the small wedge at the parapet's foot outside the park (the bank there starts 1.8 m under the road); a pine's
   branches in front of the gym camera at the twister.
+
+## 22 Nov 2026 (18:20-, main PC) - AI traffic and the Upper Mall deck (not committed)
+
+- Owner: "AI vehcile ko perfect kro...also upper mall road pe ab bhi unnchi niche mesh hai zoo road side..tum ek gaadi ko
+  bus stand se DSA tk bhejo...mall road pe rukjayegi...AI glt mudne pe jab back krti hai to same direction me phirse chli
+  jaati hai...gaadiyan aar paar jaari hain kabhi kabhi..sab mst check kro".
+- Tools: `Editor/TrafficLab.cs` - edit or Play: `LinkAudit`, `LaneAudit`, `DeckAll`, `DeckProfile`; Play: `RouteDrive` (bus
+  stand -> DSA), `Overlaps` (aar-paar: vehicles, walls, people), `TurnTest` (every turn of the town + wrong-way recovery).
+  Batch lists: `Bridge/batch_traffic_world.txt`, `Bridge/batch_traffic_check.txt`.
+- Causes measured:
+  - Upper Mall from 700 m to Tallital: the slab took the raw ground every 2 m (470 bumps > 6 cm, worst 0.67 m; 11 lane
+    points where the slab stood into a car's box) and the hill's triangles came up through it (258 of 1488 m).
+  - both Mall roads were one-way to Tallital (the sign assumed the map's point order): no way north on the Mall.
+  - junctions by "any road within 12 m": a link through the Mall divider wall, corner cuts; two connectors under 12 m
+    were not baked (Kunjakharak Road's).
+  - the Tallital police island stands on the junction's node (the owner's position, 14 Nov): every lane led into it.
+  - 123 of 34301 lane points shut by static things; hairpins steered straight; a failed turn drove on the way it faced.
+  - aar-paar: kinematic traffic bikes went into cars; the 5th-try ram passed through static things in full view; spawn
+    only checked the traffic's own list.
+- After the first build: bumps 1 (6 cm, the north end), ground through the slab 2 m, lane points shut 13, the island's
+  ring clear 24/24. Two regressions seen in the shots and fixed in code, rebuild pending: the painted lines / zebra lay
+  inside the levelled slab; the hill still stood through the footway's cobbles.
+- 20:22: the PC froze mid crash test (the HDD with this repo dropped out; repo and uncommitted work intact, the save
+  snapshot restored identical). Resumed 20:40.
+- Play, 21:00-21:40:
+  - crash test (10 cars, 6 roads): 10 of 10 hit -> accelerator off within 0.03 s -> stop -> back 2.2-8.8 m -> out.
+  - Tallital island, every turn twice: 20 of 20 out, 0 hops (2 back-offs: the Boat Stand's board in the ring).
+  - bus stand -> DSA, the owner was right: 1.1 m/s up the whole Upper Mall behind someone walking in the lane (480 s, not
+    there). People now clear 14 m in front of traffic and stay aside, cars honk and go round a walker, a person at the
+    bumper is seen (a sphere cast misses what it starts inside). Then: 244 s and 237 s, 0 stops, 0 hits.
+  - every turn (171) + 40 left pointing the wrong way: 165 turns made (26 with back-offs), 6 failed; 40 of 40 back on
+    their own lane.
+- Owner, 21:37: "heavy traffic lgaake.. bus stand se mallroad hote huye, eco cave park, then lovers points hote huye poora
+  khurpatal tk pahuchaao... bus ko.. full traffic" -> `Editor/TrafficBusTest.cs` (45 cars + 20 two-wheelers round a bus):
+  - no route existed: traffic could only turn at a road's end, Khurpatal's road leaves the Kaladhungi road mid-way
+    (`RoadNetwork.Branches`, routes take it with the indicator).
+  - run 1: jam at Mallital after 1636 m. Upper Mall's slab ended in a 0.3-0.4 m step across Lower Mall's only way in, and
+    held-up cars turned round in the junction. Deck ends ramped (`DeckEndSides`), no U-turn in a junction or a queue,
+    another road out instead, one of two facing cars gives way, coach-wide lanes where there is room.
+
+### PENDING - next session starts here (22 Nov 2026, 22:15; owner: "pending me daaldo ... next session me krenge")
+
+1. **Physics: a bike shoves a bus backwards** (owner: "ek bike waala meri bus ko hi dhakka lgaate huye peeche leaaya ...
+   wheres physics?"). `BikeRide` is a kinematic body moved by MovePosition, so it pushes a 7.5 t bus as if it had endless
+   mass. That predates 22 Nov; the bike back-out added that night (`BikeRide.BackOut`) may add to it - not checked.
+2. **The owner's bus test has NOT passed** (full traffic, bus stand -> Mall Road -> Eco Cave Park -> Lovers Point ->
+   Khurpatal; `call TrafficBusTest.Run` in Play). Run 1: jam at Mallital after 1636 m. Run 2, after the junction fixes:
+   stuck at the Tallital island after 98 m among bikes, the traffic post and a house; stopped by the owner. The turn onto
+   Khurpatal's road has never been driven.
+3. **Last edits not verified in Play:** the Mallital junction fixes (deck ends, no U-turn in a junction, another road out,
+   give way), coach-wide lanes, people pushed out of a car's width, the board out of the island. The crash test (10/10),
+   island test (20/20) and bus stand -> DSA runs (244 s, 237 s) were on earlier code of the same night: run them again.
+4. Aar-paar still open: bike <-> bus up to 1.28 m, people in full traffic, vehicles into houses / G.O.A.N. plinths.
+5. 6 of 171 turns failed (Kunjakharak, #17 -> #27, #83 -> #23, #52 -> Mall Road x2); 13 lane points have no room.
+6. After pulling: **Build World** (the Upper Mall deck, junctions, lanes and boards are built, not in git).

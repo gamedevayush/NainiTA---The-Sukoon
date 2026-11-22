@@ -216,7 +216,7 @@ namespace Nainital.EditorTools
                 if (what == "person") person++; else if (what == "vehicle") vehicle++; else if (what == "other") other++; else clear++;
             }
             Debug.Log($"[Nainital] jam report: {n} traffic, {wrecked} wrecked, {standing} standing - in front: person {person}, vehicle {vehicle}, other {other}, nothing {clear}" +
-                      $" | so far: back-offs {TrafficCar.BackOffs}, rams {TrafficCar.Rams}, hops {TrafficCar.Hops}, passes {TrafficCar.Passes}" + (others.Count > 0 ? " | other: " + string.Join("; ", others) : ""));
+                      $" | so far: back-offs {TrafficCar.BackOffs}, hits {TrafficCar.Hits}, hops {TrafficCar.Hops}, passes {TrafficCar.Passes}" + (others.Count > 0 ? " | other: " + string.Join("; ", others) : ""));
         }
 
         // ---------------------------------------------------------------- vehicle sounds (22 Nov 2026)
@@ -375,7 +375,7 @@ namespace Nainital.EditorTools
             Vector3 pos = testCar.transform.position;
             float past = Vector3.Dot(pos - testWallAt, testWallFwd);
             Debug.Log($"[Nainital] wedge report: {testCar.name} {testCar.State}, speed {testCar.Speed:F1}, {(pos - testStart).magnitude:F0} m from start, " +
-                      $"{(past > 0f ? $"PAST the wall by {past:F1} m" : $"{-past:F1} m short of the wall")}, this car: most tries {testCar.MostTries}, rams {testCar.RamsHere}, passes {testCar.PassesHere} | all: back-offs {TrafficCar.BackOffs}, rams {TrafficCar.Rams}, hops {TrafficCar.Hops}, passes {TrafficCar.Passes}");
+                      $"{(past > 0f ? $"PAST the wall by {past:F1} m" : $"{-past:F1} m short of the wall")}, this car: most tries {testCar.MostTries}, hits {testCar.HitsHere}, passes {testCar.PassesHere} | all: back-offs {TrafficCar.BackOffs}, hits {TrafficCar.Hits}, hops {TrafficCar.Hops}, passes {TrafficCar.Passes}");
         }
 
         public static void WedgeClear()

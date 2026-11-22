@@ -108,6 +108,22 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 ## Work in progress (last updated 21 Nov 2026, afternoon)
 
+### PENDING - next session starts here (22 Nov 2026, 22:15; owner: "pending me daaldo ... next session me krenge")
+
+1. **Physics: a bike shoves a bus backwards** (owner: "ek bike waala meri bus ko hi dhakka lgaate huye peeche leaaya ...
+   wheres physics?"). `BikeRide` is a kinematic body moved by MovePosition, so it pushes a 7.5 t bus as if it had endless
+   mass. That predates 22 Nov; the bike back-out added that night (`BikeRide.BackOut`) may add to it - not checked.
+2. **The owner's bus test has NOT passed** (full traffic, bus stand -> Mall Road -> Eco Cave Park -> Lovers Point ->
+   Khurpatal; `call TrafficBusTest.Run` in Play). Run 1: jam at Mallital after 1636 m. Run 2, after the junction fixes:
+   stuck at the Tallital island after 98 m among bikes, the traffic post and a house; stopped by the owner. The turn onto
+   Khurpatal's road has never been driven.
+3. **Last edits not verified in Play:** the Mallital junction fixes (deck ends, no U-turn in a junction, another road out,
+   give way), coach-wide lanes, people pushed out of a car's width, the board out of the island. The crash test (10/10),
+   island test (20/20) and bus stand -> DSA runs (244 s, 237 s) were on earlier code of the same night: run them again.
+4. Aar-paar still open: bike <-> bus up to 1.28 m, people in full traffic, vehicles into houses / G.O.A.N. plinths.
+5. 6 of 171 turns failed (Kunjakharak, #17 -> #27, #83 -> #23, #52 -> Mall Road x2); 13 lane points have no room.
+6. After pulling: **Build World** (the Upper Mall deck, junctions, lanes and boards are built, not in git).
+
 **Next PC, in this order (21 Nov 2026):**
 
 1. `git pull` (LFS on). Open the project (Unity 6000.4.1f1, or 6000.3.28f1 - do not commit the `.meta` /

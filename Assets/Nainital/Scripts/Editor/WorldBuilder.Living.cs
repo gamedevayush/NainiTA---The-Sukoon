@@ -157,9 +157,195 @@ namespace Nainital.EditorTools
             Debug.Log($"[Nainital] shoppers: {spots.Count} browse spots at {ctx.shopFronts.Count} shop fronts");
         }
 
+        /// <summary>Junction islands the traffic drives round (Tallital's police island: TrafficPost adds it).</summary>
+        static readonly List<RoadNetwork.Island> trafficIslands = new List<RoadNetwork.Island>();
+
+        /// <summary>
+        /// Where each drivable road's ends meet the others, as the map has it: an end on another road's line is a junction
+        /// whatever the slope; an end that lies on none joins only the nearest road within 12 m at about its height.
+        /// (22 Nov 2026: "everything within 12 m" joined Snowview Road to Lower Mall through the divider wall and cut
+        /// corners across junctions; the bake also left out two connectors under 12 m, Kunjakharak Road's among them.)
+        /// </summary>
+        static RoadNetwork.Meeting[] RoadJoins(List<RoadNetwork.Path> roads, List<Vector2[]> map)
+        {
+            var found = new List<RoadNetwork.Meeting>();
+            int onMap = 0, byNearness = 0;
+            int Closest(Vector3[] q, Vector2 p)
+            {
+                int b = 0;
+                float bd = float.MaxValue;
+                for (int i = 0; i < q.Length; i++) { float d = (new Vector2(q[i].x, q[i].z) - p).sqrMagnitude; if (d < bd) { bd = d; b = i; } }
+                return b;
+            }
+            for (int r = 0; r < roads.Count; r++)
+                for (int e = 0; e < 2; e++)
+                {
+                    Vector2 end = e == 0 ? map[r][0] : map[r][map[r].Length - 1];
+                    float y = (e == 0 ? roads[r].pts[0] : roads[r].pts[roads[r].pts.Length - 1]).y;
+                    var dist = new float[roads.Count];
+                    float nearest = float.MaxValue;
+                    bool any = false;
+                    for (int o = 0; o < roads.Count; o++)
+                    {
+                        dist[o] = float.MaxValue;
+                        if (o == r) continue;
+                        float d = Geo.DistanceToPolyline(map[o], end, false);
+                        if (d <= 1f) any = true;
+                        else
+                        {
+                            if (d > 12f) continue;
+                            if (Mathf.Abs(roads[o].pts[Closest(roads[o].pts, end)].y - y) > Mathf.Max(1.2f, d * 0.3f)) continue;
+                        }
+                        dist[o] = d;
+                        nearest = Mathf.Min(nearest, d);
+                    }
+                    if (nearest == float.MaxValue) continue;
+                    for (int o = 0; o < roads.Count; o++)
+                    {
+                        if (dist[o] > (any ? 1f : nearest + 0.6f)) continue;
+                        found.Add(new RoadNetwork.Meeting { road = r, end = e, other = o, idx = Closest(roads[o].pts, end) });
+                        if (any) onMap++; else byNearness++;
+                    }
+                }
+            Debug.Log($"[Nainital] road junctions: {onMap} on the map, {byNearness} by nearness (an end just short of its road)");
+            return found.ToArray();
+        }
+
+        /// <summary>
+        /// Each lane kept clear of what stands in it (TrafficLab.LaneAudit, 22 Nov 2026: 123 of 34301 lane points were shut -
+        /// house corners at junctions, retaining walls, posts): the last step, with everything standing (the hand-placed
+        /// gate and chowki too). Only the lane that is shut moves, the least that clears it, on ground at the road's level,
+        /// tapered over 8 m. The road's line stays, so the junctions stay; nothing built is moved.
+        /// </summary>
+        const float CoachHalf = 1.35f;
+
+        /// <summary>A board in the ground vehicles swing over round a junction island: out of it (22 Nov 2026: the Tallital
+        /// Boat Stand's, moved off the road's line into the island's ring - every turn to Bhawali backed off it).</summary>
+        static void MoveBoardsOffIslands(WorldCtx ctx, RoadNetwork net)
+        {
+            if (net.islands == null) return;
+            var roads = Clearance(ctx);
+            foreach (var board in UnityEngine.Object.FindObjectsByType<InfoSign>(FindObjectsSortMode.None))
+                foreach (var island in net.islands)
+                {
+                    float keep = island.radius + 10f;
+                    var at = new Vector2(board.transform.position.x, board.transform.position.z);
+                    var c = new Vector2(island.centre.x, island.centre.z);
+                    if ((at - c).sqrMagnitude >= keep * keep) continue;
+                    float ground = ctx.H(at), over = board.transform.position.y - ground;
+                    bool done = false;
+                    for (float r = 1f; r <= 22f && !done; r += 0.5f)
+                        for (int k = 0; k < 36 && !done; k++)
+                        {
+                            float a = k * Mathf.PI / 18f;
+                            Vector2 q = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                            if ((q - c).sqrMagnitude < keep * keep || roads.Blocked(q, 1.2f) || ctx.InLake(q)) continue;
+                            float h = ctx.H(q);
+                            if (Mathf.Abs(h - ground) > 1.5f) continue;
+                            bool taken = false;
+                            foreach (var o in Physics.OverlapBox(new Vector3(q.x, h + 1.1f, q.y), new Vector3(0.8f, 0.75f, 0.8f)))
+                                if (!(o is TerrainCollider) && !o.isTrigger) { taken = true; break; }
+                            if (taken) continue;
+                            board.transform.position = new Vector3(q.x, h + over, q.y);
+                            EditorUtility.SetDirty(board.transform);
+                            Physics.SyncTransforms();
+                            Debug.Log($"[Nainital] board '{board.title}' out of the island's ring: ({at.x:F1}, {at.y:F1}) -> ({q.x:F1}, {q.y:F1})");
+                            done = true;
+                        }
+                    if (!done) Debug.LogWarning($"[Nainital] board '{board.title}' stands in a junction island's ring and found no clear place");
+                }
+        }
+
+        static void ClearLanes(WorldCtx ctx)
+        {
+            var tm = UnityEngine.Object.FindAnyObjectByType<TrafficManager>();
+            var net = tm ? tm.network : null;
+            if (!net) return;
+            Physics.SyncTransforms();
+            int mask = ~((1 << 2) | (1 << 4) | (1 << 8) | (1 << 9) | (1 << VehicleFactory.VehicleLayer));
+            var buf = new Collider[16];
+            MoveBoardsOffIslands(ctx, net);
+            Physics.SyncTransforms();
+            int shut = 0, moved = 0;
+            var left0 = new List<string>();
+            for (int r = 0; r < net.roads.Length; r++)
+            {
+                var road = net.roads[r];
+                var q = road.pts;
+                float off0 = road.oneWay != 0 ? 0f : Mathf.Max(1.1f, road.width * 0.25f);
+                road.shiftFwd = road.shiftBack = new float[0];
+                foreach (int dir in road.oneWay != 0 ? new[] { road.oneWay } : new[] { 1, -1 })
+                {
+                    float[] sh = null;
+                    bool Shut(int i, float delta, out bool offRoad, float halfWide = 0.9f)
+                    {
+                        offRoad = false;
+                        Vector3 tan = (q[Mathf.Min(i + 1, q.Length - 1)] - q[Mathf.Max(i - 1, 0)]) * dir;
+                        Vector3 flat = new Vector3(tan.x, 0f, tan.z);
+                        if (flat.sqrMagnitude < 1e-4f) return false;
+                        Vector3 p = q[i] + Vector3.Cross(flat.normalized, Vector3.up) * (off0 + delta);
+                        var p2 = new Vector2(p.x, p.z);
+                        if (road.oneWay == 0)   // (the Mall's lanes are its decks')
+                        {
+                            float g = ctx.H(p2) + 0.1f;
+                            offRoad = ctx.InLake(p2) || Mathf.Abs(g - q[i].y) > 0.9f;
+                            p.y = Mathf.Max(g, q[i].y - 0.9f);
+                        }
+                        int n = Physics.OverlapBoxNonAlloc(p + Vector3.up * 1.1f, new Vector3(halfWide, 0.65f, 2f), buf, Quaternion.LookRotation(tan.normalized), mask, QueryTriggerInteraction.Ignore);
+                        for (int k = 0; k < n; k++) if (!(buf[k] is TerrainCollider)) return true;
+                        return false;
+                    }
+                    for (int i = 0; i < q.Length; i++)
+                    {
+                        if (net.NearIsland(q[i], 3f)) continue;   // driven round, not shifted
+                        bool narrowShut = Shut(i, 0f, out _), coach = road.width >= 5.9f;
+                        if (!narrowShut && !(coach && Shut(i, 0f, out _, CoachHalf))) continue;
+                        float hi = road.width * 0.5f + 1f - off0, lo = road.oneWay != 0 ? -hi : -0.6f - off0;
+                        bool ok = false;
+                        // room for a coach first (2.7 m: the bus clipped the parapet's end at Tallital), else for a car
+                        for (int size = coach ? 0 : 1; size < 2 && !ok; size++)
+                        {
+                            if (size == 1 && !narrowShut) break;   // tight for a coach, but a car gets by: left as it is
+                            float halfWide = size == 0 ? CoachHalf : 0.9f;
+                            for (int k = 1; k <= (size == 0 ? 6 : 24) && !ok; k++)   // (for a coach at most 1.5 m over)
+                                foreach (float delta in new[] { -0.25f * k, 0.25f * k })
+                                {
+                                    if (delta < lo || delta > hi) continue;
+                                    if (Shut(i, delta, out bool bad, halfWide) || bad) continue;
+                                    (sh ??= new float[q.Length])[i] = delta;
+                                    ok = true;
+                                    moved++;
+                                    break;
+                                }
+                        }
+                        if (narrowShut) shut++;
+                        if (narrowShut && !ok) left0.Add($"#{r} pt {i} ({q[i].x:F0},{q[i].z:F0})");
+                    }
+                    if (sh == null) continue;
+                    var eased = (float[])sh.Clone();
+                    for (int i = 0; i < q.Length; i++)
+                    {
+                        if (sh[i] != 0f) continue;
+                        float best = 0f;
+                        for (int k = -2; k <= 2; k++)
+                        {
+                            if (i + k < 0 || i + k >= q.Length) continue;
+                            float v = sh[i + k] * (1f - Mathf.Abs(k) / 3f);
+                            if (Mathf.Abs(v) > Mathf.Abs(best)) best = v;
+                        }
+                        if (best != 0f && !Shut(i, best, out bool bad) && !bad) eased[i] = best;
+                    }
+                    if (dir > 0) road.shiftFwd = eased; else road.shiftBack = eased;
+                }
+            }
+            EditorUtility.SetDirty(net);
+            Debug.Log($"[Nainital] traffic lanes: {shut} lane points shut, {moved} moved clear, {left0.Count} with no room: {string.Join("; ", left0)}");
+        }
+
         // ------------------------------------------------------------------ road + footpath graph
         static RoadNetwork BuildRoadNetwork(WorldCtx ctx)
         {
+            var onMap = new List<Vector2[]>();   // each drivable road's line in the map (RoadJoins)
             var roads = new List<RoadNetwork.Path>();
             var walks = new List<RoadNetwork.Path>();
             foreach (var r in ctx.world.roads)
@@ -169,6 +355,12 @@ namespace Nainital.EditorTools
                 if (VehicleKinds.Contains(r.kind))
                 {
                     var res = Resample(pts2, 4f, false);
+                    if (res.Count < 4)   // a connector between two roads (5-8 m): left out, it cut Kunjakharak Road off the town
+                    {
+                        float length = 0f;
+                        for (int i = 0; i + 1 < pts2.Length; i++) length += Vector2.Distance(pts2[i], pts2[i + 1]);
+                        if (length > 1f) res = Resample(pts2, length / 3.01f, false);
+                    }
                     // Mall Road is one-way (user, 2026-11-12): Upper Mall towards Mallital, Lower Mall towards Tallital,
                     // each driven down the middle of its real deck so cars keep clear of the divider and its posts
                     var deck = r.name == MallUpper ? ctx.mallUpperDrive : r.name == MallLower ? ctx.mallLowerDrive : null;
@@ -176,13 +368,19 @@ namespace Nainital.EditorTools
                     {
                         var dpts = new List<Vector3>();
                         for (int i = 0; i < deck.Count; i += 2) dpts.Add(deck[i]);
-                        roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = dpts.ToArray(), oneWay = r.name == MallUpper ? 1 : -1 });
+                        // the way along the points that goes north (to Mallital): the points run whichever way the map has them
+                        // (22 Nov 2026: Upper Mall's ran north-to-south, so "+1" sent both roads to Tallital and no car could
+                        // drive up the Mall - the route from the bus stand to the DSA ground went round the far side of the lake)
+                        int north = dpts[dpts.Count - 1].z > dpts[0].z ? 1 : -1;
+                        roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = dpts.ToArray(), oneWay = r.name == MallUpper ? north : -north });
+                        onMap.Add(pts2);
                     }
                     else if (res.Count >= 4)
                     {
                         var p3 = new Vector3[res.Count];
                         for (int i = 0; i < res.Count; i++) p3[i] = new Vector3(res[i].x, ctx.H(res[i]) + 0.1f, res[i].y);
                         roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = p3 });
+                        onMap.Add(pts2);
                     }
                     if (r.name == MallUpper)   // the crowd walks on Upper Mall itself
                         for (float lane = -2.2f; lane <= 2.21f; lane += 0.73f)
@@ -232,8 +430,10 @@ namespace Nainital.EditorTools
             var net = ScriptableObject.CreateInstance<RoadNetwork>();
             net.roads = roads.ToArray();
             net.walks = walks.ToArray();
+            net.meetings = RoadJoins(roads, onMap);
+            net.islands = trafficIslands.ToArray();
             AssetDatabase.CreateAsset(net, path);
-            Debug.Log($"[Nainital] road network: {roads.Count} drivable roads, {walks.Count} walkways");
+            Debug.Log($"[Nainital] road network: {roads.Count} drivable roads, {walks.Count} walkways; {net.islands.Length} junction islands");
             return net;
         }
 

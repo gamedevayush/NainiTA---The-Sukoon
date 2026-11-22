@@ -34,6 +34,7 @@ namespace Nainital
             idx = startIdx;
             dir = n.roads[roadIndex].oneWay != 0 ? n.roads[roadIndex].oneWay : direction;
             bike = GetComponent<BikeRide>();
+            bike.avoidStatics = true;   // it steers round boards, posts, parapets (it moves itself)
             if (obstacleMask < 0) obstacleMask = (1 << VehicleFactory.VehicleLayer) | (1 << 8) | (1 << 9);
             bike.Place(Lane(idx), Lane(idx + dir) - Lane(idx));
             var pm = PedestrianManager.Instance;
@@ -101,7 +102,7 @@ namespace Nainital
             Vector3 left = Vector3.Cross(d.normalized, Vector3.up);
             float w = net.roads[road].width;
             float off = net.roads[road].oneWay != 0 ? w * 0.28f : Mathf.Max(1.5f, w * 0.36f);   // two-wheelers keep to the edge
-            return pts[i] + left * (off + pull * 0.6f - passOff);
+            return pts[i] + left * (off + net.roads[road].Shift(dir, i) + pull * 0.6f - passOff);
         }
 
         // round a vehicle standing in the way that will not move (TrafficCar.WontMove), on its right (owner, 21 Nov 2026:
@@ -175,9 +176,9 @@ namespace Nainital
             }
             for (int guard = 0; guard < 4; guard++)
             {
-                Vector3 nx = Lane(idx + dir) - pos;
+                Vector3 lp = Lane(idx + dir), nx = lp - pos;
                 nx.y = 0;
-                if (nx.magnitude < 2f || (nx.magnitude < 7f && Vector3.Dot(nx, bike.Forward) < 0f)) { Advance(); if (!this || down) return; }
+                if (nx.magnitude < 2f || (nx.magnitude < 7f && Vector3.Dot(nx, bike.Forward) < 0f) || net.InIsland(lp, pos, 0.5f)) { Advance(); if (!this || down) return; }
                 else break;
             }
             // the indicator for the turn planned ahead (owner, 21 Nov 2026)
@@ -209,6 +210,7 @@ namespace Nainital
                 int hl = hit.collider.gameObject.layer;
                 if (hl != 8 && hl != 9 && hit.rigidbody && hit.rigidbody.gameObject != gameObject) blocker = hit.rigidbody;
             }
+            if (!blocker) blocker = bike.BlockedBy;   // stopped against its side, out of the look ahead
             if (blocker && !passing && TrafficCar.WontMove(blocker)) { waitT += dt; if (waitT > 2f) StartPass(blocker, pos); }
             else waitT = 0f;
 
@@ -218,7 +220,7 @@ namespace Nainital
             pull = Mathf.MoveTowards(pull, want, dt * 0.8f);
             if (want > 0f) target = Mathf.Min(target, 3f);
 
-            bike.Drive(Aim(Mathf.Clamp(speed * 0.8f, 3f, 9f)), target, dt);
+            bike.Drive(net.RoundIslands(pos, Aim(Mathf.Clamp(speed * 0.8f, 3f, 9f)), 0.5f), target, dt);
 
             if (speed < 0.3f) stuck += dt; else stuck = 0f;
             hornCd -= dt;

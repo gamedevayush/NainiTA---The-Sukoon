@@ -141,6 +141,7 @@ namespace Nainital.EditorTools
                 PropKit.InfoBoard(mb);
                 boardMesh = Save(mb, "InfoBoard");
             }
+            pos = WorldBuilder.BoardSpot(this, title, pos);
             var go = Instance("Info: " + title, parent, boardMesh, pos, rot, true);
             var s = go.AddComponent<InfoSign>();
             s.title = title;
@@ -217,7 +218,7 @@ namespace Nainital.EditorTools
             // after the levelling (its 2.5 m ease beside the walk filled the Capitol's lane up to the walk, 16 Nov) and before the
             // roads are built on the ground
             Step("Capitol terraces and the Mallital bank", () => ShapeCapitolGround(ctx));
-            Step("Roads", () => { roadStrips.Clear(); deckEnds.Clear(); bankKeep.Clear(); BeginRoadMask(ctx); BuildRoads(ctx); SetGroundToPaintedRoads(ctx); });   // the ground is the road from here on
+            Step("Roads", () => { roadStrips.Clear(); deckEnds.Clear(); deckEndLines.Clear(); bankKeep.Clear(); trafficIslands.Clear(); footways.Clear(); upperDeck = null; BeginRoadMask(ctx); BuildRoads(ctx); SetGroundToPaintedRoads(ctx); });   // the ground is the road from here on
             Step("G.O.A.N. plan (civic sites)", () => PlanGoan(ctx));
             Step("Tallital plan", () => PlanTallital(ctx));
             Step("Mallital plan", () => PlanMallital(ctx));
@@ -254,6 +255,7 @@ namespace Nainital.EditorTools
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
             Step("Placed by hand (Shaktipeeth gate ...)", () => RestorePlacedByHand(ctx));
+            Step("Traffic lanes clear", () => ClearLanes(ctx));   // last: everything stands, the hand-placed things too
             BuildingKit.Ground = null;
 
             EditorUtility.SetDirty(bank);
@@ -633,6 +635,12 @@ namespace Nainital.EditorTools
                     }
                     hLine = sm;
                 }
+                if (r.name == MallUpper)
+                {
+                    hLine = DeckLevel(hLine);
+                    upperDeckLift = lift;
+                    upperDeck = hLine;   // MallPath takes the same: lane, divider, footway and lamps at the slab's level
+                }
                 int dsaEndTri = -1, dsaCut = -1;
                 if (dsa)
                 {
@@ -705,6 +713,15 @@ namespace Nainital.EditorTools
                     int e = kerbL.Count - 1;
                     deckEnds.Add((kerbL[0], kerbR[0], (kerbL[1] + kerbR[1]) * 0.5f));
                     deckEnds.Add((kerbL[e], kerbR[e], (kerbL[e - 1] + kerbR[e - 1]) * 0.5f));
+                    if (r.name == MallUpper)
+                    {
+                        int n = Mathf.Min(7, kerbL.Count);
+                        var head = new Vector3[n];
+                        var tail = new Vector3[n];
+                        for (int i = 0; i < n; i++) { head[i] = (kerbL[i] + kerbR[i]) * 0.5f; tail[i] = (kerbL[e - i] + kerbR[e - i]) * 0.5f; }
+                        deckEndLines.Add((head, half));
+                        deckEndLines.Add((tail, half));
+                    }
                 }
                 if (!string.IsNullOrEmpty(r.name) && (r.name.Contains("Mall Road") || r.name.Contains("Thandi Sadak")))
                     for (int i = 0; i < path.Count; i += 20)

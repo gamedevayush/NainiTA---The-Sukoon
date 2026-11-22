@@ -74,7 +74,7 @@ namespace Nainital
             if (dv < 2.5f || cooldown > 0f) return;
             cooldown = 0.6f;
             Vector3 at = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
-            // a traffic car working its way out of a tight spot (backing out, ramming through: TrafficCar.Wedged) bumps
+            // a traffic car working its way out of a tight spot (braking, backing out: TrafficCar.Touched) bumps
             // the walls again and again - those bumps are not crashes: a thud, no count towards smoke and fire (five
             // traffic cars on road 90 caught fire that way, 22 Nov 2026); a real knock (over 6 m/s) still counts
             // the sound of it by how hard (VehicleSound: a clank / a crunch / a crash with glass); two vehicles hitting
@@ -83,7 +83,7 @@ namespace Nainital
             var otherDmg = c.rigidbody ? c.rigidbody.GetComponent<VehicleDamage>() : null;
             bool sound = !otherDmg || otherDmg.Wrecked || GetInstanceID() < otherDmg.GetInstanceID();
             var escaping = GetComponent<TrafficCar>();
-            if (escaping && (escaping.Tries > 0 || escaping.Ramming) && dv < 6f)
+            if (escaping && (escaping.Tries > 1 || escaping.BackingOut) && dv < 6f)
             {
                 if (vs) vs.Knock(Mathf.Min(dv, 3f), at, false);
                 return;

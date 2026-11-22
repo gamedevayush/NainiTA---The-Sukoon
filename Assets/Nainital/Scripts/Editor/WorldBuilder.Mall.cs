@@ -26,6 +26,7 @@ namespace Nainital.EditorTools
             public List<Vector2> p;
             public Vector2[] arr, tan, side;
             public float[] y, t;   // t: 0 at the south end, 1 at the north end
+            public float paint = 0.15f;   // the painted lines over y (Upper Mall: just over its slab)
             public float[] lakeW, hillW;   // Lower Mall only: paved width from the centre line to each side
             public int Count => p.Count;
         }
@@ -256,6 +257,15 @@ namespace Nainital.EditorTools
                 float t = 0f;
                 for (int k = -r; k <= r; k++) t += h[i + k];
                 m.y[i] = t / (2 * r + 1);
+            }
+            if (name == MallUpper)
+            {
+                if (upperDeck != null && upperDeck.Length == n)
+                {
+                    System.Array.Copy(upperDeck, m.y, n);
+                    m.paint = upperDeckLift + 0.02f;   // (at 0.15 the lines lay 4 cm inside the slab once it had the same level)
+                }
+                else Debug.LogWarning($"[Nainital] Upper Mall: no slab levels for its line ({(upperDeck == null ? 0 : upperDeck.Length)} / {n}): the averaged ground instead");
             }
             return m;
         }
@@ -559,7 +569,7 @@ namespace Nainital.EditorTools
                 bool on = dashOn <= 0f || Mathf.Repeat(run, dashOn + dashOff) < dashOn;
                 run += seg;
                 if (!on || m.t[i] >= tMax) continue;
-                float y0 = m.y[i] + 0.15f, y1 = m.y[i + 1] + 0.15f;
+                float y0 = m.y[i] + m.paint, y1 = m.y[i + 1] + m.paint;
                 float o0 = offs != null ? offs[i] : off, o1 = offs != null ? offs[i + 1] : off;
                 Vector2 a = m.p[i] + m.side[i] * o0, b = m.p[i + 1] + m.side[i + 1] * o1;
                 Vector2 h0 = m.side[i] * (width * 0.5f), h1 = m.side[i + 1] * (width * 0.5f);
@@ -729,7 +739,7 @@ namespace Nainital.EditorTools
             // zebra crossing across the joined road, a little before the tip
             int z = Mathf.Clamp(tip - south * 5, 0, U.Count - 1);
             Vector2 zc = (U.p[z] + L.p[low[z]]) * 0.5f, zs = U.side[z], zt = U.tan[z];
-            float zw = Vector2.Distance(U.p[z], L.p[low[z]]) + MallHalf * 2f - 1f, zy = Mathf.Max(U.y[z], L.y[low[z]]) + 0.17f;
+            float zw = Vector2.Distance(U.p[z], L.p[low[z]]) + MallHalf * 2f - 1f, zy = Mathf.Max(U.y[z] + U.paint, L.y[low[z]] + 0.17f);
             var paint = new MeshBuilder();
             for (float a = -zw * 0.5f; a < zw * 0.5f - 0.3f; a += 1.1f)
             {
@@ -1152,6 +1162,7 @@ namespace Nainital.EditorTools
                 {
                     Vector2 e0 = U.p[i] + s0 * MallHalf, e1 = U.p[i + 1] + s1 * MallHalf;
                     parking.At(e0)[0].Quad(V(e0, y0 - 0.03f), V(a, y0 - 0.03f), V(b, y1 - 0.03f), V(e1, y1 - 0.03f), new Rect(0f, v / 6f, (w.face - MallHalf) / 6f, seg / 6f), Vector3.up);
+                    footways.Add((V(e0, y0 - 0.03f), V(e1, y1 - 0.03f), V(a + s0 * SlabApron, y0 - 0.03f), V(b + s1 * SlabApron, y1 - 0.03f)));
                 }
                 float f0 = U.y[i] - 0.2f, f1 = U.y[i + 1] - 0.2f, top0 = U.y[i] + w.h, top1 = U.y[i + 1] + w.h;
                 Vector3 toRoad = Flat(-s0);
@@ -1202,6 +1213,8 @@ namespace Nainital.EditorTools
                     Vector2 b0 = U.p[i] + U.side[i] * (MallHalf + ShopSetback), b1 = U.p[i + 1] + U.side[i + 1] * (MallHalf + ShopSetback);
                     float y0 = U.y[i] + 0.16f, y1 = U.y[i + 1] + 0.16f;
                     pave.At(a0)[0].Quad(V(a0, y0), V(b0, y0), V(b1, y1), V(a1, y1), new Rect(0f, v / 2.5f, ShopSetback / 2.5f, seg / 2.5f), Vector3.up);
+                    if (!LaneAt((a0 + b0) * 0.5f))   // (a lane that climbs away from here keeps its own ground)
+                        footways.Add((V(a0, y0), V(a1, y1), V(b0 + U.side[i] * SlabApron, y0), V(b1 + U.side[i + 1] * SlabApron, y1)));
                 }
                 else
                 {

@@ -335,13 +335,27 @@ namespace Nainital
             var m = c.collider.GetComponent<CharacterMotor>();
             Vector3 side = c.collider.transform.position - transform.position;
             side.y = 0f;
-            side = Vector3.ProjectOnPlane(side, transform.forward).normalized;
+            side = Vector3.ProjectOnPlane(side, transform.forward);
+            float lat = side.magnitude;
+            side = lat > 0.05f ? side / lat : transform.right;
+            float nudge = 2.5f, aside = 1.5f;
+            if (ai)
+            {
+                // the two do not collide for 1.5 s, so the push has to carry them right out of its width (an impulse dies
+                // at 14 m/s2, CharacterMotor); 0.2 m left them inside it (owner, 22 Nov 2026: "gaadiyan aar paar")
+                float clear = Mathf.Max(0.2f, Spec.width * 0.5f + 0.5f - lat);
+                nudge = aside = Mathf.Max(2.5f, Mathf.Sqrt(2f * 14f * clear));
+            }
             if (rel < 3f)   // a nudge: out of the way, nobody hurt
             {
-                if (m) m.impulse += side * 2.5f + v * 0.6f;
+                if (m)
+                {
+                    if (ai) m.impulse = Vector3.ProjectOnPlane(m.impulse, side) + side * nudge;
+                    else m.impulse += side * nudge + v * 0.6f;
+                }
                 return;
             }
-            Vector3 push = v * 0.8f + side * 1.5f + Vector3.up * Mathf.Min(4f, rel * 0.4f);
+            Vector3 push = v * (ai ? 0.3f : 0.8f) + side * aside + Vector3.up * Mathf.Min(4f, rel * 0.4f);
             var npc = c.collider.GetComponent<NpcWalker>();
             if (npc) npc.Knock(push);
             else if (m) m.impulse += push;

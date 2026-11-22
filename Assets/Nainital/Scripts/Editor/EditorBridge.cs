@@ -29,6 +29,9 @@ namespace Nainital.EditorTools
 
         static EditorBridge()
         {
+            // not in the asset import workers: they wrote "loaded compiling=False" while the editor was still compiling
+            // (a script waiting on it called the old assembly), and one started later could drop a fresh command
+            if (AssetDatabase.IsAssetImportWorkerProcess()) return;
             try { Directory.CreateDirectory(Dir); } catch { }
             // a command written before this editor started is stale: an editor killed before it read a "quit" left one
             // behind, and the next editor read it and closed itself at once (15 Nov)
