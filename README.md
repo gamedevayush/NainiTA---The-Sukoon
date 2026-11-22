@@ -147,6 +147,10 @@ English / Hindi), the two petrol pumps + fuel, 13 shops + 5 sit-out restaurants,
 station, stats + hunger + the open gym, the radio (own music folders), umbrellas in the rain; cows / dogs / cats wait for
 their models. Every piece: `docs/FREEROAM.md` ("The rest of the batch"); test steps: `Editor/FreeroamTest.cs`.
 **Run Nainital > 2. Build World after pulling** (the pumps, the shops' sit-outs, the house and the fire station are built).
+22 Nov (05:40) test run 2 in Play: the restaurant order + waiter + diners, the house bed / sleep / save / wardrobe and the
+gym's numbers work; fixed the waiter's look, the bed with the wardrobe open, a FrontEnd NullReference. **Open: the camera
+during a gym workout** (pulls into the player at the Lower Mall frames), umbrellas in the rain, the phone's Radio / Stats
+apps - `docs/FREEROAM.md`, HANDOFF.
 
 ### Changed on 21 Nov (night): ride bikes and scooties, indicators, dipper, no more jams for the townsfolk
 

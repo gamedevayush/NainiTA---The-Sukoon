@@ -502,3 +502,16 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
 - Tools: Tools/pipeline/compile_check.py (Unity's Roslyn on the files, 7 s with the editor idle; minutes while it
   builds - run it in the background), Editor/FreeroamTest.cs (Fuel, ShopOpen/ShopBuy, Sit, Bed/Sleep/Almari, Gym,
   RadioPick, Rain, Report).
+
+## 22 Nov 2026 (05:15-05:40, main PC) - test run 2 of the free-roam batch
+
+- Owner: "baaki waala saara kaam shuru krdo", then "abhi tripo waala mt kro...baaki kro", "ek baar phirse chlaake
+  dekhlo na" (run it again fresh, not from the old log), "sab kuch roko... 4-5 ghante baad" + push.
+- Verified in Play: restaurant order -> waiter from the kitchen (~8 s) -> plate -> hunger 0.20 -> 0.54, 4 diners with
+  plates; house bed / sleep to 07:00 + save toast / wardrobe; gym numbers (muscle 16 -> 21.3 over pull / pedal / twist).
+- Fixed: waiter look (was the pandit) -> young men in shirts (not seen yet); bed usable with the almari open -> blocked;
+  FrontEnd.LateUpdate NullReference around reloads; test `Put` stands a seated player up (`PlayerController.StandUp()`).
+- Open: the gym camera (collides at the Lower Mall frames: inside the jacket / low in the trees; plan in
+  docs/FREEROAM.md HANDOFF) - the three HandIK poses not seen yet; umbrellas in rain; phone Radio / Stats apps EN + HI.
+- Log trap: Editor.log was 5.6 M lines (old NullReference spam: LakeArea.RandomPointInside 290x, VehicleFX.Update:57
+  92x - none in the current sessions); read only the lines after the current Play start.

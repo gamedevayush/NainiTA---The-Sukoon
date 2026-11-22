@@ -196,7 +196,9 @@ namespace Nainital
         /// (the Medic walker; Restaurant.Bring).</summary>
         public Medic MakeWaiter(Vector3 pos)
         {
-            var go = MakePerson("Waiter", pos);
+            // young men in shirts only: a random townsperson came out as the pandit (dhoti, beads, barefoot) - 22 Nov
+            var go = Person("Waiter", Look(new[] { "goan_ladka", "m_man_flannel", "m_young_puffer" }), pos, Pal.ShirtWhite, Pal.PantsBlack);
+            go.transform.SetParent(null, true);
             var m = go.AddComponent<Medic>();
             m.rig = go.GetComponentInChildren<HumanoidRig>(true);
             return m;

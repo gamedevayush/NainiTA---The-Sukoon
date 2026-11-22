@@ -4,7 +4,10 @@ The owner picked these on 21 Nov 2026 (night): "itna saara pehle poora perfect k
 below is his; build to it, and log what was done (and what is still open) in the table at the end and in `README.md`.
 
 
-## HANDOFF - 22 Nov 2026, 05:15 (read this first in a new chat)
+## HANDOFF - 22 Nov 2026, 05:40 (read this first in a new chat)
+
+**Start here (the owner stopped at 05:40, back in 4-5 hours): the gym camera** - see "Test run 2" below: the fix is
+planned, not written. Then the rest of test run 2 (umbrellas, phone apps). Tripo models: NOT now (he said so again).
 
 **State.** Every item of the batch (#1-#10) is built and pushed; only the Tripo MODELS are missing (cows, dogs, cats,
 the unbranded fire truck): the owner parked them for later ("tripo ke saare model baad me krenge pr yaad rkhna") -
@@ -21,12 +24,37 @@ Rs 3000 -> 0, "not enough money" fill), shop buy + wear (Kumaon Kapda Ghar), gym
 (volume 0.55 at 14 %), radio with the owner's own songs (94 found, playing), phone calls / camera / Hindi (earlier).
 Last build: 2 pumps (Tallital 8 m from his pin), fire station, house, 13 / 13 shops, 5 / 5 restaurants.
 
-**Not verified yet (was running when this was pushed)** - test run 2: a restaurant order + the waiter, the house bed
-(sleep to 07:00 + save) and almari, the gym's new poses (HandIK: pull-ups on the bar, twister, pedal handle - written
-22 Nov, never seen), umbrellas in the rain, the phone's Radio / Stats apps in English and Hindi, NativeGallery on a real
-phone (needs an APK / IPA). Steps: `call PlayTest.Begin`, then `call FreeroamTest.Sit` (arg "Tashi"), `ShopBuy`,
-`Report` ~17 s later; `Bed`, `Almari`, `Sleep`; `Gym` (arg pull / pedal / twist); `Near` (arg a shop) + `Rain` +
-`Report`; `PhoneTest.App` (arg radio / stats); `GalleryCheck`; `capture <name>` after each.
+**Test run 2 (22 Nov, 05:15-05:40, in Play through the bridge, captures `Shots/play_r3_*`, `play_r4_*`, `play_r5_*`):**
+- *Restaurant (Tashi Momo Corner)* - OK: seated, the menu (5 dishes), steamed momos ordered (Rs 80), the waiter walks
+  out of the kitchen at ~8 s, "Here you are - your Steamed momos" at ~10 s, the plate on the table, hunger 0.20 -> 0.54;
+  4 diners at the other chairs with their plates (they appear ~1 s after the player comes within 70 m, so `Sit`'s own
+  "diners 0" is only its timing). The waiter came out in the **pandit's look** (dhoti, beads, barefoot): `MakeWaiter`
+  now picks goan_ladka / m_man_flannel / m_young_puffer - compiled, **not seen yet**.
+- *House* - OK: "Sleep in the bed (save)", the HOME sign, the wardrobe (3 outfits, Wear), sleep 17.65 -> 07.15 and
+  "Morning - a good night's sleep! Game saved". Fixed: the bed could be used with the almari panel open (the panel stayed
+  up through the sleep and the sleep's end unblocked the input under it) -> `HouseBed.CanInteract` needs no
+  HouseUI / ShopUI open.
+- *Gym* - the numbers are OK (pull: muscle 16 -> 19; pedal: -> 20.1, stamina 18 -> 20.4; twist: -> 21.3, fat 19.7 ->
+  16.7; both toasts). **OPEN - the camera:** `GymStation.Workout` never touches the camera, so it stays where it was
+  and, at the City Joggers Park frames (Lower Mall bank: trees, the wall, the frame posts), its collision pulls it in -
+  pull-ups: the camera inside the player's jacket, then the player out of view; pedal / twist: low between the trees.
+  So **the three poses (HandIK) are still not seen.** Planned fix (not written - he stopped the session): at the workout
+  start sphere-cast from the player's pivot in ~8 directions, take the side with the most room (prefer a 3/4 side
+  view), set `ThirdPersonCamera` yaw / pitch / distance, put distance + pitch back after; then capture the poses again.
+- *Test helper fix:* a player left on a restaurant chair stayed there - every later `Put` (Bed, Gym) did nothing. `Put`
+  now closes an open shop / almari panel and calls the new `PlayerController.StandUp()` (the seat's own get-up code).
+  `Sit` / `ShopOpen` top the money up to 3000, so money in a report after them is the test's, not the game's.
+- *FrontEnd.LateUpdate NullReference* (settings / credits null for a frame around a reload; 43x in the log) -> null check.
+- `GalleryCheck` OK in the editor (NativeGallery.Runtime, the byte[] SaveImageToGallery overload).
+- **Still to run:** umbrellas in the rain (`Near` arg a Mall Road shop, `Rain`, wait ~10 s, `Report`, capture), the
+  phone's Radio / Stats apps in English and Hindi (`PhoneTest.App` arg radio / stats, `PhoneTest.Hindi`, capture,
+  `PhoneTest.English`), NativeGallery on a real phone (needs an APK / IPA - only when he asks).
+
+Steps: `call PlayTest.Begin`, then `call FreeroamTest.Sit` (arg "Tashi"), `ShopBuy`, captures every 2 s to ~16 s,
+`Report`; `Bed`, `Almari`, `Sleep`; `Gym` (arg pull / pedal / twist); `Near` + `Rain` + `Report`; `PhoneTest.App`;
+`capture <name>` after each. `Tools/bridge.sh` still points at the old `D:/NainitalGame` folder - on the main PC write
+`Bridge/cmd.txt` in `D:\NainiTA---The-Sukoon` (fresh id each command, `Bridge/arg.txt` for the argument). The owner may
+touch the open editor during a run ("maine hila diya") - then just run that step again.
 
 **Fixed on 22 Nov, keep in mind:** a component the builder adds must have its own file (RestaurantSeat, HouseBed,
 HouseStorage were saved as missing scripts); pumps and sit-outs reserve their ground in "Pump and sit-out plans"
@@ -76,12 +104,12 @@ Tripo: he left the settings to us ("apne hisaab se set krlena") - keep the polyc
 | 3b | Language: English default, Hindi (Devanagari) everywhere (asked 22 Nov) | done 22 Nov: `Core/Loc.cs`, `Tools/loc/` (see the repo CLAUDE.md), 628 texts, every scene text covered (LocDump) |
 | 3c | Phone UI: curved body, glassmorphism, keypad, Nainital wallpapers (asked 22 Nov) | done 22 Nov (section 3, second pass) |
 | 4 | Petrol pumps + fuel | built 22 Nov (section 4); in the combined build-and-test |
-| 5 | Shops + restaurants (seated people, ordering) | built 22 Nov (section 5); in the combined build-and-test |
-| 6 | House on the zoo road | built 22 Nov (section 6); in the combined build-and-test |
-| 7 | Gym + stats + hunger | built 22 Nov (section 7) |
+| 5 | Shops + restaurants (seated people, ordering) | built 22 Nov (section 5); shop buy + wear, restaurant order + waiter + diners verified in Play 22 Nov (test run 2); the waiter's new look not seen yet |
+| 6 | House on the zoo road | built 22 Nov (section 6); bed / sleep / save + almari verified in Play 22 Nov; bed blocked while the almari is open |
+| 7 | Gym + stats + hunger | built 22 Nov (section 7); numbers + hunger blur verified; **open: the camera during a workout** (HANDOFF), so the poses are not seen yet |
 | 8 | Cows, dogs, cats | code built 22 Nov (Characters/Animal.cs, AnimalManager.cs; spawns nothing until the models exist); the Tripo models wait for the owner's OK to restart Brave with CDP |
 | 9 | Radio | built 22 Nov (section 9): own music + three original stations |
-| 10 | Umbrellas in the rain | built 22 Nov (Characters/Umbrellas.cs) |
+| 10 | Umbrellas in the rain | built 22 Nov (Characters/Umbrellas.cs); not yet seen in the rain (test run 2, still to run) |
 
 ## 2. Night lighting (22 Nov 2026)
 

@@ -318,12 +318,17 @@ namespace Nainital
             rig.speed = 0;
             if (seatAnchor) { transform.position = seatAnchor.position; }
             if (!GameInput.UiBlocking && (GameInput.Move.sqrMagnitude > 0.2f || GameInput.JumpPressed || GameInput.InteractPressed))
-            {
-                rig.seated = false;
-                motor.Controller.enabled = true;
-                motor.Teleport(transform.position + transform.forward * 0.6f + Vector3.up * 0.3f);
-                CurrentMode = Mode.Normal;
-            }
+                StandUp();
+        }
+
+        /// <summary>Off the chair / bench, a step in front of it (also used by tests before a teleport).</summary>
+        public void StandUp()
+        {
+            if (CurrentMode != Mode.Seated) return;
+            rig.seated = false;
+            motor.Controller.enabled = true;
+            motor.Teleport(transform.position + transform.forward * 0.6f + Vector3.up * 0.3f);
+            CurrentMode = Mode.Normal;
         }
 
         // ---------------------------------------------------------------- boat

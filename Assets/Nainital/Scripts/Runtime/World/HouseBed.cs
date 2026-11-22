@@ -8,7 +8,7 @@ namespace Nainital
     {
         static bool sleeping;
         public override string Prompt => "Bistar pe so jao (save)";
-        public override bool CanInteract(PlayerController p) => !sleeping;
+        public override bool CanInteract(PlayerController p) => !sleeping && !HouseUI.IsOpen && !ShopUI.IsOpen;   // the almari open: its panel first
         public override void Interact(PlayerController p) { if (!sleeping) StartCoroutine(Sleep(p)); }
 
         IEnumerator Sleep(PlayerController p)

@@ -835,7 +835,7 @@ namespace Nainital
             AnimateScreens();
             if (cornerGroup)
             {
-                bool covered = settings.on || credits.on;
+                bool covered = (settings != null && settings.on) || (credits != null && credits.on);   // null for a frame around a reload
                 cornerGroup.alpha = Mathf.MoveTowards(cornerGroup.alpha, covered ? 0f : 1f, Time.unscaledDeltaTime * 6f);
                 cornerGroup.blocksRaycasts = !covered;
             }

@@ -21,6 +21,9 @@ namespace Nainital.EditorTools
         static void Put(Vector3 at, Vector3 face, bool groundFromAbove = true)
         {
             if (CarController.Driving) CarController.Driving.Interact(P);   // out of the car first (a teleport kept the driver in a rolling bus)
+            if (ShopUI.IsOpen) Object.FindAnyObjectByType<ShopUI>()?.Close();
+            if (HouseUI.IsOpen) typeof(HouseUI).GetMethod("Close", BindingFlags.NonPublic | BindingFlags.Instance)?.Invoke(Object.FindAnyObjectByType<HouseUI>(), null);
+            P.StandUp();   // a seated player kept its chair: the teleport did nothing (22 Nov run 3)
             if (groundFromAbove && Physics.Raycast(at + Vector3.up * 30f, Vector3.down, out var g, 80f, ~((1 << 8) | (1 << 9) | (1 << 2)), QueryTriggerInteraction.Ignore))
                 at = g.point + Vector3.up * 0.15f;
             P.GetComponent<CharacterMotor>().Teleport(at);
