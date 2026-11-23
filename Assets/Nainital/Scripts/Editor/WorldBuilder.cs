@@ -251,6 +251,7 @@ namespace Nainital.EditorTools
             Step("Surface look (weathering)", () => BuildSurfaceLook(ctx));
             Step("Ground under the roads", () => CarveUnderRoads(ctx));   // last: everything above reads the ground (ctx.H)
             Step("Roads into the terrain", () => FinishRoadMask(ctx));
+            Step("Kaladhungi road as on Street View (bushes, trees, barriers, roadside houses)", () => BuildStreetViewRoad(ctx));   // WorldBuilder.StreetViewRoad.cs (23 Nov): on the final ground
             Step("City Joggers Park (open gym)", () => LandmarkBuilder.BuildJoggersPark(ctx));   // on the ground as it finally is (22 Nov)
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
@@ -789,6 +790,7 @@ namespace Nainital.EditorTools
                 // full-width verandahs. Not swapped for a G.O.A.N. box.
                 bool colonial = !high && levels >= 2 && NearMallRoad(ctx, c, Mathf.Max(w, d) * 0.5f + 12f);
                 int roofIdx = (int)h[i + 7] % Atlas.RoofColors;
+                SvRestyleBuilding(ctx, c, ref wallIdx, ref roofIdx);   // a few houses in the Street View photos' colours (WorldBuilder.StreetViewRoad.cs)
                 if (colonial)
                 {
                     uint hc = (uint)(i / 9) * 2654435761u;
@@ -849,9 +851,11 @@ namespace Nainital.EditorTools
                     if (HighStreetHouse(ctx, c, bRad * 2f, bRad * 2f, Mathf.Abs(Mathf.RoundToInt(c.x * 7 + c.y * 13)), ref lv, ref wl))
                     { osmLevels = Mathf.Min(lv, 5); osmWall = wl; osmShop = true; highCount++; }
                 }
+                int osmRoof = ctx.rng.Next(Atlas.RoofColors);   // drawn here, as before: the shared random sequence stays the same
+                SvRestyleBuilding(ctx, c, ref osmWall, ref osmRoof);   // the Khurpatal hotels in the Street View photos' colours
                 var st = new BuildingKit.Style
                 {
-                    wall = osmWall, roof = ctx.rng.Next(Atlas.RoofColors),
+                    wall = osmWall, roof = osmRoof,
                     flatRoof = true, shop = osmShop, litChance = 0.5f,
                 };
                 var ch = Chunk(c);
@@ -1115,21 +1119,31 @@ namespace Nainital.EditorTools
             Debug.Log($"[Nainital] rocks: {rocks}");
 
             field.data = data.ToArray();
-            field.lod0 = new Mesh[7];
-            field.lod1 = new Mesh[7];
-            field.lod2 = new Mesh[7];
+            field.lod0 = new Mesh[8];
+            field.lod1 = new Mesh[8];
+            field.lod2 = new Mesh[8];
             AssetDatabase.CreateAsset(field, path);
-            for (int k = 0; k < 7; k++)
+            for (int k = 0; k < 8; k++)
             {
-                bool card = k <= 3;   // deodar, chir, banj oak, cypress: leaf cards near, impostor cards far
-                field.lod0[k] = k >= 5 ? PropKit.Rock(k - 5, 0) : k == 4 ? PropKit.Rhododendron(0) : TreeKit.Model(k);
-                field.lod1[k] = k >= 5 ? PropKit.Rock(k - 5, 1) : k == 4 ? PropKit.Rhododendron(1) : TreeKit.Billboard(k);
-                field.lod2[k] = k >= 5 ? PropKit.Rock(k - 5, 2) : k == 4 ? PropKit.Rhododendron(2) : TreeKit.Billboard(k, 1.4f);   // far: crowns close up
+                // deodar, chir, banj oak, cypress: leaf cards near, impostor cards far; 7: the roadside bush
+                // (WorldBuilder.StreetViewRoad.cs plants them on the final ground)
+                if (k == 7)
+                {
+                    field.lod0[k] = TreeKit.Bush();
+                    field.lod1[k] = TreeKit.BushFar("BushFar1");
+                    field.lod2[k] = TreeKit.BushFar("BushFar2");
+                }
+                else
+                {
+                    field.lod0[k] = k >= 5 ? PropKit.Rock(k - 5, 0) : k == 4 ? PropKit.Rhododendron(0) : TreeKit.Model(k);
+                    field.lod1[k] = k >= 5 ? PropKit.Rock(k - 5, 1) : k == 4 ? PropKit.Rhododendron(1) : TreeKit.Billboard(k);
+                    field.lod2[k] = k >= 5 ? PropKit.Rock(k - 5, 2) : k == 4 ? PropKit.Rhododendron(2) : TreeKit.Billboard(k, 1.4f);   // far: crowns close up
+                }
                 AssetDatabase.AddObjectToAsset(field.lod0[k], field);
                 AssetDatabase.AddObjectToAsset(field.lod1[k], field);
                 AssetDatabase.AddObjectToAsset(field.lod2[k], field);
             }
-            field.cards = new[] { true, true, true, true, false, false, false };
+            field.cards = new[] { true, true, true, true, false, false, false, true };
             field.trunkRadius = (float[])PropKit.TrunkRadius.Clone();
             field.trunkHeight = (float[])PropKit.TrunkHeight.Clone();
             EditorUtility.SetDirty(field);

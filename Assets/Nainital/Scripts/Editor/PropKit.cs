@@ -233,8 +233,8 @@ namespace Nainital.EditorTools
         }
 
         // ------------------------------------------------------------------ trees
-        public static readonly float[] TrunkRadius = { 0.35f, 0.3f, 0.35f, 0.22f, 0.25f, 1.1f, 0.9f };
-        public static readonly float[] TrunkHeight = { 3f, 8f, 4f, 2f, 3f, 1.4f, 1.2f };
+        public static readonly float[] TrunkRadius = { 0.35f, 0.3f, 0.35f, 0.22f, 0.25f, 1.1f, 0.9f, 0.05f };   // 7: bush (walk through it)
+        public static readonly float[] TrunkHeight = { 3f, 8f, 4f, 2f, 3f, 1.4f, 1.2f, 0.3f };
 
         /// <summary>Weathered rock / boulder for steep Kumaon hillsides (types 5 and 6), smooth + jittered.</summary>
         public static Mesh Rock(int variant, int lod)

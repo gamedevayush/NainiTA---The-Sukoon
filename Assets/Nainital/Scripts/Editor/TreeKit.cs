@@ -439,5 +439,61 @@ namespace Nainital.EditorTools
             m.RecalculateBounds();
             return m;
         }
+
+        /// <summary>
+        /// A roadside bush (TreeField type 7): a few stems (submesh 0) and a low dome of broad-leaf cards (submesh 1), about
+        /// 2 m high and 3 m across at scale 1. Every Street View photo of the Kaladhungi road shows the hill cuts and the
+        /// verges under thick lantana, fern and young oak; the game had bare earth there (owner, 23 Nov 2026).
+        /// </summary>
+        public static Mesh Bush()
+        {
+            var b = new Build();
+            var r = new System.Random(808);
+            for (int i = 0; i < 5; i++)
+            {
+                float a = i / 5f * Mathf.PI * 2f + (float)r.NextDouble() * 0.6f;
+                b.Limb(Vector3.zero, new Vector3(Mathf.Cos(a) * 0.55f, 0.85f + (float)r.NextDouble() * 0.4f, Mathf.Sin(a) * 0.55f), 0.05f, 0.02f, 4);
+            }
+            var crown = new Vector3(0f, 0.75f, 0f);
+            for (int i = 0; i < 36; i++)
+            {
+                float a = (float)r.NextDouble() * Mathf.PI * 2f, el = Mathf.Asin((float)r.NextDouble() * 1.5f - 0.5f);
+                float shell = Mathf.Pow((float)r.NextDouble(), 0.4f);
+                Vector3 dir = new Vector3(Mathf.Cos(a) * Mathf.Cos(el), Mathf.Sin(el), Mathf.Sin(a) * Mathf.Cos(el));
+                Vector3 p = crown + Vector3.Scale(dir, new Vector3(1.15f, 0.72f, 1.15f)) * shell;
+                p.y = Mathf.Max(p.y, 0.3f);
+                b.Card(p, 0.85f + (float)r.NextDouble() * 0.6f, Facing(dir, r, 80f), crown, false);
+            }
+            return b.ToMesh("BushCards");
+        }
+
+        /// <summary>The far bush: two crossed cards showing the banj oak's top-view crown from the impostor atlas (a round
+        /// mass of leaves), 2.6 m across and 1.7 m high.</summary>
+        public static Mesh BushFar(string name)
+        {
+            var v = new List<Vector3>();
+            var n = new List<Vector3>();
+            var uv = new List<Vector2>();
+            var t = new List<int>();
+            const float W = 2.6f, Ht = 1.7f, u0 = 512f / 1024f, u1 = 768f / 1024f, v0 = 512f / 768f;
+            for (int k = 0; k < 2; k++)
+            {
+                var rot = Quaternion.Euler(0, k * 90f, 0);
+                Vector3 r = rot * Vector3.right * (W * 0.5f);
+                int i0 = v.Count;
+                v.Add(-r); v.Add(r); v.Add(r + Vector3.up * Ht); v.Add(-r + Vector3.up * Ht);
+                Vector3 nrm = (Vector3.up * 0.6f + rot * Vector3.forward * 0.4f).normalized;
+                for (int q = 0; q < 4; q++) n.Add(nrm);
+                uv.Add(new Vector2(u0, v0)); uv.Add(new Vector2(u1, v0)); uv.Add(new Vector2(u1, 1f)); uv.Add(new Vector2(u0, 1f));
+                t.AddRange(new[] { i0, i0 + 2, i0 + 1, i0, i0 + 3, i0 + 2 });
+            }
+            var m = new Mesh { name = name };
+            m.SetVertices(v);
+            m.SetNormals(n);
+            m.SetUVs(0, uv);
+            m.SetTriangles(t, 0);
+            m.RecalculateBounds();
+            return m;
+        }
     }
 }

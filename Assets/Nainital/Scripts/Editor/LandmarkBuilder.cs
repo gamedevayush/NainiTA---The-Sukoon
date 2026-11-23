@@ -354,7 +354,7 @@ namespace Nainital.EditorTools
         }
 
         /// <summary>A tea and Maggi stall: poles, a sloping tarp, a counter of packets and a kettle.</summary>
-        static void TarpStall(MeshBuilder mb, Vector3 p, float yaw, int tarp, System.Random rng)
+        internal static void TarpStall(MeshBuilder mb, Vector3 p, float yaw, int tarp, System.Random rng)
         {
             var saved = mb.M;
             mb.M = saved * Matrix4x4.TRS(p, Quaternion.Euler(0f, yaw, 0f), Vector3.one);
@@ -398,7 +398,7 @@ namespace Nainital.EditorTools
         }
 
         /// <summary>A hilltop shop: open front with a counter, goods hanging on display, a tin roof and an awning.</summary>
-        static void HillShop(MeshBuilder mb, Vector3 p, float yaw, float w, System.Random rng)
+        internal static void HillShop(MeshBuilder mb, Vector3 p, float yaw, float w, System.Random rng)
         {
             var saved = mb.M;
             mb.M = saved * Matrix4x4.TRS(p, Quaternion.Euler(0f, yaw, 0f), Vector3.one);

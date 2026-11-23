@@ -196,6 +196,9 @@ namespace Nainital
                 if (used >= colliderPool.Length) break;
                 if (c.bounds.SqrDistance(pp) > 900f) continue;
                 for (int k = 0; k < types && used < colliderPool.Length; k++)
+                {
+                    // bushes (type 7, a 5 cm "trunk") are walked through: they must not use up the pool the trees need
+                    if (field.trunkRadius == null || k >= field.trunkRadius.Length || field.trunkRadius[k] < 0.1f) continue;
                     foreach (var m in c.byType[k])
                     {
                         Vector3 tp = m.GetColumn(3);
@@ -209,6 +212,7 @@ namespace Nainital
                         col.enabled = true;
                         if (used >= colliderPool.Length) break;
                     }
+                }
             }
             for (int i = used; i < colliderPool.Length; i++) colliderPool[i].enabled = false;
         }

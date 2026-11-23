@@ -153,6 +153,33 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 Start here when you pick the project up on another PC. Build the world first (**Nainital → 2. Build World**). The 17 Nov work was done on a PC with only Unity 6000.3.28f1; it opens the project fine (the repo stays on 6000.4.1f1: the `.meta`, `ProjectSettings` and `packages-lock.json` changes that 6000.3 makes on import are not committed).
 
+### Changed on 23 Nov: the Kaladhungi road, DSA ground -> Khurpatal, matched to Street View
+
+Owner: "street view se compare kro... jahan khaali jagah hai wahan kuch hai ya nhi... DSA ground se khurpatal tk", then
+"ek ek photo ko dekhke socho ki kya kam ya jyada krna hai... sbko ditto bnaado". 117 Google Street View panoramas (car,
+Aug 2022), one every 100 m along 11.6 km, were set beside game shots from the same spots and each photo was read.
+
+| What the photos show | Before | Now |
+|---|---|---|
+| Hill cuts and verges under thick bushes, fern, monsoon grass | bare earth / rock cut, no bushes anywhere | ~14,000 bushes (new TreeField type 7), verges painted grass / forest floor up to 22 m from the edge |
+| Oak, deodar, chir pine right behind the barrier | open edge, the map's trees kept 7-13 m back | ~900 trees by the road, kind per stretch (oak near Nainital, deodar, chir towards Khurpatal) |
+| Grey W-beam crash barriers, concrete parapet blocks | whitewashed parapet everywhere | ~3.9 km of crash barrier, ~520 blocks where the photos have them; the parapet stays where they show one |
+| Roadside houses, sheds, stalls (Bara Bazar, Rio Grand, shuttered shops at 2.3 km, tea stall under deodars, forest dept terrace walls, red-roofed block, dhaba, Sariyatal stalls, orange house on the bend, Khurpatal village gate ...) | empty ground | ~33 items read off the photos |
+| Khurpatal: open meadow and scrub, white / pink hotels with maroon roofs | tall umbrella pines, yellow blocks | trees cleared off the flat meadow, shrubs, hotels recoloured |
+
+Where: the per-photo reading is `Tools/streetview/kaladhungi_survey.py` (every token explained at the top; change it and
+run it to write `Assets/Nainital/Data/streetview_kaladhungi.json`), built by `Editor/WorldBuilder.StreetViewRoad.cs`
+(a Build World step after "Roads into the terrain"; hooks in `RoadWalls.cs` for the parapet and `BuildBuildings` for the
+colours). Bush mesh: `TreeKit.Bush`; tree colliders skip bushes (`TreeRenderer`). The comparison tools (route, Street View
+capture in a throw-away Brave profile, game shots, sheets, report) are in `Tools/streetview/`; the report with Street View
+/ now / before for every point and the game x, y, z + Street View link of every shot: `Shots/kd_compare/index.html`
+(not in git). **Run Nainital > 2. Build World after pulling.**
+
+Still open on this road: at 2.0-2.2 km (Kumaun University hairpin) the two legs of the hairpin touch in the map data, so
+from the lower leg you see the upper leg's wall and a saw-tooth of road paint (the black triangles); the real legs are a
+bushy bank apart - needs the road line moved. From 6.5 to 7.7 km the game road runs 15-34 m off the real one. The hill
+side reads darker than the photos in the 11:00 shots (sun behind the cut; Street View was overcast).
+
 ### Next: free-roam features (GTA San Andreas style)
 
 The owner's plan of 21 Nov 2026 with every answer he gave, the order and the status: `docs/FREEROAM.md`.

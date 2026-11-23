@@ -89,7 +89,9 @@ namespace Nainital.EditorTools
                         if (NearJunction(ctx, p) || ctx.InLake(edge[i]) || OnOtherDeck(edge[i], ri) || NearHouse(edge[i]) || ctx.InKeepClear(edge[i], 1f)) continue;
                         float rise = ctx.H(p + n * (half + 2.8f)) - hc;
                         if (rise > 1.4f) { kind[i] = 1; top[i] = Mathf.Clamp(rise + 0.4f, 1.2f, 4.8f); }
-                        else if (rise < -2.2f) { kind[i] = 2; top[i] = 0.65f; }
+                        // the whitewashed parapet, except where the Street View photos show a crash barrier, concrete blocks
+                        // or nothing on the drop (WorldBuilder.StreetViewRoad.cs builds those)
+                        else if (rise < -2.2f && SvParapetAllowed(ctx, edge[i])) { kind[i] = 2; top[i] = 0.65f; }
                     }
                     float run = 0f;
                     for (int i = 0; i + 1 < path.Count; i++)
