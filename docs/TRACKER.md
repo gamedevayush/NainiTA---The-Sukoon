@@ -1032,4 +1032,24 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   - NOT tested in Play (owner: test on the other PC). Left to look at: the safari still swings through side roads near
     Eco Cave (#9-#62) and once near Bara Patthar on the way back; the LED boards' place on the bus; announcement timing;
     real buses popping / despawning; a bus turning at the map edge with him aboard (he is put off).
+- 03:50-04:30 owner tried the safari himself, then asked me to ride it at 3x (BusServiceTest.Ride / RideReport: the TEZ
+  cheat x3, a safari leaving now with the player seated, an event log of stops, calls and "off its line"):
+  - His first ride: no stop at the SBM tiraha or Eco Cave and a turn left off the Kaladhungi road at Bara Patthar - the
+    SBM stop (-150, 20) snapped to the END of the side road that comes round from Bara Patthar, so the planner drove that
+    loop to reach it. Then: "SBM remove krdo stop se" - the safari has no SBM stop (out: bus stand, DSA, Jama Masjid, Eco
+    Cave, Bara Patthar, Lovers Point, Khurpatal View Point, Sariyatal, Woodland, Khurpatal; back the same less Jama Masjid).
+    Safari out 13.8 km, back 13.5 km, no loops.
+  - My ride (3x): every stop stood at, "aa gaya" ~4 s before each (e.g. DSA 677 s call / 681 s stop), "agla stop" on
+    moving off; no stretch off the line. Fixed after it: the first "agla stop" called before the bus left the stand; an
+    "aa gaya" called while it still stood at the stop before (now only once it has moved off). Seen: a queue on Mall Road
+    by the DSA ground (cars "Terrain ahead" 0-2.7 m, 131 back-offs) that cleared by itself; twice "aboard False" for one
+    poll at a stop (cause not found; possibly his own key presses - he was at the PC).
+  - Announcements 3x louder (make_announce.ps1 volume=4.8 + alimiter: mean -26.6 -> -16.5 dB) and now 2D through
+    BusService's own AudioSource (as a 3D sound left where it began it faded as the bus drove off); the radios (BusRadio,
+    Radio) at half while one plays (BusRadio.Duck), back after.
+  - Barricades OFF for now (owner: "abhi jo barricade lgaaye saare vo htado..baad me lgaane hain"): the "One-way barricades"
+    step is commented out in WorldBuilder.cs; the one-way routing stays. Put the step back to build them again.
+  - Land's End: the tea stall (TarpStall) behind the ring stood on the road - removed.
+  - Animals: AnimalManager.density = 0.1 (owner: "animals count divide by 10") -> 1 at a time (PC and phone).
+  - A bus with its driver in it (AI or the player) never takes damage: VehicleDamage.Immune - no dents, smoke or fire.
 

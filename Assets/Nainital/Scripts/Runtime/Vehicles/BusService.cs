@@ -17,6 +17,11 @@ namespace Nainital
     public class BusService : MonoBehaviour
     {
         public static BusService Instance { get; private set; }
+        /// <summary>What happened to the buses lately (BusServiceTest.RideReport): stops, calls, a bus off its line.</summary>
+        public static readonly List<string> Events = new List<string>();
+        static void Ev(string s) { Events.Add($"{Time.time:F0}s {s}"); if (Events.Count > 300) Events.RemoveAt(0); }
+        AudioSource announcer;
+        Trip rideTrip;
         public static int Real { get; private set; }
 
         public int realMax = 4;
@@ -47,6 +52,7 @@ namespace Nainital
             public float progress;       // metres along the route (the real bus's, kept up)
             public bool standing;        // stood at a stop and not yet off again
             public float stoodAt;
+            public float offLogged = -99f;
             public float endedAt = -1f;
             public int callIdx = -1;     // the stop last called out to the player
         }
@@ -285,7 +291,7 @@ namespace Nainital
             Real = real;
         }
 
-        bool MakeReal(Trip tr)
+        bool MakeReal(Trip tr, bool force = false)
         {
             var r = tr.route;
             int pi = IndexAt(r, tr.progress);
@@ -293,7 +299,7 @@ namespace Nainital
             var (road, dir, _) = r.keys[j];
             int idx = Mathf.Clamp(r.idx[pi], 1, tm.network.roads[road].pts.Length - 2);
             Vector3 pos = tm.network.roads[road].pts[idx];
-            foreach (var hit in Physics.OverlapSphere(pos + Vector3.up, 4f, 1 << VehicleFactory.VehicleLayer, QueryTriggerInteraction.Ignore))
+            if (!force && Physics.CheckSphere(pos + Vector3.up, 4f, 1 << VehicleFactory.VehicleLayer, QueryTriggerInteraction.Ignore))
                 return false;   // something stands there now: next time
             var go = VehicleFactory.Create(CarType.Bus, Px.CarWhite, tm.material, true, "Bus " + r.line.id, busModel);
             if (!go) return false;
@@ -310,7 +316,7 @@ namespace Nainital
             tr.bus = t;
             tr.nextStop = 1;
             while (tr.nextStop < r.stopS.Length && r.stopS[tr.nextStop] < tr.progress - 5f) tr.nextStop++;
-            if (tr.progress < 1f) { t.StopForBoarding(Mathf.Max(5f, firstDwell - (Time.time - tr.t0))); tr.standing = true; }
+            if (tr.progress < 1f) { t.StopForBoarding(Mathf.Max(5f, firstDwell - (Time.time - tr.t0))); tr.standing = true; tr.stoodAt = Time.time; }   // its first "agla stop" when it moves off
             return true;
         }
 
@@ -328,6 +334,7 @@ namespace Nainital
                 if (d < bd) { bd = d; bi = i; }
             }
             if (r.s[bi] > tr.progress) tr.progress = r.s[bi];
+            if (bd > 20f * 20f && Time.time - tr.offLogged > 5f) { tr.offLogged = Time.time; Ev($"{r.line.id} OFF ITS LINE by {Mathf.Sqrt(bd):F0} m at ({bp.x:F0}, {bp.z:F0}), {tr.progress:F0} m along"); }
             bool aboard = BusPassenger.Carries(bus.gameObject);
             // the stops: stand a while at each, call them out to him when he rides
             if (tr.nextStop < r.stopS.Length)
@@ -335,11 +342,13 @@ namespace Nainital
                 float to = r.stopS[tr.nextStop] - tr.progress;
                 // "X aa gaya": about 4 s before it pulls up there (owner, 24 Nov 2026: "stops aane se 4 second pehle")
                 float lead = Mathf.Max(8f, bus.Speed * 4f + 8f);
-                if (aboard && to < lead && tr.callIdx != tr.nextStop * 2) { tr.callIdx = tr.nextStop * 2; Call(r.line.stops[tr.nextStop].name, false); }
+                // never while it still stands at the stop before
+                if (aboard && !tr.standing && to < lead && tr.callIdx != tr.nextStop * 2) { tr.callIdx = tr.nextStop * 2; Call(r.line.stops[tr.nextStop].name, false); }
                 bool last = tr.nextStop == r.stopS.Length - 1;
                 if (to < 8f)
                 {
                     if (!last) bus.StopForBoarding(stopDwell);
+                    Ev($"{r.line.id} at stop {r.line.stops[tr.nextStop].name} ({tr.progress:F0} m, {(aboard ? "he rides" : "")})");
                     tr.nextStop++;
                     tr.standing = true;
                     tr.stoodAt = Time.time;
@@ -376,29 +385,73 @@ namespace Nainital
             }
         }
 
-        /// <summary>The conductor's call: next = "Agla stop: X" (leaving a stop), else "X aa gaya" (at it).</summary>
+        /// <summary>The conductor's call: next = "Agla stop: X" (moving off a stop), else "X aa gaya" (about 4 s before it).
+        /// Heard inside the bus, so 2D (no fall-off as the bus drives away from where it began - it did, as a 3D sound);
+        /// the radios at half while it plays.</summary>
         static void Call(string stop, bool next)
         {
             string slug = stop.ToLowerInvariant().Replace(" / ", "_").Replace(' ', '_');
             // every call signs off "Seva mein: Uttarakhand Parivahan Nigam, Nainital" (owner, 24 Nov 2026)
             if (next) GameEvents.ShowBanner("Agla stop: " + stop, "Seva mein - Uttarakhand Parivahan Nigam, Nainital", new Color(1f, 0.6f, 0.1f));
             else GameEvents.ShowBanner(stop + " aa gaya", "Utarna ho to E - Seva mein Uttarakhand Parivahan Nigam, Nainital", new Color(1f, 0.6f, 0.1f));
-            var au = AudioManager.Instance;
-            if (!au) return;
-            var cam = Camera.main;
-            Vector3 at = cam ? cam.transform.position : Vector3.zero;
-            var voice = Resources.Load<AudioClip>("Audio/announce/" + slug + (next ? "_next" : "_here"));
-            var chime = au.Clip("announce_chime") ?? au.Clip("click");
-            if (chime) au.PlayAt(chime, at, 0.6f, 1f, 30f);
-            if (voice && Instance) Instance.StartCoroutine(Later(voice, chime ? 1.05f : 0f));   // the voice after the ding-dong
+            Ev($"CALL {(next ? "agla stop" : "aa gaya")}: {stop}");
+            if (Instance) Instance.StartCoroutine(Instance.Announce(slug, next));
         }
 
-        static IEnumerator Later(AudioClip clip, float wait)
+        IEnumerator Announce(string slug, bool next)
         {
-            yield return new WaitForSeconds(wait);
             var au = AudioManager.Instance;
-            var cam = Camera.main;
-            if (au && cam) au.PlayAt(clip, cam.transform.position, 0.95f, 1f, 30f);
+            if (!announcer)
+            {
+                announcer = gameObject.AddComponent<AudioSource>();
+                announcer.spatialBlend = 0f;
+                announcer.playOnAwake = false;
+                announcer.ignoreListenerPause = false;
+            }
+            float master = au ? au.masterVolume : 0.8f;
+            var voice = Resources.Load<AudioClip>("Audio/announce/" + slug + (next ? "_next" : "_here"));
+            var chime = au ? (au.Clip("announce_chime") ?? au.Clip("click")) : null;
+            BusRadio.DuckTarget = 0.5f;
+            if (chime) { announcer.PlayOneShot(chime, 0.8f * master); yield return new WaitForSecondsRealtime(1.05f); }
+            if (voice) { announcer.PlayOneShot(voice, 1f * master); yield return new WaitForSecondsRealtime(voice.length + 0.3f); }
+            BusRadio.DuckTarget = 1f;
+        }
+
+        /// <summary>Test hook (BusServiceTest.Ride): a trip of `id` leaving now, made real at once, the player seated in it.</summary>
+        public string DebugRide(string id)
+        {
+            if (!ready) return "bus service not ready";
+            var r = Get(id);
+            if (r == null) return "no route " + id;
+            var tr = new Trip { route = r, t0 = Time.time };
+            trips.Add(tr);
+            if (!MakeReal(tr, true)) return "could not make the bus";
+            var p = PlayerController.Instance;
+            var seat = tr.bus.GetComponent<BusPassenger>();
+            Physics.SyncTransforms();
+            bool aboard = false;
+            tr.bus.FillForRide(() => aboard = seat.SeatNow(p, 1), false, false);
+            if (!aboard) aboard = seat.SeatNow(p, 1);
+            rideTrip = tr;
+            Events.Clear();
+            Ev($"RIDE {id}: {r.Length / 1000f:F1} km, {r.stopS.Length} stops, aboard {aboard}");
+            return aboard ? "aboard" : "not aboard";
+        }
+
+        /// <summary>The ride test's state: the bus, where it is on its line, the next stop, and the events.</summary>
+        public string RideReport()
+        {
+            var sb = new System.Text.StringBuilder();
+            var tr = rideTrip;
+            if (tr == null) sb.Append("no ride");
+            else if (!tr.bus) sb.Append($"ride {tr.route.line.id}: the bus is gone (ended {tr.endedAt >= 0f})");
+            else
+            {
+                var b = tr.bus.transform.position;
+                sb.Append($"ride {tr.route.line.id}: {tr.progress:F0}/{tr.route.Length:F0} m, speed {tr.bus.Speed:F1} m/s, at ({b.x:F0}, {b.z:F0}), next stop {(tr.nextStop < tr.route.line.stops.Length ? tr.route.line.stops[tr.nextStop].name : "-")}, aboard {BusPassenger.Carries(tr.bus.gameObject)}, arrived {tr.bus.Arrived}, timeScale {Time.timeScale}");
+            }
+            foreach (var e in Events) sb.Append('\n').Append(e);
+            return sb.ToString();
         }
 
         /// <summary>A line per trip (BusServiceTest): line, ghost / real, metres along, the next stop.</summary>

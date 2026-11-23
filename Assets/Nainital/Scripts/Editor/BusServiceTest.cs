@@ -89,6 +89,30 @@ namespace Nainital.EditorTools
             Debug.Log("[Nainital] bus routes\n" + sb);
         }
 
+        /// <summary>Play: the game at 3x (the TEZ cheat), a safari bus leaving the bus stand now with the player aboard
+        /// (BusService.DebugRide). Bridge/arg.txt may name another line ("safari_back", "to_khurpatal" ...).</summary>
+        public static void Ride()
+        {
+            if (!Application.isPlaying) throw new System.Exception("enter Play first (call PlayTest.Begin)");
+            var s = BusService.Instance;
+            if (!s) throw new System.Exception("no bus service");
+            while (CheatCodes.GameSpeed < 3f) CheatCodes.Run("TEZ");
+            string id = "safari_out";
+            try { var a = System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "../Bridge/arg.txt")).Trim(); if (BusLines.Get(a) != null) id = a; } catch { }
+            Debug.Log($"[Nainital] bus ride {id}: {s.DebugRide(id)} (game speed {CheatCodes.GameSpeed}x)");
+        }
+
+        /// <summary>Play: the ride now - where the bus is on its line, the next stop, the stops it stood at, the calls, any
+        /// stretch off its line - to Logs/busride.txt.</summary>
+        public static void RideReport()
+        {
+            var s = BusService.Instance;
+            string t = s ? s.RideReport() : "no bus service";
+            System.IO.File.WriteAllText("Logs/busride.txt", t);
+            int nl = t.IndexOf('\n');
+            Debug.Log("[Nainital] " + (nl > 0 ? t.Substring(0, nl) : t));
+        }
+
         public static void Report()
         {
             var s = BusService.Instance;

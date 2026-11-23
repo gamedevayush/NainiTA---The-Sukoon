@@ -38,7 +38,7 @@ namespace Nainital
         public static readonly Stop BusStand = new Stop("Tallital Bus Stand", 811f, -1170f);
         static readonly Stop NainaDeviGate = new Stop("DSA / Naina Devi Gate", 15f, 138f);   // on Mall Road at the DSA ground (the gate itself, -77,-143, is 58 m off any bus road)
         static readonly Stop JamaMasjid = new Stop("Jama Masjid", -152.5f, 51.5f);
-        static readonly Stop SbmTiraha = new Stop("SBM Toilet Tiraha", -150f, 20f);
+        // the SBM tiraha is no stop any more (owner, 24 Nov 2026: "SBM remove krdo stop se"; it was 8 m from Jama Masjid's)
         static readonly Stop EcoCave = new Stop("Eco Cave Park", -937f, 182f, false, "Kaldhungi-Nainital Road");
         static readonly Stop Barapathar = new Stop("Bara Patthar", -1252f, -126f, false, "Kaldhungi-Nainital Road");
         static readonly Stop LoversPoint = new Stop("Lovers Point", -1424f, -378f, false, "Kaldhungi-Nainital Road");
@@ -55,10 +55,10 @@ namespace Nainital
         public static readonly Line[] All =
         {
             new Line { id = "safari_out", title = "NAINITAL SAFARI", local = true, every = 600f, offset = 20f,
-                       stops = new[] { BusStand, NainaDeviGate, JamaMasjid, SbmTiraha, EcoCave, Barapathar, LoversPoint, KhurpatalView, Sariyatal, Woodland, Khurpatal } },
-            // back: Jama Masjid skipped - its road is one-way out; the planner brings it by Bada Bazar
+                       stops = new[] { BusStand, NainaDeviGate, JamaMasjid, EcoCave, Barapathar, LoversPoint, KhurpatalView, Sariyatal, Woodland, Khurpatal } },
+            // back: Jama Masjid and the SBM tiraha skipped - that road is one-way out; it comes down the Bada Bazar road
             new Line { id = "safari_back", title = "NAINITAL SAFARI", local = true, every = 600f, offset = 320f,
-                       stops = new[] { Khurpatal, Woodland, Sariyatal, KhurpatalView, LoversPoint, Barapathar, EcoCave, SbmTiraha, NainaDeviGate, BusStand } },
+                       stops = new[] { Khurpatal, Woodland, Sariyatal, KhurpatalView, LoversPoint, Barapathar, EcoCave, NainaDeviGate, BusStand } },
             new Line { id = "to_khurpatal", title = "UTTARAKHAND ROADWAYS", stops = new[] { BusStand, Khurpatal } },
             new Line { id = "to_himalaya", title = "UTTARAKHAND ROADWAYS", stops = new[] { BusStand, HimalayaDarshan } },
             new Line { id = "to_haldwani", title = "UTTARAKHAND ROADWAYS", stops = new[] { BusStand, Haldwani } },

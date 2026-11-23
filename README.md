@@ -116,7 +116,14 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 - All 12 story characters rigged (Characters/Models: f_ladki, m_player, f_mummy, m_papa, m_uncle, m_dost, f_dost_gf,
   m_doctor, m_landlord, m_hotel, m_rental, m_rto), Humanoid avatars valid; not yet wired into the story.
 
-### PENDING - next session starts here (24 Nov 2026, 03:45; owner: "testing doosre PC pe krlunga")
+### PENDING - next session starts here (24 Nov 2026, 04:30; owner: "testing doosre PC pe krlunga")
+
+Later (owner): put the Mallital one-way BARRICADES back - uncomment the "One-way barricades" step in WorldBuilder.cs
+(WorldBuilder.OneWay.cs is ready), then Build World. 04:30 changes: no SBM stop, announcements louder + radio ducking,
+Land's End stall gone, animals x0.1 (AnimalManager.density), driven buses take no damage. The 3x safari ride passed
+(details: docs/TRACKER.md "24 Nov").
+
+### Earlier list (24 Nov 2026, 03:45; owner: "testing doosre PC pe krlunga")
 
 Nothing of 24 Nov has been tried in Play. After pulling: Nainital > 2. Build World (the one-way pieces, barricades and
 the road network are built). Then test, in this order (docs/TRACKER.md "24 Nov" has the details):

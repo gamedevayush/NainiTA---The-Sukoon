@@ -20,6 +20,9 @@ namespace Nainital
         public static int Touches, Hops, CowWaits, Spawned;
 
         public int maxTotal = 12;
+        /// <summary>How many of the numbers below are used (owner, 24 Nov 2026: "animals count divide by 10 krdo"): 0.1 =
+        /// a tenth - 12 -> 1 at a time on a PC, 6 -> 1 on a phone. Raise it for more animals.</summary>
+        public float density = 0.1f;
         public int[] caps = { 4, 5, 3, 4 };   // cow, dog, cat, monkey
         public float spawnMin = 30f, spawnMax = 95f, despawn = 135f;
         /// <summary>A turn about Y for a model that comes in facing the wrong way (set after a look in Play).</summary>
@@ -87,6 +90,8 @@ namespace Nainital
         void Start()
         {
             if (Application.isMobilePlatform) { maxTotal = 6; caps = new[] { 2, 3, 2, 2 }; spawnMax = 75f; despawn = 110f; }
+            maxTotal = Mathf.Max(1, Mathf.RoundToInt(maxTotal * density));
+            for (int k = 0; k < caps.Length; k++) caps[k] = Mathf.Max(1, Mathf.RoundToInt(caps[k] * density));
             var missing = new List<string>();
             for (int k = 0; k < Kinds; k++)
             {

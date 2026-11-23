@@ -23,6 +23,17 @@ namespace Nainital
         static AudioClip song;
         static bool loading, missingSaid;
         AudioSource src;
+        /// <summary>The radios' level under a bus announcement (owner, 24 Nov 2026: "us time pe radio half ..phir
+        /// announcemment hote hi radio back"): BusService sets the target, both radios follow it smoothly.</summary>
+        public static float DuckTarget = 1f;
+        public static float Duck { get; private set; } = 1f;
+        static int duckFrame = -1;
+        public static void StepDuck()
+        {
+            if (duckFrame == Time.frameCount) return;
+            duckFrame = Time.frameCount;
+            Duck = Mathf.MoveTowards(Duck, DuckTarget, Time.unscaledDeltaTime * 2.5f);
+        }
         float retryT;
 
         /// <summary>This bus's radio on (BusPassenger when he gets aboard, Radio when he drives a bus).</summary>
@@ -67,7 +78,8 @@ namespace Nainital
         void Update()
         {
             if (!src) return;
-            src.volume = 0.9f * GameSettings.Master;
+            StepDuck();
+            src.volume = 0.9f * GameSettings.Master * Duck;
             if (src.isPlaying) return;
             if (song) { Play(); return; }
             if (loading) return;

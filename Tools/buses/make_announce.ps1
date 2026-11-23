@@ -46,7 +46,7 @@ foreach ($s in $cfg.stops) {
         $wav = Join-Path $tmp "$slug`_$kind.wav"
         Say $text $wav
         $ogg = Join-Path $out "$slug`_$kind.ogg"
-        & $ff -v error -y -i $wav -af "highpass=f=280,lowpass=f=4200,aecho=0.8:0.45:35:0.22,volume=1.6" -ac 1 -ar 44100 -c:a libvorbis -q:a 4 $ogg
+        & $ff -v error -y -i $wav -af "highpass=f=280,lowpass=f=4200,aecho=0.8:0.45:35:0.22,volume=4.8,alimiter=limit=0.95:attack=5:release=60" -ac 1 -ar 44100 -c:a libvorbis -q:a 4 $ogg
         $n++
     }
 }

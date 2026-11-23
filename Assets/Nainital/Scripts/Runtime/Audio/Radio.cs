@@ -125,7 +125,8 @@ namespace Nainital
             if (inVehicle && kb != null && kb.rKey.wasPressedThisFrame && !GameInput.UiBlocking) Next();
             float target = inVehicle && current < stations.Count ? 0.55f * GameSettings.Master : 0f;
             vol = Mathf.MoveTowards(vol, target, Time.unscaledDeltaTime * 0.8f);
-            src.volume = vol;
+            BusRadio.StepDuck();
+            src.volume = vol * BusRadio.Duck;   // half under a bus announcement
             if (vol <= 0.001f && src.isPlaying && !inVehicle) src.Pause();
             if (inVehicle && current < stations.Count && !src.isPlaying && !loading) PlayNext();
         }

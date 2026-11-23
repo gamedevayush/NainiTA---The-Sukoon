@@ -503,7 +503,8 @@ namespace Nainital.EditorTools
         /// tea stall, Khurpatal's valley below.</summary>
         static void LandsEnd(MeshBuilder mb, Site s, System.Random rng)
         {
-            TarpStall(mb, new Vector3(2.5f, 0f, -8.2f), -10f, Pal.JacketGreen, rng);   // behind the paved ring (PeakDressing)
+            // (24 Nov 2026, owner: "lands end pe raste pe restaurant thela type ka aara..usko htaao": the tea stall behind the
+            // ring stood on the road once the ring moved off it - taken out; the bench and the railing stay)
         }
 
         /// <summary>Himalaya Darshan (on the Kilbury road): a concrete lookout off the road with a green iron railing, coin

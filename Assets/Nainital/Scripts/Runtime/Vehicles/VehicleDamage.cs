@@ -88,6 +88,11 @@ namespace Nainital
                 if (vs) vs.Knock(Mathf.Min(dv, 3f), at, false);
                 return;
             }
+            if (Immune)   // a driven bus: the knock is heard, nothing more
+            {
+                if (sound && vs) vs.Knock(dv, at, otherDmg);
+                return;
+            }
             var vp = GetComponent<VehicleParts>();
             if (vp) vp.Dent(at, dv);   // the Dmg_* shape key of the side that was hit (when the model has them)
             var au = AudioManager.Instance;
@@ -101,10 +106,23 @@ namespace Nainital
             if (tc && !Burning) tc.Shaken();
         }
 
+        /// <summary>A bus with its driver in it (an AI driver or the player) never takes damage: no dents, no smoke, no fire
+        /// (owner, 24 Nov 2026: "jab driver bus chlaara hoga to bus damage nhi hogi kabhi bhi..no fire or smoke").</summary>
+        public bool Immune
+        {
+            get
+            {
+                var cc = GetComponent<CarController>();
+                if (!cc || cc.type != CarType.Bus) return false;
+                var tc = GetComponent<TrafficCar>();
+                return cc.HasDriver || (tc && tc.HasDriver);
+            }
+        }
+
         /// <summary>Count knocks (also from a nearby blast).</summary>
         public void Hit(int n)
         {
-            if (Wrecked) return;
+            if (Wrecked || Immune) return;
             hits += n;
             if (hits >= smokeAt && !smoke) smoke = Smoke(transform, bonnet, false);
             if (hits >= fireAt && !Burning) Ignite();

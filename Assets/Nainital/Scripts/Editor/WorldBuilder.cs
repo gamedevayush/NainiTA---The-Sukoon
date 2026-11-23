@@ -260,7 +260,9 @@ namespace Nainital.EditorTools
             Step("Kaladhungi road as on Street View (bushes, trees, barriers, roadside houses)", () => BuildStreetViewRoad(ctx));   // WorldBuilder.StreetViewRoad.cs (23 Nov): on the final ground
             Step("City Joggers Park (open gym)", () => LandmarkBuilder.BuildJoggersPark(ctx));
             Step("DSA road: wall, railing, stairs (on the final ground)", () => BuildDsaRoad(ctx));   // WorldBuilder.DsaRoad.cs (23 Nov)
-            Step("One-way barricades (Mallital pair)", () => BuildOneWayBarricades(ctx));   // WorldBuilder.OneWay.cs (24 Nov)
+            // Step("One-way barricades (Mallital pair)", () => BuildOneWayBarricades(ctx));   // WorldBuilder.OneWay.cs (24 Nov) - OFF for now
+            // (owner, 24 Nov 2026: "abhi jo barricade lgaaye saare vo htado..memory me rkhna ki baad me lgaane hain"): the one-way
+            // routing (OneWayPieces, keepLeft) stays; put the step back to build the barricades and boards again.
             Step("Festive lights (LED strips, fairy lights, jhalar, the walk's lanterns)", () => FestiveStep(ctx));   // WorldBuilder.Festive.cs (23 Nov): on the final ground   // on the ground as it finally is (22 Nov)
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
