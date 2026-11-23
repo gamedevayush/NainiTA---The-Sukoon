@@ -260,6 +260,7 @@ namespace Nainital.EditorTools
             Step("Kaladhungi road as on Street View (bushes, trees, barriers, roadside houses)", () => BuildStreetViewRoad(ctx));   // WorldBuilder.StreetViewRoad.cs (23 Nov): on the final ground
             Step("City Joggers Park (open gym)", () => LandmarkBuilder.BuildJoggersPark(ctx));
             Step("DSA road: wall, railing, stairs (on the final ground)", () => BuildDsaRoad(ctx));   // WorldBuilder.DsaRoad.cs (23 Nov)
+            Step("One-way barricades (Mallital pair)", () => BuildOneWayBarricades(ctx));   // WorldBuilder.OneWay.cs (24 Nov)
             Step("Festive lights (LED strips, fairy lights, jhalar, the walk's lanterns)", () => FestiveStep(ctx));   // WorldBuilder.Festive.cs (23 Nov): on the final ground   // on the ground as it finally is (22 Nov)
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));

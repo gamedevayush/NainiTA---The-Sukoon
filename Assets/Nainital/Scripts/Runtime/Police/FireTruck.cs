@@ -11,7 +11,7 @@ namespace Nainital
     /// </summary>
     public class FireTruck : MonoBehaviour
     {
-        public const string Model = "truck_light";
+        public const string Model = "truck_fire";   // 24 Nov 2026: the unbranded tender (Flow -> Tripo, Tools/characters/FireTruck_v02.blend)
         public static readonly List<FireTruck> All = new List<FireTruck>();
         public EmergencyLights lights;
         public string State => $"{mode} t{modeT:F0} spray {sprayT:F1} crew {crew.Count} to fire {Vector3.Distance(transform.position, fire):F0} m";
@@ -39,6 +39,9 @@ namespace Nainital
         public void Dress()
         {
             var mpb = new MaterialPropertyBlock();
+            bool painted = false;   // the tender model comes red; only a stand-in (the light truck) gets the paint
+            foreach (var r in GetComponentsInChildren<Renderer>()) if (r.sharedMaterial && r.sharedMaterial.name.StartsWith(Model)) painted = true;
+            if (!painted)
             foreach (var r in GetComponentsInChildren<Renderer>())
             {
                 if (r is ParticleSystemRenderer) continue;

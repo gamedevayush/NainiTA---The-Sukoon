@@ -263,7 +263,7 @@ namespace Nainital.EditorTools
                     Vector3 flat = new Vector3(tan.x, 0f, tan.z);
                     if (flat.sqrMagnitude < 1e-4f) continue;
                     Vector3 left = Vector3.Cross(flat.normalized, Vector3.up);
-                    float off = road.oneWay != 0 ? 0f : Mathf.Max(1.1f, road.width * 0.25f);
+                    float off = road.oneWay != 0 && !road.keepLeft ? 0f : Mathf.Max(1.1f, road.width * 0.25f);
                     if (net.NearIsland(q[i], 3f)) continue;   // driven round it (the ring is checked below)
                     foreach (int d in road.oneWay != 0 ? new[] { road.oneWay } : new[] { 1, -1 })
                     {

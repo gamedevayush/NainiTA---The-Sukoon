@@ -370,6 +370,8 @@ in Brave Profile 1 (signed in with Google); reading the site token from a script
    (`FRONT_OVERRIDE`), uniform scale = the median of the length / width / height ratios against `REAL`).
 
 ## 8. Traps hit
+- (24 Nov) A NEW vehicle: run `call VehicleKit.Build` once more after `FixMaterials` - the first Build's prefab keeps the
+  FBX's own material (magenta in the game). Fire truck `truck_fire` added this way (weight 0, its own seats json).
 
 - 19 Nov ~22:35 the PC crashed (0x154) while BitLocker was decrypting C, D, E, F at once and Unity + Blender ran; after the
   reboot the 1 TB HDD (D/E/F) was missing until a full power cycle. Decrypt one partition at a time; one heavy job at a time.

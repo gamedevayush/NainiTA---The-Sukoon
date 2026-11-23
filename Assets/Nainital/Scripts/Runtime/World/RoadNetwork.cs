@@ -14,6 +14,9 @@ namespace Nainital
             public float width;
             public Vector3[] pts;
             public int oneWay;   // 0 both ways, +1 only along pts, -1 only against
+            /// <summary>A one-way road driven in the left lane, not down the middle (the Mallital pair, 24 Nov 2026: a
+            /// barricade closes the other half at its ends). The Mall decks are one-way down their middles.</summary>
+            public bool keepLeft;
             /// <summary>Metres to the driver's left to add to the lane at each point, driving along pts (Fwd) / against
             /// (Back): round what stands in that lane (WorldBuilder.ClearLanes). Empty: none.</summary>
             public float[] shiftFwd, shiftBack;

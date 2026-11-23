@@ -1,0 +1,64 @@
+{
+  "voice": "Kalpana",
+  "note": "Bus stop announcements (24 Nov 2026). Slug = BusLines stop name lower-case, ' / ' -> '_', ' ' -> '_' (BusService.Call). Made by Tools/buses/make_announce.ps1 with the Windows Hindi voice.",
+  "stops": [
+    [
+      "tallital_bus_stand",
+      "तल्लीताल बस स्टैंड"
+    ],
+    [
+      "dsa_naina_devi_gate",
+      "डी एस ए, नैना देवी गेट"
+    ],
+    [
+      "jama_masjid",
+      "जामा मस्जिद"
+    ],
+    [
+      "sbm_toilet_tiraha",
+      "एस बी एम टॉयलेट तिराहा"
+    ],
+    [
+      "eco_cave_park",
+      "इको केव पार्क"
+    ],
+    [
+      "bara_patthar",
+      "बारा पत्थर"
+    ],
+    [
+      "lovers_point",
+      "लवर्स पॉइंट"
+    ],
+    [
+      "khurpatal_view_point",
+      "खुरपाताल व्यू पॉइंट"
+    ],
+    [
+      "sariyatal_lake",
+      "सरियाताल झील"
+    ],
+    [
+      "woodland_waterfall",
+      "वुडलैंड वॉटरफॉल"
+    ],
+    [
+      "khurpatal",
+      "खुरपाताल"
+    ],
+    [
+      "himalaya_darshan",
+      "हिमालय दर्शन"
+    ],
+    [
+      "haldwani",
+      "हल्द्वानी"
+    ],
+    [
+      "bhimtal",
+      "भीमताल"
+    ]
+  ],
+  "next": "अगला स्टॉप, {0}। सेवा में, उत्तराखंड परिवहन निगम, नैनीताल।",
+  "here": "{0} आ गया है। उतरने वाले यात्री कृपया ध्यान दें। सेवा में, उत्तराखंड परिवहन निगम, नैनीताल।"
+}

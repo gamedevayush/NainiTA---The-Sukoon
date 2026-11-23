@@ -68,6 +68,14 @@ CYCLES = {
 }
 # police pistol (2026-11-18, mixkit.co/free-sound-effects/gun: 1662 "Game gun shot")
 ONESHOTS["gun_pistol"] = 1662
+# street animals (2026-11-24, ids paired with their titles from the raw HTML of mixkit.co/free-sound-effects/cat, /monkey,
+# /dog, /cow): calls while they roam, a cry when hurt, a last one when killed
+ONESHOTS.update({
+    "cat_1": 92, "cat_2": 86, "cat_3": 96, "cat_hurt": 91, "cat_angry": 90,   # Sweet kitty / Domestic cat hungry / Little cat attention meow; Little cat pain meow; Angry cartoon kitty meow
+    "monkey_1": 99, "monkey_2": 102, "monkey_3": 103, "monkey_hurt": 100,     # Little monkey screech; Excited monkey grunt; Monkey excited screech; Cartoon creature pain scream
+    "dog_hurt": 52, "dog_die": 55,                                            # Dog whimper sad; Dog whimper really sad
+    "cow_2": 1749, "cow_hurt": 1746, "cow_die": 1745,                         # Cow single moo; Cow dry moo; Cow sick moo
+})
 LOCAL = {"temple_bell": "sfx__lib__temple_bell.mp3", "scooter_pass": "sfx__lib__scooter_pass.mp3"}
 
 

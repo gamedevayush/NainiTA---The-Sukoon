@@ -163,6 +163,7 @@ namespace Nainital.EditorTools
             { "car_van", (CarType.Suv, false, 0.5f, 0f, 0f) },
             { "car_pickup", (CarType.Pickup, false, 1f, 0f, 0f) },
             { "truck_light", (CarType.Pickup, false, 0.6f, 0f, 0f) },
+            { "truck_fire", (CarType.Pickup, false, 0f, 0f, 9500f) },   // the 101 fire tender (24 Nov): never in the traffic
             { "bus_roadways", (CarType.Bus, false, 0.6f, 0f, 0f) },
             { "bus_tourist", (CarType.Bus, false, 1f, 0f, 0f) },
             { "tuktuk_auto", (CarType.Hatchback, true, 0.25f, 12f, 450f) },   // ~45 km/h

@@ -58,6 +58,7 @@ namespace Nainital
             Umbrellas.Ensure();      // townsfolk under umbrellas in the rain (Characters/Umbrellas.cs)
             PlayerStats.Ensure();    // stamina, muscle, fat, skills, hunger (Player/PlayerStats.cs)
             AnimalManager.Ensure();  // street cows, dogs, cats (Characters/AnimalManager.cs)
+            BusService.Ensure();     // the timetabled government buses (Vehicles/BusService.cs, 24 Nov 2026)
         }
 
         bool mobileTerrain;

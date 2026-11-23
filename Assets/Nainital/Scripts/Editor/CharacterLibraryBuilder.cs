@@ -15,12 +15,13 @@ namespace Nainital.EditorTools
     {
         public const string Dir = "Assets/Nainital/Characters";
         public const string LibraryPath = "Assets/Resources/CharacterLibrary.asset";
-        public const string PlayerLook = "m_young_puffer";
+        public const string PlayerLook = "m_player";   // 24 Nov 2026: the new Tripo player (was m_young_puffer)
 
         // id, body type, name shown in dialogs, height (m, same as passed to the rig script), crowd weight
         static readonly (string id, HumanoidRig.BodyType type, string name, float height, float weight)[] Cast =
         {
-            ("m_young_puffer", HumanoidRig.BodyType.Man,      "Tourist bhaiya",  1.74f, 0.35f),   // the player's look: rare in crowds
+            ("m_player",       HumanoidRig.BodyType.Man,      "Player",          1.74f, 0f),      // the player's look: never in crowds
+            ("m_young_puffer", HumanoidRig.BodyType.Man,      "Tourist bhaiya",  1.74f, 0.35f),   // the old player look: rare in crowds
             ("m_man_flannel",  HumanoidRig.BodyType.Man,      "Local bhaiya",    1.78f, 1f),
             ("f_young_hoodie", HumanoidRig.BodyType.Woman,    "College student", 1.62f, 1f),
             ("f_young_denim",  HumanoidRig.BodyType.Woman,    "Tourist didi",    1.64f, 1f),

@@ -35,7 +35,7 @@ namespace Nainital
             Vector3 c = p.transform.position;
 
             // by the hour (TownClock): a few cars before eight, the evening rush from five to ten
-            int target = Mathf.Max(1, Mathf.RoundToInt(maxCars * TownClock.Traffic(TownClock.Hour)));
+            int target = Mathf.Max(1, Mathf.RoundToInt(maxCars * TownClock.Traffic(TownClock.Hour)) - BusService.Real * 2);   // a timetabled bus = two cars
             bool thinned = false;
             for (int i = active.Count - 1; i >= 0; i--)
             {
@@ -135,7 +135,7 @@ namespace Nainital
                 float roll = Random.value;
                 CarType type = roll < 0.36f ? CarType.Taxi : roll < 0.52f ? CarType.Hatchback : roll < 0.64f ? CarType.Sedan : roll < 0.76f ? CarType.Suv
                              : roll < 0.89f ? CarType.Pickup : CarType.Bus;
-                if (type == CarType.Bus && network.roads[r].width < 6f) type = CarType.Taxi;
+                if (type == CarType.Bus && (network.roads[r].width < 6f || BusService.Instance)) type = CarType.Taxi;   // the buses run to the timetable now (BusService)
                 var lib = VehicleLibrary.Instance;
                 if (lib && lib.entries.Length > 0 && !lib.Has(type)) type = CarType.Taxi;
                 int model = lib ? lib.Pick(type, Random.value) : -1;

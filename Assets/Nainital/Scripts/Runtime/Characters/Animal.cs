@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Nainital
 {
-    public enum AnimalKind { Cow, Dog, Cat }
+    public enum AnimalKind { Cow, Dog, Cat, Monkey }
 
     /// <summary>
     /// A street cow, dog or cat (free-roam batch #8, owner 21 Nov 2026: "Tripo models, rigged by us; they cannot be hurt -
@@ -16,6 +16,10 @@ namespace Nainital
     /// within reach) it flees fast for a few seconds: a cow plods off at a trot, a dog bolts (and may bark), a cat dashes and
     /// hops onto a wall when one is near. Dogs and cats also get out of a moving vehicle's way; a cow does not: it stands in
     /// the road and the traffic waits and honks (AnimalManager.CowAhead, the TrafficCar hook) until it ambles off.
+    /// Monkeys (24 Nov 2026, the rhesus troops round Naina Devi / Snow View / Tiffin Top): walk on all fours, sit, bolt and
+    /// hop onto walls like a cat; they come in small troops.
+    /// Hurt (24 Nov 2026, owner: "koi hit kre to vo bhaage, pr agar jayda hit krdiya to marjayenge with ragdoll"): a Health
+    /// per kind (Spec.hp) - a punch, a kick or a car's knock makes it run; at 0 it dies as a ragdoll (AnimalRagdoll).
     /// </summary>
     [RequireComponent(typeof(CharacterMotor))]
     public class Animal : MonoBehaviour
@@ -32,25 +36,31 @@ namespace Nainital
         public class Spec
         {
             public float walk, run, flee, clipWalk, clipRun, accel, turn, length, height, radius, fleeMin, fleeMax;
+            public float hp = 50f;   // punches: jab 8, cross 11, kick 17; a car: speed (m/s) x 4 (player) / 2.5 (traffic)
             public string special1, special2;   // its idle extras (clip keys)
         }
 
         public static readonly Spec CowSpec = new Spec
         {
-            walk = 0.9f, run = 3.4f, flee = 3.4f, clipWalk = 1.0f, clipRun = 3.0f, accel = 3f, turn = 110f,
-            length = 2.2f, height = 1.45f, radius = 0.42f, fleeMin = 4f, fleeMax = 6f, special1 = "chew", special2 = "chew",
+            walk = 0.9f, run = 3.4f, flee = 3.4f, clipWalk = 1.0f, clipRun = 3.56f, accel = 3f, turn = 110f,
+            length = 2.2f, height = 1.45f, radius = 0.42f, fleeMin = 4f, fleeMax = 6f, special1 = "chew", special2 = "chew", hp = 120f,
         };
         public static readonly Spec DogSpec = new Spec
         {
-            walk = 1.0f, run = 6.5f, flee = 8f, clipWalk = 0.95f, clipRun = 5.9f, accel = 16f, turn = 420f,
-            length = 0.95f, height = 0.62f, radius = 0.2f, fleeMin = 3f, fleeMax = 5f, special1 = "sit", special2 = "sit",
+            walk = 1.0f, run = 6.5f, flee = 8f, clipWalk = 0.97f, clipRun = 3.38f, accel = 16f, turn = 420f,
+            length = 0.95f, height = 0.62f, radius = 0.2f, fleeMin = 3f, fleeMax = 5f, special1 = "sit", special2 = "sit", hp = 50f,
         };
         public static readonly Spec CatSpec = new Spec
         {
-            walk = 0.6f, run = 5f, flee = 6.5f, clipWalk = 0.57f, clipRun = 3.5f, accel = 20f, turn = 540f,
-            length = 0.5f, height = 0.3f, radius = 0.13f, fleeMin = 2f, fleeMax = 3.2f, special1 = "sit", special2 = "lick",
+            walk = 0.6f, run = 5f, flee = 6.5f, clipWalk = 0.55f, clipRun = 1.99f, accel = 20f, turn = 540f,
+            length = 0.5f, height = 0.3f, radius = 0.13f, fleeMin = 2f, fleeMax = 3.2f, special1 = "sit", special2 = "lick", hp = 25f,
         };
-        public static Spec SpecOf(AnimalKind k) => k == AnimalKind.Cow ? CowSpec : k == AnimalKind.Dog ? DogSpec : CatSpec;
+        public static readonly Spec MonkeySpec = new Spec
+        {
+            walk = 0.7f, run = 4.5f, flee = 5.5f, clipWalk = 0.71f, clipRun = 2.03f, accel = 14f, turn = 420f,
+            length = 0.6f, height = 0.5f, radius = 0.15f, fleeMin = 2.5f, fleeMax = 4f, special1 = "sit", special2 = "sit", hp = 35f,
+        };
+        public static Spec SpecOf(AnimalKind k) => k == AnimalKind.Cow ? CowSpec : k == AnimalKind.Dog ? DogSpec : k == AnimalKind.Monkey ? MonkeySpec : CatSpec;
 
         enum State { Idle, Special, Walk, Flee, MoveOff, Hop, Perch }
 
@@ -60,7 +70,9 @@ namespace Nainital
         readonly Dictionary<string, string> clips = new Dictionary<string, string>();
         string playing;
         State state;
-        float stateT, scanT, barkCd, mooCd, lastImpulse, waitedAt = -99f, waitedT, moveOffAfter, stuckT, hopT;
+        float stateT, scanT, barkCd, mooCd, callCd = 10f, lastImpulse, waitedAt = -99f, waitedT, moveOffAfter, stuckT, hopT;
+        /// <summary>A dog at a restaurant (AnimalManager): it stays by the tables and mostly sits, waiting to be fed.</summary>
+        public bool beggar;
         string special;
         Vector3 target, dir, hopFrom, hopTo;
         bool onWall;
@@ -70,10 +82,15 @@ namespace Nainital
         static readonly string[] Keys = { "idle", "walk", "run", "chew", "sit", "lick" };
 
         public bool Fleeing => state == State.Flee || state == State.Hop;
+        public bool Dead { get; private set; }
+        public AnimalRagdoll Corpse { get; private set; }
+        Health health;
 
         void Awake()
         {
             motor = GetComponent<CharacterMotor>();
+            health = GetComponent<Health>();
+            if (health) { health.Damaged += OnHurt; health.Died += OnDied; }
             if (wallMask < 0) wallMask = ~((1 << 2) | (1 << 4) | (1 << 8) | (1 << 9) | (1 << VehicleFactory.VehicleLayer));
         }
 
@@ -85,6 +102,7 @@ namespace Nainital
         {
             kind = k;
             spec = SpecOf(k);
+            if (health) { health.max = spec.hp; health.regenPerSecond = 0f; health.invulnerable = false; health.Revive(1f); }
             home = at;
             homeRadius = radius;
             onWall = false;
@@ -97,8 +115,9 @@ namespace Nainital
             lastImpulse = 0f;
             if (motor) { motor.velocity = Vector3.zero; motor.impulse = Vector3.zero; if (motor.Controller) motor.Controller.enabled = true; }
             Idle(Random.Range(0.5f, 4f));
-            // a third start in their special idle (a cow chewing in the road, a dog / cat sitting)
-            if (Random.value < 0.35f) Special(Random.Range(6f, 16f));
+            // a third start in their special idle (a cow chewing in the road, a dog / cat sitting); a restaurant dog sits
+            if (beggar) Special(Random.Range(20f, 45f));
+            else if (Random.value < 0.35f) Special(Random.Range(6f, 16f));
         }
 
         // ------------------------------------------------------------------ animation (legacy clips of the FBX)
@@ -154,7 +173,7 @@ namespace Nainital
             stateT = seconds > 0f ? seconds : Random.Range(spec.fleeMin, spec.fleeMax);
             onWall = false;
             if (fresh) Startled();
-            if (kind == AnimalKind.Cat && fresh && TryHop(dir)) return;
+            if ((kind == AnimalKind.Cat || kind == AnimalKind.Monkey) && fresh && TryHop(dir)) return;
         }
 
         /// <summary>A car waits on this cow in the road (AnimalManager.CowAhead, every physics step it waits): after a few
@@ -183,9 +202,24 @@ namespace Nainital
             Vector3 rel = transform.position - at;
             rel.y = 0f;
             float d = rel.magnitude;
-            if (kind == AnimalKind.Cow) { if (d < 22f && Vector3.Dot(rel, fwd) > 0f) { waitedAt = Time.time; waitedT = Mathf.Max(waitedT, 2f); moveOffAfter = Mathf.Min(moveOffAfter, Random.Range(1f, 3f)); } }
-            else if (kind == AnimalKind.Dog) { if (d < 18f && barkCd <= 0f && Random.value < 0.5f) Bark(); }
-            else if (d < 8f) Flee(at);
+            // 24 Nov 2026 (owner: "horn pe ye bhi bhaagenge out of road"): anything ahead within 25 m (or close by) gets off
+            // the road to the side it is already on - a cow ambles at once, the others run
+            if (Dead || state == State.Hop || (d > 25f || (Vector3.Dot(rel, fwd) < 0f && d > 6f))) return;
+            Vector3 right = Vector3.Cross(Vector3.up, fwd);
+            Vector3 side = right * (Vector3.Dot(rel, right) >= 0f ? 1f : -1f);
+            if (kind == AnimalKind.Dog && barkCd <= 0f && Random.value < 0.5f) Bark();
+            if (kind == AnimalKind.Cow)
+            {
+                target = transform.position + side * Random.Range(4f, 6f) + fwd * Random.Range(0f, 2f);
+                state = State.MoveOff;
+                stateT = 12f;
+                stuckT = 0f;
+                if (mooCd <= 0f && Random.value < 0.4f) { Sound("cow", 0.55f); mooCd = Random.Range(15f, 35f); }
+                return;
+            }
+            beggar = false;   // a horn sends even a restaurant dog off
+            state = State.Idle;
+            Flee(transform.position - side * 2f + fwd * 0.5f, Random.Range(1.4f, 2.4f));
         }
 
         void Startled()
@@ -207,6 +241,57 @@ namespace Nainital
             if (!au) return;
             float pitch = kind == AnimalKind.Dog ? Random.Range(0.95f, 1.12f) : Random.Range(0.92f, 1.05f);
             au.PlayAt(au.Clip(clip), transform.position + Vector3.up * spec.height * 0.7f, vol, pitch, 70f);
+        }
+
+        // ------------------------------------------------------------------ hurt / killed
+        Vector3 lastHitFrom;
+        float lastHitAmount;
+
+        void OnHurt(float amount, Vector3 from, GameObject src)
+        {
+            lastHitFrom = from;
+            lastHitAmount = amount;
+            if (Dead) return;
+            Cry(false);
+            state = State.Idle;                    // a fresh flee: a hurt animal bolts at once, a longer way
+            Flee(from, Random.Range(spec.fleeMax, spec.fleeMax * 1.6f));
+        }
+
+        void OnDied()
+        {
+            if (Dead) return;
+            Dead = true;
+            Live.Remove(this);
+            // thrown away from the blow: the hit's own push (a car's knock is already in the impulse) plus the blow's size
+            Vector3 away = transform.position - lastHitFrom;
+            away.y = 0f;
+            away = away.sqrMagnitude > 1e-4f ? away.normalized : -transform.forward;
+            float sp = Mathf.Clamp(lastHitAmount * 0.12f, 1.5f, 12f) * (kind == AnimalKind.Cow ? 0.5f : 1f);
+            Vector3 v = (motor ? motor.impulse : Vector3.zero) + away * sp + Vector3.up * Mathf.Min(3f, sp * 0.35f);
+            Cry(true);
+            Corpse = AnimalRagdoll.Kill(this, v);
+            enabled = false;
+        }
+
+        /// <summary>A hurt animal's cry (Resources/Audio, Mixkit: Tools/fetch_sounds.py) - its last one when killed.</summary>
+        void Cry(bool dying)
+        {
+            string c = kind == AnimalKind.Dog ? (dying ? "dog_die" : "dog_hurt")
+                     : kind == AnimalKind.Cow ? (dying ? "cow_die" : "cow_hurt")
+                     : kind == AnimalKind.Cat ? "cat_hurt" : "monkey_hurt";
+            Sound(c, dying ? 0.8f : 0.7f);
+            callCd = Random.Range(8f, 16f);
+        }
+
+        /// <summary>Now and then while it roams: a cat meows, a monkey screeches / grunts, a cow lows (dogs bark already).</summary>
+        void Call()
+        {
+            callCd = kind == AnimalKind.Monkey ? Random.Range(10f, 25f) : Random.Range(18f, 45f);
+            var p = PlayerController.Instance;
+            if (!p || (p.transform.position - transform.position).sqrMagnitude > 35f * 35f) return;
+            if (kind == AnimalKind.Cat) Sound("cat_" + Random.Range(1, 4), 0.45f);
+            else if (kind == AnimalKind.Monkey) Sound("monkey_" + Random.Range(1, 4), 0.55f);
+            else if (kind == AnimalKind.Cow && mooCd <= 0f) { Sound(Random.value < 0.5f ? "cow" : "cow_2", 0.5f); mooCd = Random.Range(20f, 45f); }
         }
 
         // ------------------------------------------------------------------ senses
@@ -368,6 +453,8 @@ namespace Nainital
             if (spec == null) spec = SpecOf(kind);
             barkCd -= dt;
             mooCd -= dt;
+            callCd -= dt;
+            if (callCd <= 0f && kind != AnimalKind.Dog) Call();
             if (Time.time - waitedAt < 0.4f) waitedT += dt;
 
             if (state == State.Hop) { Hop(dt); return; }

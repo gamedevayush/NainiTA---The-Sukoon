@@ -4,7 +4,7 @@ player's own Tripo texture, so his face, hair and hands stay his and only the cl
 
   python Tools/outfits/make_outfits.py            (numpy + Pillow)
 
-Needs Tools/outfits/regions_m_young_puffer.npz from outfit_regions.py (Blender, the skin weights -> body part per texel).
+Needs Tools/outfits/regions_<model>.npz from outfit_regions.py (Blender, the skin weights -> body part per texel).
 A texel is recoloured when its body part is clothes (torso + arms, hips, legs) AND its colour is the garment's: the black
 puffer = dark and grey (low saturation), the jeans = blue. The new colour is a gradient map of the old brightness, so the
 quilting, folds and shine stay. Writes Assets/Resources/Outfits/<id>.jpg (OutfitLook in Runtime/Core/Inventory.cs loads
@@ -16,8 +16,10 @@ from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-SRC = os.path.join(ROOT, "Assets", "Nainital", "Characters", "Textures", "m_young_puffer.jpg")
-REG = os.path.join(HERE, "regions_m_young_puffer.npz")
+# the player's model (24 Nov 2026: the new Tripo player m_player; was m_young_puffer) - `python make_outfits.py [model]`
+MODEL = sys.argv[1] if len(sys.argv) > 1 else "m_player"
+SRC = os.path.join(ROOT, "Assets", "Nainital", "Characters", "Textures", MODEL + ".jpg")
+REG = os.path.join(HERE, "regions_" + MODEL + ".npz")
 OUT = os.path.join(ROOT, "Assets", "Resources", "Outfits")
 
 HEAD, HANDS, FEET, LEGS, HIPS, TORSO = 1, 2, 3, 4, 5, 6

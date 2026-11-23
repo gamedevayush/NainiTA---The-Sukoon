@@ -127,7 +127,8 @@ namespace Nainital
         {
             Vector3 fwd = transform.forward;
             Vector3 center = transform.position + Vector3.up * 1.1f + fwd * (current.range * 0.6f);
-            int n = Physics.OverlapSphereNonAlloc(center, 0.8f, overlap, hitMask, QueryTriggerInteraction.Ignore);
+            // down to the ground too (24 Nov 2026): a cat / dog / monkey is only 0.3-0.6 m tall - a kick must reach it
+            int n = Physics.OverlapCapsuleNonAlloc(center - Vector3.up * 0.75f, center, 0.8f, overlap, hitMask, QueryTriggerInteraction.Ignore);
             struck.Clear();
             for (int i = 0; i < n; i++)
             {

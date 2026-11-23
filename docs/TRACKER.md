@@ -915,3 +915,121 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
 - NPCs: when they stop (12% per waypoint, 3-7 s): photo of the lake (phone up), phone call, eating a bhutta, wave, a bow
   towards Naina Devi, a look round.
 - PENDING (Tripo): monkeys (bandar) - with the animals and the fire truck.
+
+## 24 Nov 2026 (00:00-01:30, main PC) - Flow characters, Tripo animals / fire truck / two story characters, animal rigs
+- Flow (Brave Profile 1, project e995d8ab): 17 images from `Tools/characters/prompts.json` (12 characters 9:16 A-pose,
+  cow / dog / cat / monkey / fire truck 16:9). Script `google-flow-automation/scripts/naini-flow-chars.js` (sets the aspect
+  + x1 itself; `FLOW_ASPECT`). It saves only Flow's 286x512 preview - the real images are the 2K downloads
+  (`flow-grid-dl3.js`: a 6000 px tall viewport keeps every grid tile loaded; `HEAL_BOX` 1399,2615 at 9:16 2K, 2615,1399
+  at 16:9) -> `Tools/characters/raw2k/*.jpg`, contact sheet `Tools/characters/sheet_2k.jpg`. Watermark corners clean.
+- Tripo (175 credits = 7 models at 25, now 0): cow, dog, cat, monkey at 8k tris; fire truck, 07_ladki, 01_player at 15k
+  -> `Tools/characters/models/*.glb` (+ `_dec.glb` meshopt-decoded). `samjho-tripo-pipeline.js` takes `TRIPO_POLY`.
+  The other 10 characters (02-06, 08-12) need another Tripo account.
+- Animals: new `Tools/animals/rig_animal.py` (blender -b -P ... -- <dec.glb> <kind> <outdir> -Y): straightens Tripo's 3/4
+  yaw on the feet (PCA), real length (cow 2.2, dog 0.95, cat 0.55, monkey 0.7 m), front -Y; skeleton from the mesh (feet =
+  low-vertex clusters, belly measured between the leg pairs - at the legs the dewlap / udder read too low), weights
+  computed (inverse distance cubed, top 3; a leg takes only the vertices whose nearest foot is its own, and only below the
+  belly line - side splits by the median made a leg drag its neighbour's skin like a sheet); clips idle / walk / run +
+  chew (cow) / sit (dog, cat, monkey) / lick (cat). Sit pivots the body about the front feet. Check sheets on magenta:
+  `Tools/animals/out/<kind>_sheet.jpg`, films `out/<kind>_motion.mp4` (`motion_check.py`), `chk_sheet.py`.
+  Measured clip speeds (CLIPSPEED) now in Animal.Spec: cow 1.0 / 3.56, dog 0.97 / 3.38, cat 0.55 / 1.99, monkey 0.71 / 2.03.
+  FBX + `_color.png` copied to `Assets/Nainital/Animals/Resources/Animals/` (cow, dog, cat, monkey) - NOT yet imported /
+  seen in Play (Unity was closed).
+- Monkeys in the game (code, compile_check OK): `AnimalKind.Monkey`, `Animal.MonkeySpec` (hops onto walls like a cat),
+  AnimalManager: 4 kinds, spots weighted round Naina Devi (-56,-154), Snow View (706,582), Tiffin Top (-431,-762), a little
+  on quiet roads / Mall walks / shop fronts; troops of 2-4; few at night; caps 4 (phones 2), maxTotal 12. AnimalTest.Spawn
+  spawns one too.
+- Fire truck IN THE GAME as `truck_fire` (owner cut the tyres in Blender, 01:25; "steering or gate nhi kra...unki khaas
+  need nhi"): `Tools/characters/FireTruck_v02.blend` (v01 faced +Y - firetruck_blend.py turned it the wrong way; v02 turned
+  180 deg; his FrontTyre / BackTyre split into Wheel_FL/FR/RL/RR at x = 0, origins at the wheel centres, 8+9 sliver faces
+  joining the front tyres to the chassis removed, the axle bits moved to the Body; check: wheels spun 30 / steered 25 deg
+  stay round in their arches). Exported with export_unity.py -> `Vehicles/New/truck_fire.fbx`; VehicleKit role weight 0
+  (never in the traffic), mass 9.5 t; `Resources/VehicleSetup/truck_fire.json` = truck_light's two seats + lamps moved to
+  this cab (measured: cab front +0.171 m, cushion 1.29 -> 1.43, roof 2.31 -> 2.43); FireTruck.Model = truck_fire, no red
+  paint on its own model (the flashing bar still fitted on the cab roof). Batch: ImportCheck 2.67 x 3.20 x 6.26, length
+  along z, URP Lit + texture, 4 wheels; `call VehiclePeek.Run` (Shots/vehicle_peek.png) shows it beside van / bus / truck.
+  Trap: on a NEW vehicle run `VehicleKit.Build` AGAIN after `FixMaterials` - the first Build's prefab kept the FBX's own
+  material (magenta). (SheetShot's far camera shows the whole set in a texel camouflage - the prefabs are fine close up.)
+  Not yet seen in Play: the 101 call (driver in the seat, firemen, the bar on the roof).
+- Story characters: `Tools/rig_tripo_character.py` -> `f_ladki` (1.62 m woman, 14.9k tris) and `m_player` (1.74 m man,
+  14.1k), FBX + JPG in `Assets/Nainital/Characters/Models` / `Textures` (test-pose renders clean). Not in
+  CharacterLibraryBuilder's crowd Cast (story people, not crowd) - wire them when the story needs them.
+- Batch import check (new `Animals/Editor/AnimalImportCheck.cs`, `call AnimalImportCheck.Run` -> Shots/animal_import.png +
+  Logs/animalcheck.txt): all clips import (legacy, names end in idle / walk / run / chew / sit / lick); first export came in
+  100x (fixed: FBX_SCALE_ALL like rig_tripo_character.py); the animals face -Z in Unity -> AnimalManager.modelYaw = 180 for
+  all four (now every face looks at +Z); f_ladki / m_player Humanoid avatars valid.
+- STILL TO CHECK in Play: `call AnimalTest.Spawn` - wandering / fleeing / clip speeds / monkeys' wall hop and troops.
+- 01:45-02:20 the other 10 story characters: two fresh Tripo accounts from the owner's switcher (memory
+  reference_tripo_account_switcher; google-flow-automation `tripo-skip-onboarding.js` gets past the survey / promos -
+  TRAP: a promo's "Get Started" opened a Stripe checkout once, nothing paid; the script now only closes sales dialogs;
+  `TRIPO_PBR=0` = 25 credits; the pipeline stops with NO CREDITS instead of pressing Generate). Rigged with
+  rig_tripo_character.py: f_mummy 1.58 woman, m_papa 1.72, m_uncle 1.68 oldman, m_dost 1.70, f_dost_gf 1.60 woman,
+  m_doctor 1.75, m_landlord 1.66 oldman, m_hotel 1.72, m_rental 1.73, m_rto 1.74 (14-15k tris, 0 unweighted) ->
+  Characters/Models + Textures. Batch `call AnimalImportCheck.Run`: all 12 story characters Humanoid valid, facing +Z
+  (Shots/animal_import.png). Not wired into the story / CharacterLibrary yet (names from the owner still pending).
+- 02:30 owner: "animals ko koi hit kre to vo bhaage, pr agar jayda hit krdiya to marjayenge with ragdoll" + "horn pe ye bhi
+  bhaagenge out of road..mostly kutte restaurant ke seat ke pass customer ke pass bethe honge..sound effects bhi" + "player
+  ki body change krdo with new one":
+  - Hurt / killed: every animal has a Health (Spec.hp: cow 120, dog 50, cat 25, monkey 35; AnimalManager adds it before
+    Animal). A punch / kick (Combatant: its reach now a capsule down to the ground, so a kick reaches a cat) or a car's
+    knock (CarController.People: speed x 4 player / 2.5 traffic) makes it bolt; at 0 `AnimalRagdoll` (new): rigid bodies +
+    CharacterJoints on rig_animal.py's bones (trunk, neck, head, 4 legs x 2, tail), real mass (cow 350 kg, dog 22, cat 4,
+    monkey 8), thrown away from the blow. The dead leave Live / the counts; AnimalManager removes a body out of sight after
+    20 s (or 3 min). Batch check `call AnimalRagdollCheck.Run` (Logs/ragdollcheck.txt, Shots/animal_ragdoll.png): 13-16
+    bodies each, all at rest on the ground in 2.5 s, no NaN / fly-off; the cow lies on its side.
+  - Horn: every kind ahead within 25 m (or within 6 m behind) gets off the road to the side it is on - a cow ambles off at
+    once (MoveOff), the others run; a restaurant dog too.
+  - Dogs at restaurants: a spot 0.9 m out from every RestaurantSeat (dog weight 6, cat 0.4); a dog spawned there is a
+    `beggar`: stays within 1.5 m and mostly sits (special 20-45 s).
+  - Sounds (Mixkit, ids paired with their titles from the pages' HTML, Tools/fetch_sounds.py): cat_1..3, cat_hurt,
+    cat_angry, monkey_1..3, monkey_hurt, dog_hurt, dog_die, cow_2, cow_hurt, cow_die. Cats / monkeys / cows call now and then
+    when the player is within 35 m; every hit a cry, death its last one.
+  - Player body: `m_player` (the new Tripo player) is the player's look (CharacterLibraryBuilder.PlayerLook; in the Cast
+    with crowd weight 0; m_young_puffer stays in crowds). Outfits remade from its texture: `make_outfits.py [model]`
+    (default m_player) after `outfit_regions.py` -> regions_m_player.npz. World rebuilt.
+- 02:45 owner: Mall Road + Mallital one-way, "ye krna hi krna hai":
+  - Mall Road flipped: Lower Mall = bus stand -> DSA (towards Mallital), Upper Mall = Mallital -> Tallital
+    (WorldBuilder.Living: oneWay = MallLower ? north : -north).
+  - Mallital one-way pair (his pin 29.391984, 79.454147 = local (-83, 165), 27 m from the tiraha at the Mall's Mallital end
+    (-57, 156)): OUT from the tiraha up the road past Jama Masjid (-152, 52) to the junction at (-530, 534) (his "Union
+    Bank"/"SBM toilet" ends - the names are not in the map data; the two roads share these two ends); BACK the road past
+    Bada Bazar (-166, 207). `MallitalOneWay()` finds them by their ends + what they pass, `Path.keepLeft` = driven in the
+    left lane (TrafficCar, ClearLanes, TrafficLab), not down the middle like the Mall decks.
+  - Barricades (WorldBuilder.OneWay.cs, step after the DSA road): at each road's exit end, 3.5 m in, the LEFT half as seen
+    from the junction (centre + 0.25 m to the kerb, 3.1-3.4 m): yellow rails, red/white stripes, red NO ENTRY board; a blue
+    ONE WAY / DIVERSION board on a pole at that kerb facing the junction. The other half stays open for the traffic
+    coming out in its own left lane. Shots: Shots/oneway_tiraha.png, oneway_tiraha_wide.png, oneway_top3.png.
+  - Audits on the new build: LinkAudit 93 roads, 156 links, 0 walls / height / ground across; LaneAudit 33891 lane points,
+    4 blocked (0.0 %) - the barricades block no lane. NOT driven in Play yet (TrafficBusTest / RouteDrive with the flipped
+    Mall).
+- 03:00-03:40 owner: timetabled government buses ("bus stand se har 5 minute me ek bus ... har 10 minutes me ... Nainital
+  safari ... ab aise bahut bus hojengi to kya strategy"), Hindi announcements, then "build krke chod dena..testing doosre
+  PC pe krlunga...memory, instruction and push":
+  - FIX of the 02:45 one-way: the SBM toilet tiraha is the one PAST Jama Masjid ((-150, 20), the Kaladhungi road's), not
+    the Mall end. The Jama Masjid road is split there (`OneWayPieces`): Mall end -> SBM tiraha one-way, beyond both ways;
+    the Bada Bazar road one-way back. Barricades: at the SBM tiraha on the Jama Masjid road (-148, 24) and at the Mall
+    end on the Bada Bazar road (-61, 156), the left half each. World rebuilt; LinkAudit 94 roads 158 links, LaneAudit 4 of
+    34080 lane points blocked (0.0 %).
+  - `Runtime/Vehicles/BusLines.cs` (stops, lines, the intercity rota), `BusService.cs` (GameManager.Ensure): every trip a
+    ghost along its planned route (7 m/s, 18 s per stop, 40 s at the first); real buses (bus_roadways, TrafficCar +
+    BusPassenger + BusDisplay) only within 260 m of the player, out of view or past 160 m; back to a ghost past 340 m out
+    of sight (never with him aboard); max 4 real (phones 2); each real bus = 2 cars of TrafficManager's target; its random
+    buses are taxis now. Intercity out every 5 min (Khurpatal, Himalaya Darshan, Haldwani = the Haldwani highway's map edge
+    (141, -3263), Bhimtal = the Bhowali road's edge (2366, -312)) and in every 5 min; the safari both ways every 10 min.
+    RoadPlanner.PlanEntries (new) gives each road's entry point for the ghost's line.
+  - `BusDisplay.cs`: amber dot-matrix LED boards (a 5x7 font drawn in code), front + both sides, scrolling.
+  - Announcements riding one: "<stop> aa gaya hai" ~4 s before a stop (speed x 4 + 8 m), "Agla stop, <stop>" as it moves
+    off; banner + ding-dong + the Hindi voice, each signed "Seva mein, Uttarakhand Parivahan Nigam, Nainital". Voice =
+    Windows hi-IN Microsoft Kalpana (installed 24 Nov: Add-WindowsCapability Language.Speech / TextToSpeech hi-IN; OneCore,
+    WinRT only) via `Tools/buses/make_announce.ps1` + `announce.json` -> Resources/Audio/announce/<slug>_next|_here.ogg
+    (28 clips) + announce_chime.ogg. (ElevenLabs: the Starter account is spent and past_due.)
+  - Route check `call BusServiceTest.Routes` (batch) -> Logs/busroutes.txt: all 10 lines plan. Safari out 18.5 km / back
+    17.8 km, intercity Khurpatal 10.9, Himalaya Darshan 5.7, Haldwani 4.0, Bhimtal 3.8 km. Stops held to the Kaladhungi
+    road (Eco Cave, Bara Patthar, Lovers Point, Khurpatal View Point, Sariyatal, Woodland) - on the nearest bus road they
+    sat on side roads and the safari looped (28.5 km). "Khurpatal View Point" = the map's "Khurpatal Lake View Point"
+    (-1853, -1150) (the other one lies past Sariyatal: the given order had no way); "DSA / Naina Devi Gate" on Mall Road at
+    the DSA ground (15, 138) (the gate is 58 m off any bus road).
+  - NOT tested in Play (owner: test on the other PC). Left to look at: the safari still swings through side roads near
+    Eco Cave (#9-#62) and once near Bara Patthar on the way back; the LED boards' place on the bus; announcement timing;
+    real buses popping / despawning; a bus turning at the map edge with him aboard (he is put off).
+

@@ -23,6 +23,17 @@ namespace Nainital
         /// a place on the way is not a place to turn round). Null: no way there.</summary>
         public static List<(int r, int d)> Plan(RoadNetwork net, int sr, int si, int gr, int gi, int startDir = 0)
         {
+            var keys = PlanEntries(net, sr, si, gr, gi, startDir);
+            if (keys == null) return null;
+            var steps = new List<(int r, int d)>(keys.Count);
+            foreach (var k in keys) steps.Add((k.r, k.d));
+            return steps;
+        }
+
+        /// <summary>As Plan, with the point each road is entered at (the first: si) - BusService draws a route's line from
+        /// them (24 Nov 2026).</summary>
+        public static List<(int r, int d, int i)> PlanEntries(RoadNetwork net, int sr, int si, int gr, int gi, int startDir = 0)
+        {
             var dist = new Dictionary<(int r, int d, int i), float>();
             var from = new Dictionary<(int r, int d, int i), (int r, int d, int i)>();
             var open = new List<((int r, int d, int i) k, float c)>();
@@ -71,12 +82,12 @@ namespace Nainital
                 }
             }
             if (goalKey.r < 0) return null;
-            var steps = new List<(int r, int d)>();
+            var keys = new List<(int r, int d, int i)>();
             var at = goalKey;
-            steps.Add((at.r, at.d));
-            while (from.TryGetValue(at, out var prev)) { at = prev; steps.Add((at.r, at.d)); }
-            steps.Reverse();
-            return steps;
+            keys.Add(at);
+            while (from.TryGetValue(at, out var prev)) { at = prev; keys.Add(at); }
+            keys.Reverse();
+            return keys;
         }
     }
 }

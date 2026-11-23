@@ -13,6 +13,12 @@ MonoBehaviour:
   m_Name: CharacterLibrary
   m_EditorClassIdentifier: Assembly-CSharp::Nainital.CharacterLibrary
   entries:
+  - id: m_player
+    displayName: Player
+    prefab: {fileID: 5580956670525472728, guid: 3316108f881462143ac1d7c559d34fc6, type: 3}
+    bodyType: 0
+    height: 1.74
+    weight: 0
   - id: m_young_puffer
     displayName: Tourist bhaiya
     prefab: {fileID: 2852773272035631749, guid: a10787d65c47eb4499a63d4b6038c8dd, type: 3}

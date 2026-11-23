@@ -272,7 +272,7 @@ namespace Nainital.EditorTools
             {
                 var road = net.roads[r];
                 var q = road.pts;
-                float off0 = road.oneWay != 0 ? 0f : Mathf.Max(1.1f, road.width * 0.25f);
+                float off0 = road.oneWay != 0 && !road.keepLeft ? 0f : Mathf.Max(1.1f, road.width * 0.25f);
                 road.shiftFwd = road.shiftBack = new float[0];
                 foreach (int dir in road.oneWay != 0 ? new[] { road.oneWay } : new[] { 1, -1 })
                 {
@@ -382,6 +382,53 @@ namespace Nainital.EditorTools
             return outList.ToArray();
         }
 
+        // ------------------------------------------------------------------ one-way roads
+        // Mallital's one-way (owner, 24 Nov 2026: "DSA ke aage one way hoga at 29.391984, 79.454147 ..wahan jaake left waale
+        // Jama Masjid se hote huye jayenge or aane waale direct bada bazaar road se ..ye one way SBM toilet tirahe se union
+        // bank tk hota hai"; and the bus line's stops "DSA / Naina Devi gate, Jama Masjid, SBM toilet tiraha, Eco Cave" put
+        // the SBM tiraha PAST Jama Masjid: the tiraha at (-150, 20) where the Kaladhungi road comes in). Two map roads leave
+        // the tiraha at the Mall's Mallital end (-57, 156; his pin is 27 m off it) and meet again up at (-530, 534):
+        // - the one past Jama Masjid (-152, 52): one-way OUT from the Mall end to the SBM tiraha only, two-way beyond it;
+        // - the one past Bada Bazar (-166, 207): one-way BACK, down to the Mall end (all of it).
+        // Found by their ends and what they pass, so a re-run of the map data keeps it.
+        static readonly Vector2 OneWayTiraha = new Vector2(-57f, 156f), OneWayTop = new Vector2(-530f, 534f);
+        static readonly Vector2 JamaMasjidAt = new Vector2(-152.5f, 51.5f), BadaBazarAt = new Vector2(-166f, 207f);
+        static readonly Vector2 SbmTiraha = new Vector2(-150f, 20f);
+
+        /// <summary>The Mallital pair's pieces of `line` (map metres, in its own order): each piece's points and its way
+        /// (+1 along, -1 against, 0 both). Null for every other road (then it is one piece, both ways).</summary>
+        static List<(Vector2[] line, int dir)> OneWayPieces(Vector2[] line)
+        {
+            if (line.Length < 2) return null;
+            Vector2 a = line[0], b = line[line.Length - 1];
+            bool fromTiraha = (a - OneWayTiraha).magnitude < 15f && (b - OneWayTop).magnitude < 15f;
+            bool fromTop = (a - OneWayTop).magnitude < 15f && (b - OneWayTiraha).magnitude < 15f;
+            if (!fromTiraha && !fromTop) return null;
+            bool masjid = Geo.DistanceToPolyline(line, JamaMasjidAt, false) < 40f;
+            bool bazar = Geo.DistanceToPolyline(line, BadaBazarAt, false) < 25f;
+            var outList = new List<(Vector2[] line, int dir)>();
+            if (bazar && !masjid)
+            {
+                outList.Add((line, fromTop ? 1 : -1));   // back: down to the Mall end
+                Debug.Log($"[Nainital] one-way: the road past Bada Bazar (back), {line.Length} points, all of it");
+                return outList;
+            }
+            if (!masjid || bazar) return null;
+            // split at the point nearest the SBM tiraha: the Mall end's side one-way (away from the Mall end), the rest both ways
+            int k = 0;
+            float best = float.MaxValue;
+            for (int i = 0; i < line.Length; i++) { float d = (line[i] - SbmTiraha).sqrMagnitude; if (d < best) { best = d; k = i; } }
+            k = Mathf.Clamp(k, 1, line.Length - 2);
+            var first = new Vector2[k + 1];
+            System.Array.Copy(line, 0, first, 0, k + 1);
+            var rest = new Vector2[line.Length - k];
+            System.Array.Copy(line, k, rest, 0, line.Length - k);
+            if (fromTiraha) { outList.Add((first, 1)); outList.Add((rest, 0)); }       // Mall end first: out = along
+            else { outList.Add((first, 0)); outList.Add((rest, -1)); }                 // top first: the Mall end's piece is last, out = against
+            Debug.Log($"[Nainital] one-way: the road past Jama Masjid split at ({line[k].x:F0}, {line[k].y:F0}) {Mathf.Sqrt(best):F1} m from the SBM tiraha: Mall end -> tiraha one-way, beyond both ways");
+            return outList;
+        }
+
         // ------------------------------------------------------------------ road + footpath graph
         static RoadNetwork BuildRoadNetwork(WorldCtx ctx)
         {
@@ -401,7 +448,9 @@ namespace Nainital.EditorTools
                         for (int i = 0; i + 1 < pts2.Length; i++) length += Vector2.Distance(pts2[i], pts2[i + 1]);
                         if (length > 1f) res = Resample(pts2, length / 3.01f, false);
                     }
-                    // Mall Road is one-way (user, 2026-11-12): Upper Mall towards Mallital, Lower Mall towards Tallital,
+                    // Mall Road is one-way (owner, 24 Nov 2026: "lower mall road is for left line (bus stand to DSA side direction)
+                    // and upper is reverse of that"; until then it was the other way round): Lower Mall towards Mallital,
+                    // Upper Mall towards Tallital,
                     // each driven down the middle of its real deck so cars keep clear of the divider and its posts
                     var deck = r.name == MallUpper ? ctx.mallUpperDrive : r.name == MallLower ? ctx.mallLowerDrive : null;
                     if (deck != null && deck.Count >= 4)
@@ -412,15 +461,27 @@ namespace Nainital.EditorTools
                         // (22 Nov 2026: Upper Mall's ran north-to-south, so "+1" sent both roads to Tallital and no car could
                         // drive up the Mall - the route from the bus stand to the DSA ground went round the far side of the lake)
                         int north = dpts[dpts.Count - 1].z > dpts[0].z ? 1 : -1;
-                        roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = dpts.ToArray(), oneWay = r.name == MallUpper ? north : -north });
+                        roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = dpts.ToArray(), oneWay = r.name == MallLower ? north : -north });
                         onMap.Add(pts2);
                     }
                     else if (res.Count >= 4)
                     {
-                        var p3 = new Vector3[res.Count];
-                        for (int i = 0; i < res.Count; i++) p3[i] = new Vector3(res[i].x, ctx.H(res[i]) + 0.1f, res[i].y);
-                        roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = p3 });
-                        onMap.Add(pts2);
+                        var pieces = OneWayPieces(res.ToArray());
+                        if (pieces == null)
+                        {
+                            var p3 = new Vector3[res.Count];
+                            for (int i = 0; i < res.Count; i++) p3[i] = new Vector3(res[i].x, ctx.H(res[i]) + 0.1f, res[i].y);
+                            roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = p3 });
+                            onMap.Add(pts2);
+                        }
+                        else
+                            foreach (var (pl, dir) in pieces)   // the Mallital one-way: its pieces, each its own road
+                            {
+                                var p3 = new Vector3[pl.Length];
+                                for (int i = 0; i < pl.Length; i++) p3[i] = new Vector3(pl[i].x, ctx.H(pl[i]) + 0.1f, pl[i].y);
+                                roads.Add(new RoadNetwork.Path { name = r.name, width = r.width, pts = p3, oneWay = dir, keepLeft = dir != 0 });
+                                onMap.Add(pl);
+                            }
                     }
                     if (r.name == MallUpper)   // the crowd walks on Upper Mall itself
                         for (float lane = -2.2f; lane <= 2.21f; lane += 0.73f)

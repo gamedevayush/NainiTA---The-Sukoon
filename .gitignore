@@ -75,3 +75,18 @@ Tools/firestation/refs/
 Tools/firestation/_tiles/
 # local editor settings
 .vscode/
+
+# Tools/characters + Tools/animals (24 Nov): kept = scripts, prompts.json, raw2k/ (the Flow 2K images = Tripo inputs),
+# models/*_dec.glb (Tripo originals, decoded), FireTruck_v02.blend, the check sheets. Work files stay local.
+Tools/characters/raw/
+Tools/characters/dl/
+Tools/characters/rigged/
+Tools/characters/models/*.glb
+!Tools/characters/models/*_dec.glb
+Tools/characters/models/*_settings.png
+Tools/characters/models/*_check*.png
+Tools/characters/FireTruck_v01.blend
+Tools/characters/_after_click.png
+Tools/characters/*.log
+Tools/animals/out/*
+!Tools/animals/out/*_sheet.jpg

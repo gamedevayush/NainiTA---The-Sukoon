@@ -19,38 +19,48 @@ namespace Nainital
         /// <summary>Checks (AnimalTest.Report): touches that made one run, cat hops onto walls, cars that waited on a cow.</summary>
         public static int Touches, Hops, CowWaits, Spawned;
 
-        public int maxTotal = 10;
-        public int[] caps = { 4, 5, 3 };   // cow, dog, cat
+        public int maxTotal = 12;
+        public int[] caps = { 4, 5, 3, 4 };   // cow, dog, cat, monkey
         public float spawnMin = 30f, spawnMax = 95f, despawn = 135f;
         /// <summary>A turn about Y for a model that comes in facing the wrong way (set after a look in Play).</summary>
-        public float[] modelYaw = { 0f, 0f, 0f };
+        // 180: rig_animal.py faces the animals -Y in Blender, which lands on -Z in Unity (AnimalImportCheck, 24 Nov 2026)
+        public float[] modelYaw = { 180f, 180f, 180f, 180f };
 
-        static readonly string[] Names = { "cow", "dog", "cat" };
+        static readonly string[] Names = { "cow", "dog", "cat", "monkey" };
+        const int Kinds = 4;
         // coat colours: the textures are a light coat, tinted darker (multiply) for variety
         static readonly Color[][] Coats =
         {
             new[] { Color.white, new Color(0.82f, 0.64f, 0.45f), new Color(0.5f, 0.36f, 0.26f), new Color(0.3f, 0.28f, 0.27f), new Color(0.72f, 0.72f, 0.7f) },
             new[] { Color.white, new Color(0.85f, 0.7f, 0.52f), new Color(0.6f, 0.45f, 0.32f), new Color(0.26f, 0.24f, 0.23f) },
             new[] { Color.white, new Color(1f, 0.82f, 0.6f), new Color(0.72f, 0.72f, 0.76f), new Color(0.4f, 0.38f, 0.37f) },
+            new[] { Color.white, new Color(0.9f, 0.85f, 0.78f), new Color(0.78f, 0.74f, 0.7f) },
         };
         static readonly Vector2 Tallital = new Vector2(760f, -1130f);   // the bus stand / lake end (local x, z)
+        // where the monkey troops live (world.json pois): Naina Devi temple, Snow View, Tiffin Top - x, z, radius, weight
+        static readonly Vector4[] MonkeyHaunts =
+        {
+            new Vector4(-56f, -154f, 160f, 3f), new Vector4(706f, 582f, 220f, 3f), new Vector4(-431f, -762f, 200f, 2f),
+        };
 
         class Spot
         {
             public Vector3 p, along;
             public float half;   // half the road's width (0: a point, a door, a shop front)
-            public float cow, dog, cat;
+            public float cow, dog, cat, monkey;
+            public bool eatery;   // by a restaurant's tables: its dogs sit there, waiting to be fed
         }
 
         readonly List<Spot> spots = new List<Spot>();
         readonly Dictionary<long, List<int>> grid = new Dictionary<long, List<int>>();
         const float Cell = 64f;
         bool built;
-        readonly GameObject[] prefabs = new GameObject[3];
-        readonly Material[] mats = new Material[3];
-        readonly List<Animal>[] active = { new List<Animal>(), new List<Animal>(), new List<Animal>() };
-        readonly Queue<Animal>[] pool = { new Queue<Animal>(), new Queue<Animal>(), new Queue<Animal>() };
+        readonly GameObject[] prefabs = new GameObject[Kinds];
+        readonly Material[] mats = new Material[Kinds];
+        readonly List<Animal>[] active = { new List<Animal>(), new List<Animal>(), new List<Animal>(), new List<Animal>() };
+        readonly Queue<Animal>[] pool = { new Queue<Animal>(), new Queue<Animal>(), new Queue<Animal>(), new Queue<Animal>() };
         readonly List<int> ring = new List<int>();
+        readonly List<Animal> dead = new List<Animal>();
         float timer, buildTry;
         MaterialPropertyBlock mpb;
         static bool warned;
@@ -76,9 +86,9 @@ namespace Nainital
 
         void Start()
         {
-            if (Application.isMobilePlatform) { maxTotal = 6; caps = new[] { 2, 3, 2 }; spawnMax = 75f; despawn = 110f; }
+            if (Application.isMobilePlatform) { maxTotal = 6; caps = new[] { 2, 3, 2, 2 }; spawnMax = 75f; despawn = 110f; }
             var missing = new List<string>();
-            for (int k = 0; k < 3; k++)
+            for (int k = 0; k < Kinds; k++)
             {
                 prefabs[k] = Resources.Load<GameObject>("Animals/" + Names[k]);
                 if (!prefabs[k]) missing.Add(Names[k]);
@@ -140,7 +150,8 @@ namespace Nainital
                     if (Vector2.Distance(new Vector2(p.x, p.z), Tallital) < 450f) cow += 2f;
                     if (mall) cow *= 0.25f;
                     float dog = mall ? 1.5f : r.width <= 5f && d >= 3 ? 1f : 0.25f;
-                    Add(new Spot { p = p, along = (r.pts[i + 1] - r.pts[i - 1]).normalized, half = r.width * 0.5f, cow = cow, dog = dog, cat = 0f });
+                    Add(new Spot { p = p, along = (r.pts[i + 1] - r.pts[i - 1]).normalized, half = r.width * 0.5f, cow = cow, dog = dog, cat = 0f,
+                                   monkey = Haunt(p) + (d <= 2 ? 0.3f : 0f) });
                 }
             }
             if (net.walks != null)
@@ -153,13 +164,38 @@ namespace Nainital
                         Vector3 p = w.pts[i];
                         int d = Density(p);
                         float dog = d < 3 ? 0.3f : n.Contains("crowd") ? 0.8f : n.Contains("Mall") ? 2.5f : 1f;
-                        Add(new Spot { p = p, along = (w.pts[i + 1] - w.pts[i - 1]).normalized, half = Mathf.Max(0.5f, w.width * 0.5f), dog = dog, cat = 0.15f });
+                        Add(new Spot { p = p, along = (w.pts[i + 1] - w.pts[i - 1]).normalized, half = Mathf.Max(0.5f, w.width * 0.5f), dog = dog, cat = 0.15f,
+                                       monkey = Haunt(p) + (n.Contains("Mall") ? 0.3f : 0f) });
                     }
                 }
             foreach (var h in homes) Add(new Spot { p = h, along = Vector3.forward, cat = 1f, dog = 0.1f });
-            foreach (var s in shops) Add(new Spot { p = s, along = Vector3.forward, cat = 1.5f, dog = 0.3f });
-            Debug.Log("[Nainital] animals: " + spots.Count + " spots (" + homes.Length + " doors, " + shops.Length + " shop fronts)");
+            foreach (var s in shops) Add(new Spot { p = s, along = Vector3.forward, cat = 1.5f, dog = 0.3f, monkey = 0.2f + Haunt(s) * 0.5f });
+            // dogs mostly by the restaurants' tables, by the customers (owner, 24 Nov 2026: "mostly kutte restaurant ke seat ke
+            // pass customer ke pass bethe honge..like they feed them"): a spot 1 m out from every seat, weighted well above a road
+            int eat = 0;
+            foreach (var seat in FindObjectsByType<RestaurantSeat>(FindObjectsSortMode.None))
+            {
+                Vector3 out1 = seat.table ? (seat.transform.position - seat.table.position) : -seat.transform.forward;
+                out1.y = 0f;
+                out1 = out1.sqrMagnitude > 1e-4f ? out1.normalized : Vector3.forward;
+                Add(new Spot { p = seat.transform.position + out1 * 0.9f, along = out1, dog = 6f, cat = 0.4f, eatery = true });
+                eat++;
+            }
+
+            Debug.Log("[Nainital] animals: " + spots.Count + " spots (" + homes.Length + " doors, " + shops.Length + " shop fronts, " + eat + " restaurant seats)");
             return true;
+        }
+
+        /// <summary>How much a place is monkey country: the troops' haunts, fading out to their edge.</summary>
+        static float Haunt(Vector3 p)
+        {
+            float w = 0f;
+            foreach (var h in MonkeyHaunts)
+            {
+                float d = Vector2.Distance(new Vector2(p.x, p.z), new Vector2(h.x, h.y));
+                if (d < h.z) w += h.w * (1f - d / h.z);
+            }
+            return w;
         }
 
         void Add(Spot s)
@@ -188,13 +224,14 @@ namespace Nainital
             }
             Vector3 c = p.transform.position;
             int total = 0;
-            for (int k = 0; k < 3; k++)
+            for (int k = 0; k < Kinds; k++)
             {
                 var list = active[k];
                 for (int i = list.Count - 1; i >= 0; i--)
                 {
                     var a = list[i];
                     if (!a) { list.RemoveAt(i); continue; }
+                    if (a.Dead) { list.RemoveAt(i); dead.Add(a); continue; }   // a body: off the count, cleared below
                     float d = Vector3.Distance(a.transform.position, c);
                     if (d > despawn * 1.4f || (d > despawn && !Visible(cam, a.transform.position)) || a.transform.position.y < c.y - 300f)
                     {
@@ -204,6 +241,20 @@ namespace Nainital
                     }
                 }
                 total += list.Count;
+            }
+            // the dead lie where they fell until out of sight (or 3 min), then go (never back to the pool: the bones carry
+            // rigid bodies now)
+            for (int i = dead.Count - 1; i >= 0; i--)
+            {
+                var a = dead[i];
+                if (!a) { dead.RemoveAt(i); continue; }
+                var hp = a.Corpse && a.Corpse.Hips ? a.Corpse.Hips.position : a.transform.position;
+                float age = a.Corpse ? Time.time - a.Corpse.DiedAt : 999f;
+                if (age > 180f || (age > 20f && !Visible(cam, hp)) || Vector3.Distance(hp, c) > despawn * 1.4f)
+                {
+                    Destroy(a.gameObject);
+                    dead.RemoveAt(i);
+                }
             }
             if (total >= maxTotal) return;
             TrySpawn(c, cam, total);
@@ -221,7 +272,7 @@ namespace Nainital
             ring.Clear();
             int r = Mathf.CeilToInt(spawnMax / Cell);
             int cx = Mathf.FloorToInt(c.x / Cell), cz = Mathf.FloorToInt(c.z / Cell);
-            var avail = new float[3];
+            var avail = new float[Kinds];
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++)
                 {
@@ -232,25 +283,25 @@ namespace Nainital
                         float d = Vector3.Distance(s.p, c);
                         if (d < spawnMin || d > spawnMax || Mathf.Abs(s.p.y - c.y) > 40f) continue;
                         ring.Add(i);
-                        avail[0] += s.cow; avail[1] += s.dog; avail[2] += s.cat;
+                        avail[0] += s.cow; avail[1] += s.dog; avail[2] += s.cat; avail[3] += s.monkey;
                     }
                 }
             if (ring.Count == 0) return;
             float hour = TownClock.Hour;
             bool night = hour < 5.5f || hour > 21.5f;
             // which kind: the one furthest under its share where this part of town has places for it
-            var want = new float[3];
+            var want = new float[Kinds];
             float sum = 0f;
-            for (int k = 0; k < 3; k++)
+            for (int k = 0; k < Kinds; k++)
             {
                 if (!prefabs[k] || active[k].Count >= caps[k] || avail[k] < 0.5f) continue;
-                want[k] = (caps[k] - active[k].Count) * Mathf.Clamp01(avail[k] / 4f) * (k == 0 && night ? 0.6f : 1f);
+                want[k] = (caps[k] - active[k].Count) * Mathf.Clamp01(avail[k] / 4f) * (k == 0 && night ? 0.6f : k == 3 && night ? 0.1f : 1f);   // monkeys sleep at night
                 sum += want[k];
             }
             if (sum <= 0f) return;
             float x = Random.value * sum;
             int kind = 0;
-            for (; kind < 2; kind++) { if (x < want[kind]) break; x -= want[kind]; }
+            for (; kind < Kinds - 1; kind++) { if (x < want[kind]) break; x -= want[kind]; }
 
             for (int attempt = 0; attempt < 8; attempt++)
             {
@@ -259,14 +310,14 @@ namespace Nainital
                 Vector3 pos = s.p;
                 if (kind == 0 && s.half > 0f)   // a cow: anywhere across the road, often right in the lane
                     pos += Vector3.Cross(Vector3.up, s.along).normalized * Random.Range(-s.half + 0.5f, s.half - 0.5f);
-                else if (kind == 2 && s.half == 0f)   // a cat by a door / shop: a step to one side
+                else if ((kind == 2 || kind == 3) && s.half == 0f)   // a cat / monkey by a door / shop: a step to one side
                 {
                     Vector2 o = Random.insideUnitCircle.normalized * Random.Range(0.6f, 1.4f);
                     pos += new Vector3(o.x, 0f, o.y);
                 }
                 if (Vector3.Distance(pos, c) < 45f && Visible(cam, pos)) continue;
                 if (!Ground(pos, out pos)) continue;
-                if (TooClose(pos, kind == 1 ? 3f : 7f)) continue;
+                if (TooClose(pos, kind == 1 || kind == 3 ? 3f : 7f)) continue;
                 var a = Spawn((AnimalKind)kind, pos, s);
                 // street dogs come in twos and threes
                 if (a && kind == 1 && Random.value < 0.35f && active[1].Count < caps[1] && total + 1 < maxTotal)
@@ -274,6 +325,13 @@ namespace Nainital
                     Vector2 o = Random.insideUnitCircle.normalized * Random.Range(1.5f, 3f);
                     if (Ground(pos + new Vector3(o.x, 0f, o.y), out var q)) Spawn(AnimalKind.Dog, q, s);
                 }
+                // monkeys come in troops of two to four
+                if (a && kind == 3)
+                    for (int m = Random.Range(1, 4); m > 0 && active[3].Count < caps[3] && total + active[3].Count < maxTotal; m--)
+                    {
+                        Vector2 o = Random.insideUnitCircle.normalized * Random.Range(1f, 3.5f);
+                        if (Ground(pos + new Vector3(o.x, 0f, o.y), out var q)) Spawn(AnimalKind.Monkey, q, s);
+                    }
                 return;
             }
         }
@@ -284,7 +342,7 @@ namespace Nainital
             foreach (int i in ring)
             {
                 var s = spots[i];
-                float w = kind == 0 ? s.cow : kind == 1 ? s.dog : s.cat;
+                float w = kind == 0 ? s.cow : kind == 1 ? s.dog : kind == 2 ? s.cat : s.monkey;
                 if (w <= 0f) continue;
                 if (x < w) return s;
                 x -= w;
@@ -329,8 +387,9 @@ namespace Nainital
             f.y = 0f;
             if (f.sqrMagnitude > 0.01f) a.transform.rotation = Quaternion.LookRotation(f.normalized);
             Tint(a, kind);
+            a.beggar = kind == AnimalKind.Dog && s.eatery;
             // a cow keeps to its stretch of road, a dog its lane, a cat its doorstep
-            a.Begin(kind, pos, kind == AnimalKind.Cow ? 10f : kind == AnimalKind.Dog ? 8f : 2.5f);
+            a.Begin(kind, pos, a.beggar ? 1.5f : kind == AnimalKind.Cow ? 10f : kind == AnimalKind.Dog ? 8f : kind == AnimalKind.Monkey ? 6f : 2.5f);
             active[k].Add(a);
             Spawned++;
             return a;
@@ -352,6 +411,7 @@ namespace Nainital
             cc.slopeLimit = 55f;
             cc.skinWidth = Mathf.Min(0.08f, spec.radius * 0.25f);
             go.AddComponent<CharacterMotor>();
+            go.AddComponent<Health>();   // before Animal: its Awake hooks the hurt / died events
             var model = Instantiate(prefabs[k], go.transform, false);
             model.name = "Model";
             model.transform.localPosition = Vector3.zero;
@@ -480,8 +540,8 @@ namespace Nainital
             var sb = new System.Text.StringBuilder();
             var p = PlayerController.Instance;
             Vector3 c = p ? p.transform.position : Vector3.zero;
-            sb.Append($"animals: spots {spots.Count}, spawned {Spawned}, touches {Touches}, hops {Hops}, cow waits {CowWaits}; models ");
-            for (int k = 0; k < 3; k++) sb.Append(Names[k]).Append(prefabs[k] ? " ok " : " MISSING ");
+            sb.Append($"animals: spots {spots.Count}, spawned {Spawned}, touches {Touches}, hops {Hops}, cow waits {CowWaits}, killed {AnimalRagdoll.Killed}, bodies {dead.Count}; models ");
+            for (int k = 0; k < Kinds; k++) sb.Append(Names[k]).Append(prefabs[k] ? " ok " : " MISSING ");
             foreach (var list in active)
                 foreach (var a in list)
                 {

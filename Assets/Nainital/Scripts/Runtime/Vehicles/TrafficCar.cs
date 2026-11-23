@@ -338,7 +338,7 @@ namespace Nainital
             d.y = 0;
             if (d.sqrMagnitude < 1e-4f) return pts[i];
             Vector3 left = Vector3.Cross(d.normalized, Vector3.up);   // Unity: forward x up = left
-            float off = net.roads[road].oneWay != 0 ? 0f : Mathf.Max(1.1f, net.roads[road].width * 0.25f);   // one-way: down the middle
+            float off = net.roads[road].oneWay != 0 && !net.roads[road].keepLeft ? 0f : Mathf.Max(1.1f, net.roads[road].width * 0.25f);   // one-way: down the middle (the Mallital pair: its left lane)
             return pts[i] + left * (off + net.roads[road].Shift(dir, i) + pull * 1.3f - passOff);   // pull: over to the left for a siren (EmergencyLights); passOff: round a standing vehicle
         }
 

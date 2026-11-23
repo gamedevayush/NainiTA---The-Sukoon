@@ -108,6 +108,36 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 ## Work in progress (last updated 21 Nov 2026, afternoon)
 
+### 24 Nov 2026 (01:30) - animals, fire truck, story characters (details: docs/TRACKER.md "24 Nov")
+
+- Cow, dog, cat, monkey: Tripo models rigged by `Tools/animals/rig_animal.py`, in `Assets/Nainital/Animals/Resources/Animals`;
+  monkeys added to the game (Naina Devi / Snow View / Tiffin Top troops). Not yet checked in Play: `call AnimalTest.Spawn`.
+- Fire truck `truck_fire` in the game (the 101 call), from `Tools/characters/FireTruck_v02.blend`; not yet seen in Play.
+- All 12 story characters rigged (Characters/Models: f_ladki, m_player, f_mummy, m_papa, m_uncle, m_dost, f_dost_gf,
+  m_doctor, m_landlord, m_hotel, m_rental, m_rto), Humanoid avatars valid; not yet wired into the story.
+
+### PENDING - next session starts here (24 Nov 2026, 03:45; owner: "testing doosre PC pe krlunga")
+
+Nothing of 24 Nov has been tried in Play. After pulling: Nainital > 2. Build World (the one-way pieces, barricades and
+the road network are built). Then test, in this order (docs/TRACKER.md "24 Nov" has the details):
+1. Buses (BusService): stand at Tallital bus stand - a bus leaves every 5 min, the safari every 10; LED boards scroll
+   and read right; ride the safari (E at the door): "<stop> aa gaya hai" ~4 s before each stop, "Agla stop ..." as it
+   moves off, Hindi voice + chime; it never turns the wrong way down a one-way; `call BusServiceTest.Report` in Play lists
+   the trips. Safari route detours near Eco Cave (side loop) - check, adjust BusLines stops if wrong.
+2. Traffic: Lower Mall bus stand -> DSA only, Upper Mall back; Mallital one-way (out past Jama Masjid to the SBM tiraha,
+   back by Bada Bazar); the two barricades block only the wrong-way half.
+3. Animals: `call AnimalTest.Spawn`; punch / kick / car them (they bolt, die as ragdolls), horn (they get off the road),
+   dogs by restaurant tables, their sounds.
+4. Player = m_player: outfits (shop), seats in vehicles, ragdoll.
+5. Fire truck (truck_fire) on a 101 call; the 12 story characters are in Characters/Models (not wired to the story).
+
+### 24 Nov 2026 (03:00) - traffic directions, animals hurt / killed, new player body (docs/TRACKER.md "24 Nov")
+
+- Lower Mall = bus stand -> DSA, Upper Mall = back; Mallital one-way pair (out past Jama Masjid, back past Bada Bazar)
+  with one-lane barricades + ONE WAY boards at the exits. Not yet driven in Play.
+- Animals flee when hit, die as ragdolls when hit hard; get off the road on a horn; dogs sit by restaurant tables; their
+  calls / cries (Mixkit). The player is the new Tripo model `m_player` (outfits remade).
+
 ### PENDING - next session starts here (22 Nov 2026, 22:15; owner: "pending me daaldo ... next session me krenge")
 
 1. **Physics: a bike shoves a bus backwards** (owner: "ek bike waala meri bus ko hi dhakka lgaate huye peeche leaaya ...

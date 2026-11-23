@@ -26,7 +26,8 @@ namespace Nainital.EditorTools
             var cow = m.SpawnAt(AnimalKind.Cow, at + f * 9f);
             var dog = m.SpawnAt(AnimalKind.Dog, at + f * 6f + Vector3.Cross(Vector3.up, f) * 1.5f);
             var cat = m.SpawnAt(AnimalKind.Cat, at + f * 4f - Vector3.Cross(Vector3.up, f) * 1.2f);
-            Debug.Log($"[Nainital] animals spawned: cow {(cow ? "ok" : "no model")}, dog {(dog ? "ok" : "no model")}, cat {(cat ? "ok" : "no model")}");
+            var monkey = m.SpawnAt(AnimalKind.Monkey, at + f * 5f - Vector3.Cross(Vector3.up, f) * 2.6f);
+            Debug.Log($"[Nainital] animals spawned: cow {(cow ? "ok" : "no model")}, dog {(dog ? "ok" : "no model")}, cat {(cat ? "ok" : "no model")}, monkey {(monkey ? "ok" : "no model")}");
         }
 
         static Animal Nearest()

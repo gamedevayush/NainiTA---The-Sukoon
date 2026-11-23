@@ -171,6 +171,19 @@ MonoBehaviour:
     clipDoors: []
     maxSpeed: 7
     mass: 500
+  - name: truck_fire
+    prefab: {fileID: 2754844459145743885, guid: 6b95ceb50d37f5e4db48bdd7f72a7305, type: 3}
+    size: {x: 2.6715088, y: 3.1999998, z: 6.2631464}
+    type: 5
+    taxi: 0
+    weight: 0
+    tint: 0
+    wheelRadius: 0
+    parts: 1
+    doorClip: {fileID: 0}
+    clipDoors: []
+    maxSpeed: 0
+    mass: 9500
   - name: truck_light
     prefab: {fileID: 7940751222217088357, guid: 381adb5bc8f19fe4a90a6e68b1e3159f, type: 3}
     size: {x: 2.3373938, y: 2.5000002, z: 5.9220705}
