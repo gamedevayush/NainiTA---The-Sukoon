@@ -365,6 +365,22 @@ namespace Nainital
         public Vector3 SeatWorld(int i) => SeatData(i) is var s && s != null ? Frame.TransformPoint(s.pos) : transform.position;
         public Quaternion SeatRotWorld(int i) => SeatData(i) is var s && s != null ? Frame.rotation * Quaternion.Euler(s.euler) : transform.rotation;
         public SeatPose PoseOf(int i) => SeatData(i) is var s && s != null ? s.pose : SeatPose.Sit;
+        /// <summary>Nobody sits on seat n.</summary>
+        public bool IsFree(int i) => occupant != null && i >= 0 && i < occupant.Length && !occupant[i];
+
+        /// <summary>Seat n's row counted from the back (0 = the last row): the passenger seats grouped by how far forward they
+        /// sit, a new row past a 0.35 m gap. -1: the driver's seat / no setup.</summary>
+        public int RowFromBack(int i)
+        {
+            if (!HasSetup || i <= 0 || i >= SeatCount) return -1;
+            float zi = SeatData(i).pos.z;
+            var zs = new List<float>();
+            for (int k = 1; k < SeatCount; k++) zs.Add(SeatData(k).pos.z);
+            zs.Sort();
+            int row = 0;
+            for (int k = 1; k < zs.Count && zs[k] <= zi + 1e-4f; k++) if (zs[k] - zs[k - 1] > 0.35f) row++;
+            return row;
+        }
         /// <summary>It has doors that open (a car, a bus; an auto / e-rickshaw has none): getting in is the "Entering Car" clip.</summary>
         public bool HasDoors => doors.Count > 0;
 
@@ -453,6 +469,7 @@ namespace Nainital
             ik.footRight = s.feet ? footR[i] : null;
             ik.enabled = true;
             occupant[i] = person;
+            RideSway.On(person, transform);   // moved by the ride: braking, bends, bumps, and their own sway
             return ik;
         }
 
@@ -460,6 +477,7 @@ namespace Nainital
         public void Leave(Transform person)
         {
             if (!person || occupant == null) return;
+            RideSway.Off(person);
             for (int i = 0; i < occupant.Length; i++) if (occupant[i] == person) occupant[i] = null;
             var ik = person.GetComponent<HandIK>();
             if (ik) { ik.left = ik.right = ik.footLeft = ik.footRight = null; ik.maxBend = -1f; ik.enabled = false; }

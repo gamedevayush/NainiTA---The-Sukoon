@@ -24,6 +24,7 @@ namespace Nainital
             GameAssets.Font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             GameState.Load();
             Time.timeScale = 1f;
+            CheatCodes.GameSpeed = 1f;   // a new game at the normal pace (TEZ / DHEEMA)
             Minimap.MapTexture = minimap;
             Minimap.WorldSize = worldSize;
             Minimap.WorldCx = worldCx;

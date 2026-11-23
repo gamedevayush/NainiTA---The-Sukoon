@@ -214,7 +214,8 @@ namespace Nainital
                 int k = i;
                 B(wn[i], i % 2 == 0 ? -150 : 150, -176 - (i / 2) * 82, 280, () => { if (ws) { ws.autoCycle = false; ws.Set((WeatherSystem.Kind)k); } }, ws && !ws.autoCycle && (int)ws.current == i);
             }
-            B("Apne aap badle", 0, -340, 580, () => { if (ws) ws.autoCycle = true; }, ws && ws.autoCycle);
+            B("Baarish + Kohra", -150, -340, 280, () => { if (ws) { ws.autoCycle = false; ws.Set(WeatherSystem.Kind.RainFog); } }, ws && !ws.autoCycle && ws.current == WeatherSystem.Kind.RainFog);
+            B("Apne aap badle", 150, -340, 280, () => { if (ws) ws.autoCycle = true; }, ws && ws.autoCycle);
             string now = dn ? $"{Mathf.FloorToInt(dn.timeOfDay):00}:{Mathf.FloorToInt(dn.timeOfDay % 1f * 60f):00}" : "--";
             Head(Loc.T("Samay:") + " " + now + (dn && dn.paused ? "  " + Loc.T("(ruka hua)") : ""), -394);
             (string n, float h)[] presets = { ("Subah 6", 6f), ("Dopahar 12", 12f), ("Shaam 5:30", 17.5f), ("Raat 9", 21f), ("Aadhi raat", 0.05f), ("Bhor 4:30", 4.5f) };
@@ -335,7 +336,7 @@ namespace Nainital
             if (cheatPanel && cheatPanel.activeSelf) { Close(cheatPanel); return; }
             if (!cheatPanel)
             {
-                var box = Panel("CheatPanel", new Vector2(640, 950), "Cheats");
+                var box = Panel("CheatPanel", new Vector2(640, 1130), "Cheats");
                 cheatPanel = box.parent.gameObject;
                 float y = -110;
                 void B(string label, string code)
@@ -352,6 +353,8 @@ namespace Nainital
                 B("JEEP  -  Bolero / Scorpio", "JEEP");
                 B("POLICE  -  Ek star aur", "POLICE");
                 B("SHANTI  -  Police hatao", "SHANTI");
+                B("TEZ  -  Game ki speed +", "TEZ");
+                B("DHEEMA  -  Game ki speed -", "DHEEMA");
                 hud.Btn("Band karo", box, new Vector2(0.5f, 0), new Vector2(0, 60), new Vector2(300, 66), () => Close(cheatPanel), 28);
             }
             Open(cheatPanel);

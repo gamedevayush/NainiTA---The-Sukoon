@@ -64,14 +64,26 @@ namespace Nainital
         /// <summary>A townsperson in seat n of a vehicle of the unbranded set (driver, rider, passenger, pillion): a
         /// character measured to fit that seat (VehicleSetup.PickLook: under its roof, hands and feet on their targets),
         /// from the pool when one wears that look, else a new one. Not part of the crowd count.</summary>
-        public NpcWalker MakeSeated(VehicleParts parts, int seat)
+        public NpcWalker MakeSeated(VehicleParts parts, int seat, bool? female = null, bool grownOnly = false)
         {
             var s = parts.SeatData(seat);
             if (s == null) return null;
             bool wheel = s.pose == SeatPose.Drive || s.pose == SeatPose.Ride;
-            // at a wheel mostly men (a scooty: a third women); passengers like the crowd
+            // at a wheel mostly men (a scooty: a third women); passengers like the crowd (or as asked: a bus of the owner's ride)
             float pf = !wheel ? 0.45f : (parts.model ?? "").Contains("scooty") ? 0.35f : 0.08f;
-            var look = VehicleSetup.PickLook(parts.model, seat, Random.value < pf);
+            var look = VehicleSetup.PickLook(parts.model, seat, female ?? Random.value < pf, false, grownOnly);
+            return FromPool(look, w => w.EnterSeat(parts, seat));
+        }
+
+        /// <summary>Someone standing in a vehicle (a bus conductor at the door): `local` / `rot` in `vehicle`'s space.</summary>
+        public NpcWalker MakeStanding(VehicleParts parts, Transform vehicle, Vector3 local, Quaternion rot, bool female)
+        {
+            var look = VehicleSetup.PickLook(parts ? parts.model : null, 1, female, false, true);   // a grown man / woman
+            return FromPool(look, w => w.EnterStanding(vehicle, local, rot));
+        }
+
+        NpcWalker FromPool(CharacterLibrary.Entry look, System.Action<NpcWalker> place)
+        {
             NpcWalker w = null;
             if (look != null)
             {
@@ -86,7 +98,7 @@ namespace Nainital
             if (!w) w = Create(look);
             w.ResetState();
             w.gameObject.SetActive(true);
-            w.EnterSeat(parts, seat);
+            place(w);
             return w;
         }
 

@@ -28,6 +28,8 @@ Shader "Nainital/Sky"
             float4 _SunDir, _MoonDir;
             float _NightFactor;
             float _CloudCover;   // global, 0 = few clouds, 1 = overcast (WeatherSystem); unset = 0
+            float _Overcast;     // global (DayNightCycle, from WeatherSystem.Overcast): 1 = a grey sheet, no sun disc
+            float _SkyFog;       // global: in a fog the whole sky is the fog's colour, not only its horizon
 
             struct Attributes { float4 positionOS : POSITION; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 dir : TEXCOORD0; };
@@ -84,7 +86,7 @@ Shader "Nainital/Sky"
 
                 // sun disc + halo
                 float sd = dot(d, sun);
-                float sunVis = saturate(sun.y * 8.0 + 0.6) * day;
+                float sunVis = saturate(sun.y * 8.0 + 0.6) * day * (1.0 - saturate(_Overcast * 1.2));   // behind the cloud
                 col += float3(1.0, 0.9, 0.72) * (smoothstep(0.99955, 0.99975, sd) * 18.0 + pow(saturate(sd), 400.0) * 1.2) * sunVis;
 
                 // moon disc + glow
@@ -116,8 +118,15 @@ Shader "Nainital/Sky"
                 float tw = 0.55 + 0.45 * sin(_Time.y * (1.5 + r * 7.0) + r * 60.0);
                 col += star * tw * saturate(d.y * 4.0) * _NightFactor * 1.6;
 
-                // below the horizon: valley haze
+                // overcast (owner, 23 Nov 2026: "baarish me bhi dhoop hai..mausam grey hojaata hai"): the blue goes, a grey
+                // sheet a little darker overhead than at the horizon, the cloud's texture faintly through it
+                float lum = dot(col, float3(0.3, 0.59, 0.11));
+                float3 sheet = lerp(float3(0.52, 0.54, 0.57), float3(0.66, 0.68, 0.7), hb) * lerp(0.05, 1.0, day) * (0.85 + lum * 0.3);
+                col = lerp(col, sheet, saturate(_Overcast));
+
+                // below the horizon: valley haze; in a fog the whole sky ("fog sirf pahaad tk hai..skybox react nhi krrha")
                 col = lerp(col, unity_FogColor.rgb, saturate(-d.y * 6.0));
+                col = lerp(col, unity_FogColor.rgb, saturate(_SkyFog));
                 return half4(col, 1.0);
             }
             ENDHLSL

@@ -63,7 +63,7 @@ namespace Nainital
             var p = PlayerController.Instance;
             if (p && p.CurrentMode == PlayerController.Mode.Normal) Place(p, d.pos, d.yaw);
             if (DayNightCycle.Instance) { DayNightCycle.Instance.timeOfDay = d.hour; DayNightCycle.Instance.Apply(); }
-            if (WeatherSystem.Instance) WeatherSystem.Instance.current = (WeatherSystem.Kind)Mathf.Clamp(d.weather, 0, 3);   // (no toast)
+            if (WeatherSystem.Instance) WeatherSystem.Instance.current = (WeatherSystem.Kind)Mathf.Clamp(d.weather, 0, 4);   // (no toast; 4 = rain in fog)
         }
 
         public static void Place(PlayerController p, Vector3 pos, float yaw)

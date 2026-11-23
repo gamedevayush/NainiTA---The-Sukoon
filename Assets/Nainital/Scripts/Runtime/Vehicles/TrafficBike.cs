@@ -237,7 +237,11 @@ namespace Nainital
             // a slower one ahead (a bus, an auto, a truck): past it on the right when nothing is coming in that space for
             // ~3 s of closing (owner, 23 Nov 2026: "aage waala uske comparison me hlke hain or saamne se koi vehicle nhi aara
             // to overtake krle")
-            if (blocker && !passing && !TrafficCar.WontMove(blocker) && net.roads[road].width >= 5f)
+            var sig = TrafficSignals.Instance;
+            // a red light (TrafficSignals): the front wheel stops at its line
+            if (sig && sig.HoldAt(pos + bike.Forward * (bike.length * 0.5f), bike.Forward, speed, out float sigD))
+                target = Mathf.Min(target, Mathf.Sqrt(2f * 3f * Mathf.Max(0f, sigD - 0.8f)));
+            if (blocker && !passing && !TrafficCar.WontMove(blocker) && net.roads[road].width >= 5f && !(sig && sig.Near(pos, 50f)))
             {
                 float leadV = Vector3.Dot(blocker.linearVelocity, bike.Forward);
                 slowT = leadV < cruise - 2f && leadV < cruise * 0.8f ? slowT + dt : 0f;

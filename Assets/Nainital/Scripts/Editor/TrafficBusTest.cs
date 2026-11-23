@@ -123,8 +123,14 @@ namespace Nainital.EditorTools
             if (Jetpack.Flying) Jetpack.Toggle(pc);
             var seatIn = go.AddComponent<BusPassenger>();
             Physics.SyncTransforms();
-            bool aboard = seatIn.SeatNow(pc);
-            Out($"the player {(aboard ? "sits in it as a passenger" : "could NOT be seated (no free seat / no setup) - flying over it")}");
+            // his seat at the back on the left, a girl beside him and the whole bus women and girls, a man driving and a man
+            // as the conductor (owner, 23 Nov 2026: "mujhe left side bethaao peeche..saath me ldki and poori bus me ldkiya..
+            // bus ke driver or conductor male")
+            // (then, 23 Nov: "sab (not old or kid) ldkiya in bus..and last row khaali...mujhe second last rkhna")
+            bool aboard = false;
+            bus.FillForRide(() => aboard = seatIn.SeatNow(pc, 1), true, true);
+            if (!aboard) aboard = seatIn.SeatNow(pc, 1);
+            Out($"the player {(aboard ? "sits in it as a passenger (second-last row, left)" : "could NOT be seated (no free seat / no setup) - flying over it")}");
             if (!aboard && !Jetpack.Flying) Jetpack.Toggle(pc);
             if (ThirdPersonCamera.Instance) ThirdPersonCamera.Instance.SetOverride(go.transform, 17f);
 

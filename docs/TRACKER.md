@@ -692,3 +692,77 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
     +-165 deg / -70..60 deg with the mouse or a drag, turning with the vehicle; near clip 0.04 m. Checked: forward,
     left, right, back through the bus windows (`VehicleTest.Cam`, Shots/play_fpv_*).
   - HUD: a passenger (Mount) shows only Use / Camera now (no fight buttons); on a bike the jump button reads Brake.
+- 23 Nov (00:15-00:35) owner: "traffic light lgaani pdengi jahan atleast 3 bhi major roads hain...vrna jam bahut tgda
+  lgra"; "naina devi ka jo mall road gate hai..., bus stand wala chouraha, or bhi agar kuch major ho to...ek perfect se
+  lights lgaana".
+  - New `Vehicles/TrafficSignals.cs`, built by TrafficManager when the game starts (no Build World): junctions from
+    `RoadNetwork.meetings` grouped within 32 m, arms = roads leaving the meeting point (one per 30 deg), kept with 3+
+    main-road arms (>= 6 m wide, a road counted twice at most - a hairpin of road #7 read as four arms). 10 junctions:
+    Mallital gate (88,114: Mall Road, Upper Mall, Colvin Road), the Tallital / bus stand chauraha (822,-1140, its three
+    meetings one junction, stop lines 29 m out round the island), (-149,21), (-530,534), (-569,560), (-1241,-155),
+    (0,865), (737,352), (-1147,878), (-638,1393). Each incoming arm: a stop line (white strip on the ground) and a post
+    on the drivers' left (yellow-black band, yellow board, black housing, red / amber / green lamps with visors, the lit
+    one emissive). One arm green at a time, vehicle-actuated (an empty arm is skipped; green 6-16 s, ends early once its
+    arm is empty and somebody waits elsewhere), amber 3 s, all red 2.5 s. TrafficCar / TrafficBike stop their nose at
+    the line (`HoldAt`, eased at 3 m/s2; amber: go on if it cannot stop comfortably); no overtaking within 60 / 50 m of a
+    signalled junction. The player is not held / fined (not asked yet).
+  - Checked from the drivers' side (`VehicleTest.CamPost`, Shots/play_p_*): Mallital (the Naina Devi gate behind),
+    Tallital round the police island. Run 5 of the bus test (with the lights) started 00:32.
+- 23 Nov (00:40-01:10): the owner's ride, the menu's bus ride, the High grade.
+  - Run 6 (lights on, ride seating): through the Mallital junction in normal flow (276 s, 1793 m on road #28 past
+    (88,114)) where runs 1, 3 and 4 had stood for minutes - stopped there by the owner's Play stop, not a fail.
+  - The ride bus (`TrafficCar.FillForRide`): his seat first out of an empty bus (BusPassenger.SeatNow, row 1 = the
+    second-last row, the left window seat), then grown women on every other seat but the last row (`PickLook grownOnly`:
+    no Girl / OldWoman), a man at the wheel, a man standing just inside the door as the conductor
+    (`PedestrianManager.MakeStanding`, `NpcWalker.EnterStanding`). `VehicleParts.RowFromBack` (0.35 m z gaps), `IsFree`.
+  - Menu: HUD tray "Bus Sawari" -> `Vehicles/BusTour.cs`: the bus test's route (bus stand -> Mall Road -> Eco Cave Park
+    -> Lovers Point -> Khurpatal) planned in the game (`World/RoadPlanner.cs`, TrafficLab.Plan now calls it), stops
+    called out, "Khurpatal aa gaya! E se utro" at the end, the bus goes away once he is off and 120 m from it. Checked:
+    7 roads planned, 12 women aboard, the last row empty (looking back in first person), the bus held at the Tallital red.
+  - High graphics (GameSettings.HighGrade): a global volume at priority 0.5 only on High - colour adjustments (exposure
+    +0.42, contrast 18, saturation 13), lift / gamma / gain, split toning, white balance +5, shadows / midtones /
+    highlights (warm light, neutral shadows), high-quality bloom, vignette 0.22, motion blur medium. AO: PC_Renderer's
+    SSAO (on at High, PC) raised to intensity 0.85, radius 0.45, high samples. First try read as dusk at 11 am (three
+    blue shadow tints on top of the SSAO) - retuned; compare Shots/play_q_med*/high*. Phones: the grade yes, SSAO no.
+- 23 Nov (01:10-01:25) owner: "jab bus chlri ho to shake wgera aaye FPV camera ko hlke ya tej based on road and speed";
+  "mujhe desktop view do editor me ...mobile view nhi".
+  - First-person ride shake (`ThirdPersonCamera.Ride`): a hum growing with speed (x2.4 off the network's roads, bike
+    x1.6, a heavy vehicle x0.75) + jolts from the body's measured vertical acceleration and pitch / roll rate; the view
+    leans 70% with the vehicle. Measured on the bus tour (`VehicleTest.ShakeLog`, on the road, 6.8 m/s mean, 9.3 most):
+    first try 0.38 cm / 0.19 deg mean and no jolt at all in 25 s (thresholds too high for a bus on a road) -> retuned:
+    0.71 cm / 0.35 deg mean, 1.1 cm / 0.64 deg most, small jolts registering.
+  - `PlayTest.Begin` is the desktop game now (no touch HUD, a 1920 x 1080 Game view); `PlayTest.BeginPhone` the phone's.
+- 23 Nov (01:25-01:40) owner: "andr ka wide angle...sab hlke hlke hilte rhe log..brake pe gardan aage...mod pe react";
+  "paas me blur hora hai ...like lens"; "speed ka cheat..+ or - dono"; "bus ke radio pe...bus.mp3...doppler effect na dena".
+  - First person: 92 deg field of view (wide angle).
+  - `Characters/RideSway.cs` (added by VehicleParts.Sit, off at Leave; order 60: after the rig, before the camera and
+    the hand IK): the vehicle's smoothed acceleration felt as inertia through a spring (braking -> forward, pulling away
+    -> back, a bend -> out of it, a bump -> the head drops), the same for everyone aboard, plus each one's slow own sway
+    (waist, neck, looking about); never piles up on frames the animator skips. Bus tour, 45 s (`VehicleTest.SwayLog`):
+    14 people, most 15 deg forward (braking 11 m/s2 at the lights), 10 back, 7 to the side. Owner: checked, fine.
+  - The near blur was URP camera motion blur (it takes the world as standing still: the moving bus's inside smeared):
+    `ThirdPersonCamera.ClearRide` - a priority-10 volume, motion blur 0, while he rides / rows.
+  - Cheats TEZ / DHEEMA (CheatCodes, the cheat panel): the game's pace 0.25 / 0.5 / 1 / 1.5 / 2 / 3 / 4 x
+    (Time.timeScale; the pause menu restores it, a new game resets it). Checked 1 -> 3 -> 0.5.
+  - `Audio/BusRadio.cs`: the bus he rides plays the player's OWN file named bus.mp3 (PC Documents\NainiTA\bus.mp3,
+    phones the game's persistentDataPath) - never in the game or the repo (the owner has no rights to his song); looping,
+    from the front, 3D fade outside, Doppler 0; a hint on screen where to put it when missing. Tested with the game's own
+    synth track converted to mp3 (101 s, loaded and played), the test file deleted afterwards.
+  - 01:45 owner: "3d sound chahiye jo driver ke pass ho": BusRadio is fully 3D now (spatial blend 1, spread 30,
+    logarithmic from 2.5 m, Doppler 0, volume 0.9) on the dashboard in front of the driver's seat (setup seat 0 + 1.15 m
+    up, 0.65 m ahead): on the tour bus at (0.75, 2.17, 3.44) - the right-hand (driver's) side, near the front.
+- 23 Nov (01:40-02:10) weather + the ride. Owner: "baarish ptli kro..bahut moti hai"; "chlte game pe baarish or heavy fog";
+  "baarish me bhi dhoop hai hlki..balki mausam grey hojaata hai..fog sirf pahaad tk hai..skybox react nhi krrha";
+  "isko bus journey me connect krdiya?"; "bus ab start hogi BD pandey se"; "random jagah se chlega".
+  - Rain drops 4.5 -> 1.5 cm, fainter, longer streaks, more of them (WeatherSystem).
+  - New weather RainFog ("Baarish + Kohra": the Mausam panel, cheats TOOFAN / SAAF): rain with the fog ~120 m (Fog: 280).
+    The weather-name / temperature lists (HUD, FrontEnd, Phone) had 4 entries - IndexOutOfRange spam - now 5.
+  - `WeatherSystem.Overcast` (cloudy 0.55, fog 0.8, rain 1): the sun 8% in rain, shadow strength -> 0.08, grey sun colour,
+    a grey trilight ambient, grey fog colour (DayNightCycle); Sky.shader `_Overcast` greys the whole sky and hides the
+    sun disc, `_SkyFog` (fog x 0.9) puts the whole sky in the fog colour, AtmosphereFog.shader fogs the sky overhead too.
+    Checked at 11 am: clear (sun, shadows) / RainFog (flat grey, no shadows, the far shore gone) / Rain.
+  - BusRadio: starts at a random point of the song (its length read from the file); retries the file every 2 s.
+  - Pause menu: "BUS SAWARI / BUS RIDE" starts the ride. The ride (BusTour): from BD Pandey District Hospital (world.json
+    POI, -150, 230) -> Eco Cave Park -> Lovers Point -> Khurpatal (Mall Road dropped: a 3 km detour from Mallital), in
+    RainFog (weather back to its own cycle when the ride ends). Checked: 3 roads planned, the bus climbing out of Mallital
+    in the rain and fog.

@@ -28,18 +28,25 @@ namespace Nainital.EditorTools
             try { File.AppendAllText(ErrPath, $"{System.DateTime.Now:HH:mm:ss} {type}: {msg}\n{stack}\n"); } catch { }
         }
 
+        /// <summary>The desktop game in the editor (owner, 23 Nov 2026: "mujhe desktop view do editor me ...mobile view nhi"):
+        /// no touch controls, a 1920 x 1080 Game view, then Play. The phone's view: BeginPhone.</summary>
+        public static void Begin() => Start(false);
+
         /// <summary>Touch controls on, a 2316 x 1080 Game view (the S22 Ultra's default screen), then Play.</summary>
-        public static void Begin()
+        public static void BeginPhone() => Start(true);
+
+        static void Start(bool phone)
         {
             TestSave.Take();   // the player's own save comes back when Play ends
             TestSave.Fed();    // (and until then: no hunger blur over the screenshots)
-            PlayerPrefs.SetInt(TouchPref, 1);
+            PlayerPrefs.SetInt(TouchPref, phone ? 1 : 0);
             PlayerPrefs.SetInt(SkipMenuPref, 1);   // straight into the game, no main menu (FrontEnd)
             PlayerPrefs.Save();
             PlayerSettings.runInBackground = true;   // keep playing (and capturing) while the editor is not the window in front
             try { File.Delete(ErrPath); } catch { }
             PlayModeWindow.SetViewType(PlayModeWindow.PlayModeViewTypes.GameView);
-            PlayModeWindow.SetCustomRenderingResolution(2316, 1080, "Phone 2316x1080");
+            if (phone) PlayModeWindow.SetCustomRenderingResolution(2316, 1080, "Phone 2316x1080");
+            else PlayModeWindow.SetCustomRenderingResolution(1920, 1080, "Desktop 1920x1080");
             EditorApplication.isPlaying = true;
         }
 

@@ -254,6 +254,8 @@ namespace Nainital
             AddTrayButton("Din / Raat", () => { if (DayNightCycle.Instance) DayNightCycle.Instance.ToggleDayNight(); }, new Color(0.05f, 0.07f, 0.10f, 0.85f));
             AddTrayButton("Help", () => helpPanel.SetActive(!helpPanel.activeSelf), new Color(0.05f, 0.07f, 0.10f, 0.85f));
             AddTrayButton("Stats", () => { if (Phone.Instance) Phone.Instance.OpenStats(); }, new Color(0.05f, 0.07f, 0.10f, 0.85f));   // PlayerStats, in the phone
+            // the bus ride from the bus stand to Khurpatal, him aboard (owner, 23 Nov 2026: "ek wahan bhi option dedo, menu me")
+            AddTrayButton("Bus Sawari", () => { tray.gameObject.SetActive(false); BusTour.Begin(); }, new Color(0.12f, 0.35f, 0.2f, 0.85f));
         }
 
         float IconSize => showTouch ? 78f : 66f;
@@ -552,7 +554,7 @@ namespace Nainital
             var ws = WeatherSystem.Instance;
             if (!ws) return "";
             int k = (int)ws.current;
-            return Loc.T(new[] { "Saaf", "Baadal", "Kohra", "Baarish" }[k]);
+            return Loc.T(new[] { "Saaf", "Baadal", "Kohra", "Baarish", "Baarish + Kohra" }[k]);
         }
 
         void Update()

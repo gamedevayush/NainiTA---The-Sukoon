@@ -761,6 +761,169 @@ namespace Nainital.EditorTools
             Debug.Log($"[Nainital] cam: first person {ThirdPersonCamera.FirstPerson} (before this frame), arg '{a}'");
         }
 
+        /// <summary>A still from any point in Play (the "shot" command needs edit mode): arg "name;x,h,z;lx,lh,lz" - h = metres
+        /// over the terrain there -> Shots/play_name.png; the follow camera is off for those frames. Bridge: call VehicleTest.CamAt</summary>
+        public static void CamAt()
+        {
+            Need();
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            var a = Arg().Split(';');
+            var t = Terrain.activeTerrain;
+            Vector3 P(string s)
+            {
+                var c = s.Split(',');
+                float x = float.Parse(c[0], ci), h = float.Parse(c[1], ci), z = float.Parse(c[2], ci);
+                float g = t ? t.SampleHeight(new Vector3(x, 0f, z)) + t.transform.position.y : 0f;
+                return new Vector3(x, g + h, z);
+            }
+            Vector3 pos = P(a[1]), look = P(a[2]);
+            var cam = Camera.main;
+            var tpc = ThirdPersonCamera.Instance;
+            if (tpc) tpc.enabled = false;
+            cam.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(look - pos));
+            string file = Path.GetFullPath(Path.Combine(Application.dataPath, $"../Shots/play_{a[0]}.png"));
+            int frames = 0;
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying) { EditorApplication.update -= Tick; return; }
+                cam.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(look - pos));
+                frames++;
+                if (frames == 3) ScreenCapture.CaptureScreenshot(file);
+                if (frames >= 8) { EditorApplication.update -= Tick; if (tpc) tpc.enabled = true; }
+            }
+            EditorApplication.update += Tick;
+        }
+
+        /// <summary>A still of a signal post as its drivers see it: arg "name;part of the post's path;metres in front" ->
+        /// Shots/play_name.png (camera 1.6 m up in front of its lamps, looking at them). Bridge: call VehicleTest.CamPost</summary>
+        public static void CamPost()
+        {
+            Need();
+            var a = Arg().Split(';');
+            float d = a.Length > 2 ? float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture) : 9f;
+            Transform post = null;
+            foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsSortMode.None))
+                if (t.name.StartsWith("Post ") && t.parent && (t.parent.name + "/" + t.name).Contains(a[1])) { post = t; break; }
+            if (!post) throw new System.Exception("no post " + a[1]);
+            Vector3 pos = post.position + post.forward * d + Vector3.up * 1.6f, look = post.position + Vector3.up * 2.8f;
+            var cam = Camera.main;
+            var tpc = ThirdPersonCamera.Instance;
+            if (tpc) tpc.enabled = false;
+            string file = Path.GetFullPath(Path.Combine(Application.dataPath, $"../Shots/play_{a[0]}.png"));
+            int frames = 0;
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying) { EditorApplication.update -= Tick; return; }
+                cam.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(look - pos));
+                frames++;
+                if (frames == 3) ScreenCapture.CaptureScreenshot(file);
+                if (frames >= 8) { EditorApplication.update -= Tick; if (tpc) tpc.enabled = true; }
+            }
+            EditorApplication.update += Tick;
+            Debug.Log($"[Nainital] cam post: {post.parent.name}/{post.name} at {post.position:F1}");
+        }
+
+        /// <summary>The menu's bus ride (BusTour.Begin, the tray's "Bus Sawari"). Bridge (Play): call VehicleTest.Tour</summary>
+        public static void Tour() { Need(); Debug.Log($"[Nainital] bus tour started: {BusTour.Begin()}"); }
+
+        /// <summary>The graphics setting: arg 0 low / 1 medium / 2 high (GameSettings.Quality). Bridge (Play): call VehicleTest.Quality</summary>
+        public static void Quality()
+        {
+            int q = int.Parse(Arg().Trim());
+            GameSettings.Quality = q;
+            var hv = GameSettings.HighVolume;
+            Debug.Log($"[Nainital] quality {GameSettings.QualityName(q)}: high grade {(hv && hv.enabled ? "on" : "off")}");
+        }
+
+        /// <summary>The first-person shake over arg seconds (default 20): mean / most of its jolt (cm) and jitter (deg), the
+        /// vehicle's speed, the share of time on the made road. Bridge (Play): call VehicleTest.ShakeLog</summary>
+        public static void ShakeLog()
+        {
+            Need();
+            float secs = float.TryParse(Arg(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s0) && s0 > 0f ? s0 : 20f;
+            double end = EditorApplication.timeSinceStartup + secs;
+            int n = 0, road = 0;
+            float sumM = 0f, maxM = 0f, sumD = 0f, maxD = 0f, sumV = 0f, maxV = 0f;
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying) { EditorApplication.update -= Tick; return; }
+                var p = PlayerController.Instance;
+                var body = p ? p.GetComponentInParent<Rigidbody>() : null;
+                float v = body ? body.linearVelocity.magnitude : 0f;
+                n++;
+                sumM += ThirdPersonCamera.ShakeM; maxM = Mathf.Max(maxM, ThirdPersonCamera.ShakeM);
+                sumD += ThirdPersonCamera.ShakeDeg; maxD = Mathf.Max(maxD, ThirdPersonCamera.ShakeDeg);
+                sumV += v; maxV = Mathf.Max(maxV, v);
+                if (ThirdPersonCamera.ShakeOnRoad) road++;
+                if (EditorApplication.timeSinceStartup < end) return;
+                EditorApplication.update -= Tick;
+                Debug.Log($"[Nainital] shake over {secs:F0} s ({n} frames, first person {ThirdPersonCamera.FirstPerson}): jolt mean {sumM / n * 100f:F2} cm, most {maxM * 100f:F2} cm; " +
+                          $"jitter mean {sumD / n:F2} deg, most {maxD:F2} deg; speed mean {sumV / n:F1} m/s, most {maxV:F1}; on the road {100f * road / n:F0}%");
+            }
+            EditorApplication.update += Tick;
+        }
+
+        /// <summary>The ride bus's people over arg seconds (default 30): how many sway, the most forward / back / side lean
+        /// (RideSway), and the bus's hardest braking and sideways pull then. Bridge (Play): call VehicleTest.SwayLog</summary>
+        public static void SwayLog()
+        {
+            Need();
+            float secs = float.TryParse(Arg(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s0) && s0 > 0f ? s0 : 30f;
+            var tour = BusTour.Current;
+            if (!tour) throw new System.Exception("no bus tour (VehicleTest.Tour first)");
+            var rb = tour.GetComponent<Rigidbody>();
+            double end = EditorApplication.timeSinceStartup + secs;
+            float fwd = 0f, backL = 0f, sideL = 0f, brake = 0f, lat = 0f;
+            Vector3 pv = rb.linearVelocity;
+            float pt = Time.time;
+            int people = 0;
+            void Tick()
+            {
+                if (!EditorApplication.isPlaying || !tour) { EditorApplication.update -= Tick; return; }
+                var sw = tour.GetComponentsInChildren<RideSway>();
+                people = 0;
+                foreach (var s in sw)
+                {
+                    if (!s.enabled) continue;
+                    people++;
+                    fwd = Mathf.Max(fwd, s.Lean.x);
+                    backL = Mathf.Min(backL, s.Lean.x);
+                    sideL = Mathf.Max(sideL, Mathf.Abs(s.Lean.y));
+                }
+                float dt = Time.time - pt;
+                if (dt > 0.05f)
+                {
+                    Vector3 a = (rb.linearVelocity - pv) / dt;
+                    brake = Mathf.Max(brake, -Vector3.Dot(a, rb.transform.forward));
+                    lat = Mathf.Max(lat, Mathf.Abs(Vector3.Dot(a, rb.transform.right)));
+                    pv = rb.linearVelocity;
+                    pt = Time.time;
+                }
+                if (EditorApplication.timeSinceStartup < end) return;
+                EditorApplication.update -= Tick;
+                Debug.Log($"[Nainital] sway over {secs:F0} s: {people} people swaying; most forward {fwd:F1} deg, back {-backL:F1}, side {sideL:F1}; bus hardest braking {brake:F1} m/s2, sideways {lat:F1} m/s2");
+            }
+            EditorApplication.update += Tick;
+        }
+
+        /// <summary>A cheat code (arg, e.g. TEZ / DHEEMA): CheatCodes.Run. Bridge (Play): call VehicleTest.Cheat</summary>
+        public static void Cheat()
+        {
+            Need();
+            CheatCodes.Run(Arg().Trim().ToUpperInvariant());
+            Debug.Log($"[Nainital] cheat {Arg().Trim()}: time scale {Time.timeScale:0.##}, game speed {CheatCodes.GameSpeed:0.##}");
+        }
+
+        /// <summary>The pause menu open / shut (FrontEnd.TogglePause). Bridge (Play): call VehicleTest.Pause</summary>
+        public static void Pause()
+        {
+            Need();
+            var fe = Object.FindAnyObjectByType<FrontEnd>();
+            if (!fe) throw new System.Exception("no FrontEnd");
+            fe.TogglePause();
+            Debug.Log($"[Nainital] pause: {fe.Current}");
+        }
+
         static GameObject eBus;
 
         /// <summary>A passenger of a bus (owner, 22 Nov 2026: "bus me as passenger bethne ka bhi rkho"). Bridge (Play): call

@@ -94,19 +94,62 @@ namespace Nainital
             Riding = this;
             if (traffic) traffic.StopForBoarding(4f);   // it waits while he climbs in
             p.BoardPassenger(vp, seat);
+            BusRadio.On(gameObject);   // its radio: the player's own bus.mp3
+            BusDecor.On(gameObject);   // and its inside dressed: LED strips, garland, fringe
             GameEvents.ShowToast("Sawari: E - utro (chalti bus se kooda to chot lagegi)", 3f);
         }
 
-        /// <summary>Straight onto a passenger seat, no walk (a test: TrafficBusTest starts with him aboard).</summary>
-        public bool SeatNow(PlayerController p)
+        /// <summary>The back-most free seat on the left (the door's side; the driver sits on the right), the window one of
+        /// its row: where the owner asked to sit (23 Nov 2026: "mujhe left side bethaao peeche"). -1: none.</summary>
+        public int BackLeftSeat()
+        {
+            if (!vp || !vp.HasSetup) return -1;
+            float driverX = vp.SeatLocal(0).x;
+            int best = -1;
+            float bs = float.MaxValue;
+            for (int i = 1; i < vp.SeatCount; i++)
+            {
+                if (!vp.IsFree(i)) continue;
+                Vector3 s = vp.SeatLocal(i);
+                if (Mathf.Abs(s.x) < 0.2f || Mathf.Sign(s.x) == Mathf.Sign(driverX)) continue;
+                float score = s.z - Mathf.Abs(s.x) * 0.05f;
+                if (score < bs) { bs = score; best = i; }
+            }
+            return best;
+        }
+
+        /// <summary>The free window seat on the left (the door's side) in row `rowFromBack` (0 = the last row); -1: none.</summary>
+        public int LeftSeatInRow(int rowFromBack)
+        {
+            if (!vp || !vp.HasSetup) return -1;
+            float driverX = vp.SeatLocal(0).x;
+            int best = -1;
+            float bx = -1f;
+            for (int i = 1; i < vp.SeatCount; i++)
+            {
+                if (!vp.IsFree(i) || vp.RowFromBack(i) != rowFromBack) continue;
+                Vector3 s = vp.SeatLocal(i);
+                if (Mathf.Abs(s.x) < 0.2f || Mathf.Sign(s.x) == Mathf.Sign(driverX)) continue;
+                if (Mathf.Abs(s.x) > bx) { bx = Mathf.Abs(s.x); best = i; }
+            }
+            return best;
+        }
+
+        /// <summary>Straight onto a passenger seat, no walk (TrafficBusTest, BusTour start with him aboard). row >= 0: the left
+        /// window seat of that row from the back (owner, 23 Nov 2026: "mujhe second last rkhna" = row 1), else the back-most
+        /// on the left.</summary>
+        public bool SeatNow(PlayerController p, int row = -1)
         {
             if (!p || !vp || !vp.HasSetup || Riding) return false;
-            int s = vp.FreePassengerSeat();
+            int s = row >= 0 ? LeftSeatInRow(row) : BackLeftSeat();
+            if (s < 0) s = vp.FreePassengerSeat();
             if (s < 0) return false;
             seat = s;
             rider = p;
             Riding = this;
             p.SitPassenger(vp, seat);
+            BusRadio.On(gameObject);
+            BusDecor.On(gameObject);
             return true;
         }
 

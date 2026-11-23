@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace Nainital
 {
@@ -41,6 +43,91 @@ namespace Nainital
         public static bool FirstPerson;
         float fpYaw, fpPitch, near = 0.3f;
 
+        // ---- the ride felt through the eyes (owner, 23 Nov 2026: "jab bus chlri ho to shake wgera aaye FPV camera ko hlke ya
+        // tej based on road and speed"): a hum that grows with speed - about 2.4x off the made road (dirt, grass, a lane
+        // the network does not know) - and a jolt whenever the vehicle's body is thrown up or down or rocked (a kerb, a
+        // pothole, the heightmap's steps: its measured vertical acceleration and pitch / roll rate, so a rough stretch shakes
+        // and a smooth one does not). A bike hums most, a bus least (its weight).
+        float trauma, vyPrev, surfT, surface = 1f;
+        Rigidbody lastBody;
+        RoadNetwork roads;
+        /// <summary>The shake now: metres of jolt, degrees of jitter, on the made road (tests).</summary>
+        public static float ShakeM, ShakeDeg;
+        public static bool ShakeOnRoad = true;
+
+        void Ride(Rigidbody body, Transform veh, out Vector3 jolt, out Quaternion jitter)
+        {
+            float dt = Mathf.Max(Time.deltaTime, 1e-3f);
+            float speed = body ? body.linearVelocity.magnitude : 0f;
+            if (body != lastBody) { lastBody = body; vyPrev = body ? body.linearVelocity.y : 0f; trauma = 0f; }
+            if (body)
+            {
+                float vy = body.linearVelocity.y;
+                float acc = Mathf.Abs(vy - vyPrev) / dt;
+                vyPrev = vy;
+                Vector3 av = veh.InverseTransformDirection(body.angularVelocity);
+                float rock = new Vector2(av.x, av.z).magnitude;   // pitch / roll rate, rad/s
+                // (first measure, 23 Nov: a bus on the road never crossed 3 m/s2 / 0.15 rad/s - no jolt in 25 s: lower)
+                trauma = Mathf.Max(trauma, Mathf.Clamp01((acc - 1.2f) / 10f) + Mathf.Clamp01((rock - 0.05f) * 1.6f));
+            }
+            trauma = Mathf.MoveTowards(trauma, 0f, dt * 1.6f);
+            if ((surfT -= dt) <= 0f) { surfT = 0.4f; ShakeOnRoad = OnRoad(veh.position); surface = ShakeOnRoad ? 1f : 2.4f; }
+            float kind = body && body.GetComponent<BikeRide>() ? 1.6f : body && body.mass > 4000f ? 0.75f : 1f;
+            float hum = Mathf.Clamp01(speed / 16f) * surface * kind;
+            float t = Time.time;
+            float n1 = Mathf.PerlinNoise(t * 17f, 0.3f) - 0.5f, n2 = Mathf.PerlinNoise(0.7f, t * 15f) - 0.5f, n3 = Mathf.PerlinNoise(t * 9f, 5.1f) - 0.5f;
+            float amp = 0.022f * hum + 0.05f * trauma * trauma;   // metres (a bus at 9 m/s on the road: ~1 cm)
+            float rot = 1.1f * hum + 4f * trauma * trauma;          // degrees
+            jolt = veh.up * (n1 * amp * 2f) + veh.right * (n2 * amp);
+            jitter = Quaternion.Euler(n2 * rot, n3 * rot * 0.5f, n1 * rot * 0.7f);
+            ShakeM = amp;
+            ShakeDeg = rot;
+        }
+
+        /// <summary>On a road of the network (its line within half its width + 0.7 m).</summary>
+        bool OnRoad(Vector3 p)
+        {
+            if (!roads) { var tm = FindAnyObjectByType<TrafficManager>(); roads = tm ? tm.network : null; }
+            if (!roads || roads.roads == null) return true;
+            foreach (var r in roads.roads)
+            {
+                var q = r.pts;
+                float lim = r.width * 0.5f + 0.7f, lim2 = lim * lim;
+                for (int i = 0; i + 1 < q.Length; i++)
+                {
+                    Vector3 a = q[i], b = q[i + 1];
+                    if (Mathf.Abs(a.x - p.x) > 60f || Mathf.Abs(a.z - p.z) > 60f) continue;
+                    Vector2 ab = new Vector2(b.x - a.x, b.z - a.z), ap = new Vector2(p.x - a.x, p.z - a.z);
+                    float s = ab.sqrMagnitude > 1e-4f ? Mathf.Clamp01(Vector2.Dot(ap, ab) / ab.sqrMagnitude) : 0f;
+                    if ((ap - ab * s).sqrMagnitude < lim2) return true;
+                }
+            }
+            return false;
+        }
+
+        static Volume rideClear;
+
+        /// <summary>No camera motion blur from a seat (owner, 23 Nov 2026: "paas me blur hora hai ...like lens"): URP's camera
+        /// motion blur takes the world as standing still, so the moving vehicle's inside - riding along with the camera - was
+        /// smeared, the nearest the worst. A volume over every other (priority 10) turns it off while he rides.</summary>
+        static void ClearRide(bool on)
+        {
+            if (!on) { if (rideClear && rideClear.enabled) rideClear.enabled = false; return; }
+            if (!rideClear)
+            {
+                var go = new GameObject("Ride Clear (no motion blur)");
+                DontDestroyOnLoad(go);
+                rideClear = go.AddComponent<Volume>();
+                rideClear.isGlobal = true;
+                rideClear.priority = 10f;
+                var p = ScriptableObject.CreateInstance<VolumeProfile>();
+                var mb = p.Add<MotionBlur>(true);
+                mb.intensity.Override(0f);
+                rideClear.sharedProfile = p;
+            }
+            if (!rideClear.enabled) rideClear.enabled = true;
+        }
+
         /// <summary>Set the first-person look (degrees from the vehicle's heading; tests).</summary>
         public void LookAround(float yawDeg, float pitchDeg) { fpYaw = yawDeg; fpPitch = pitchDeg; }
 
@@ -58,10 +145,14 @@ namespace Nainital
             fpYaw = Mathf.Clamp(fpYaw + GameInput.Look.x, -165f, 165f);
             fpPitch = Mathf.Clamp(fpPitch - GameInput.Look.y, -70f, 60f);
             Vector3 up = veh.up.y > 0.3f ? veh.up : Vector3.up;
-            Quaternion look = Quaternion.Euler(0f, veh.eulerAngles.y + fpYaw, 0f) * Quaternion.Euler(fpPitch, 0f, 0f);
-            Vector3 eye = (head ? head.position : p.transform.position + Vector3.up * 1.25f) + up * 0.09f + look * Vector3.forward * 0.16f;
-            transform.SetPositionAndRotation(eye, look);
-            if (cam) { cam.nearClipPlane = 0.04f; cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, 70f, 1f - Mathf.Exp(-6f * Time.deltaTime)); }
+            // the view leans with the vehicle on a slope / in a turn (most of it: a horizon held a little by the eyes)
+            Quaternion baseRot = Quaternion.Slerp(Quaternion.Euler(0f, veh.eulerAngles.y, 0f), veh.rotation, 0.7f);
+            Ride(body, veh, out Vector3 jolt, out Quaternion jitter);
+            Quaternion look = baseRot * Quaternion.Euler(0f, fpYaw, 0f) * Quaternion.Euler(fpPitch, 0f, 0f);
+            Vector3 eye = (head ? head.position : p.transform.position + Vector3.up * 1.25f) + up * 0.09f + look * Vector3.forward * 0.16f + jolt;
+            transform.SetPositionAndRotation(eye, look * jitter);
+            // a wide angle (owner, 23 Nov 2026: "andr ka i think wide angle dena pdega camera"): the inside of a bus in view
+            if (cam) { cam.nearClipPlane = 0.04f; cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, 92f, 1f - Mathf.Exp(-6f * Time.deltaTime)); }
             return true;
         }
 
@@ -81,6 +172,7 @@ namespace Nainital
         {
             var pcv = PlayerController.Instance;
             bool seated = Seated(pcv);
+            ClearRide(seated || (pcv && pcv.CurrentMode == PlayerController.Mode.Boat));
             if (seated && GameInput.CameraPressed)
             {
                 FirstPerson = !FirstPerson;

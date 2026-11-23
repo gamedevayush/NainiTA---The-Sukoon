@@ -208,19 +208,21 @@ namespace Nainital
         /// else of either; if none fits within FitCm, the best fitting ones. Weighted like the crowd (CharacterLibrary
         /// weight). Without measures: CharacterLibrary.Pick as before.
         /// </summary>
-        public static CharacterLibrary.Entry PickLook(string model, int seat, bool female, bool police = false)
+        public static CharacterLibrary.Entry PickLook(string model, int seat, bool female, bool police = false, bool grownOnly = false)
         {
             var lib = CharacterLibrary.Instance;
             if (!lib) return null;
             var s = Get(model)?.seats is var ss && ss != null && seat >= 0 && seat < ss.Length ? ss[seat] : null;
             bool wheel = s != null && (s.pose == SeatPose.Drive || s.pose == SeatPose.Ride);
             var fit = SeatFit(model, seat);
+            // grownOnly: neither a child nor an elder (the menu's bus ride: "sab (not old or kid) ldkiya")
             bool Suits(CharacterLibrary.Entry e) =>
-                e != null && e.prefab && (police ? e.id.StartsWith("police") : !e.id.StartsWith("police") && e.weight > 0f) && !(wheel && e.Child);
+                e != null && e.prefab && (police ? e.id.StartsWith("police") : !e.id.StartsWith("police") && e.weight > 0f) && !(wheel && e.Child)
+                && !(grownOnly && (e.Child || e.Elder));
             if (fit == null || fit.ids.Length == 0)
             {
                 if (police) foreach (var e in lib.entries) if (Suits(e)) return e;
-                return lib.Pick(female, wheel ? false : (bool?)null, null);
+                return lib.Pick(female, wheel || grownOnly ? false : (bool?)null, grownOnly ? false : (bool?)null);
             }
             var cand = new List<(CharacterLibrary.Entry e, int cm)>();
             for (int i = 0; i < fit.ids.Length && i < fit.cm.Length; i++)
@@ -228,7 +230,7 @@ namespace Nainital
                 var e = lib.Find(fit.ids[i]);
                 if (Suits(e)) cand.Add((e, fit.cm[i]));
             }
-            if (cand.Count == 0) return lib.Pick(female, wheel ? false : (bool?)null, null);
+            if (cand.Count == 0) return lib.Pick(female, wheel || grownOnly ? false : (bool?)null, grownOnly ? false : (bool?)null);
             // the wanted sex first (an auto's or a hatchback's driver is a man: 21 Nov, their roofs fit no grown man - the
             // best of the men then, not a woman every time), then the best fitting of them: within FitCm, else within 2 cm
             // of the best one

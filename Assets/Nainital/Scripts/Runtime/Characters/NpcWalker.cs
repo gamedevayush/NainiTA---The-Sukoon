@@ -211,10 +211,34 @@ namespace Nainital
             parts.Sit(transform, rig, seat);
         }
 
+        /// <summary>Standing in a moving vehicle (a bus conductor at the door): parented to it at `local` / `rot`, on his
+        /// feet, still.</summary>
+        public void EnterStanding(Transform vehicle, Vector3 local, Quaternion rot)
+        {
+            InCar = true;
+            standing = true;
+            seatParts = null;
+            onBike = false;
+            if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
+            if (!cc) cc = GetComponent<CharacterController>();
+            if (cc) cc.enabled = false;
+            transform.SetParent(vehicle, false);
+            transform.localPosition = local;
+            transform.localRotation = rot;
+            GoingHome = Home = false;
+            path = null;
+            sit = true;   // no walking about
+            idle = false;
+            if (rig) { rig.seated = rig.driving = rig.riding = rig.pillion = false; rig.speed = 0f; rig.dead = false; rig.grounded = true; }
+        }
+
+        bool standing;
+
         /// <summary>Out of the car at the door, then off on foot to the nearest house (the car has been taken).</summary>
         public void LeaveCar(Vector3 door, Vector3 face)
         {
             if (seatParts) { seatParts.Leave(transform); seatParts = null; }
+            standing = false;
             InCar = false;
             onBike = false;
             var pm = PedestrianManager.Instance;
@@ -277,6 +301,7 @@ namespace Nainital
             watchTimer = 0f;
             onBike = false;
             seatParts = null;
+            standing = false;
             knockTimer = 0f;
             if (health && health.IsDead) health.Revive();
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
@@ -371,6 +396,7 @@ namespace Nainital
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
             if (!rig) return;
             float dt = Time.deltaTime;
+            if (InCar && standing) { rig.seated = rig.driving = rig.riding = rig.pillion = false; rig.speed = 0f; rig.grounded = true; return; }   // a conductor on his feet
             if (InCar && seatParts) { VehicleSetup.Pose(rig, seatPose); return; }
             if (InCar) { rig.seated = !onBike; rig.driving = !onBike; rig.riding = onBike; rig.speed = 0f; rig.grounded = true; return; }
             shoutCd -= dt;

@@ -135,10 +135,33 @@ namespace Nainital
                 case "SHANTI":   // the police lose interest
                     if (WantedSystem.Instance) WantedSystem.Instance.Clear("Cheat: SHANTI - police ne chhod diya");
                     break;
+                // the game's pace (owner, 23 Nov 2026: "speed ka cheat daaldo ek..+ or - dono ka"): a step up / down
+                case "TOOFAN":   // rain in a heavy fog, held (owner, 23 Nov 2026); SAAF clears it
+                    if (WeatherSystem.Instance) { WeatherSystem.Instance.autoCycle = false; WeatherSystem.Instance.Set(WeatherSystem.Kind.RainFog); }
+                    break;
+                case "SAAF":
+                    if (WeatherSystem.Instance) { WeatherSystem.Instance.autoCycle = true; WeatherSystem.Instance.Set(WeatherSystem.Kind.Clear); }
+                    break;
+                case "TEZ": Pace(+1); break;
+                case "DHEEMA": Pace(-1); break;
                 default:
                     if (c.Length > 0) GameEvents.ShowToast("Galat code: " + c, 2f);
                     break;
             }
+        }
+
+        static readonly float[] Paces = { 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f };
+        /// <summary>The game's pace now (TEZ / DHEEMA); the pause menu gives this back when it closes.</summary>
+        public static float GameSpeed = 1f;
+
+        static void Pace(int step)
+        {
+            int k = System.Array.IndexOf(Paces, GameSpeed);
+            if (k < 0) k = 2;
+            k = Mathf.Clamp(k + step, 0, Paces.Length - 1);
+            GameSpeed = Paces[k];
+            Time.timeScale = GameSpeed;   // the physics keeps its 50 steps a game second: as real, only sooner / later
+            GameEvents.ShowToast($"Cheat: game ki speed {GameSpeed:0.##}x", 2f);
         }
 
         static void Spawn(PlayerController p, CarType type)

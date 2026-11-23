@@ -97,8 +97,11 @@ namespace Nainital
                 // the moon a little stronger than before (0.07: away from a lamp a street was black - owner, 21 Nov 2026: "raat ki
                 // overall lighting... bahut area blackout ya dimmed hain")
                 sun.intensity = (useMoon ? 0.2f : Mathf.Lerp(0.3f, 1.8f, day)) * fade * weatherDim + flash * 3f;   // a mountain sun, with less ambient below
+                float oc = WeatherSystem.Instance ? WeatherSystem.Instance.Overcast : 0f;
+                sun.color = Color.Lerp(sun.color, new Color(0.8f, 0.82f, 0.85f), oc);   // what gets through cloud is grey
                 if (flash > 0f) sun.color = Color.Lerp(sun.color, new Color(0.8f, 0.85f, 1f), flash);
-                sun.shadowStrength = useMoon ? 0.55f : 0.72f;   // skylight still fills the shade (0.85 left shaded streets near black)
+                // skylight still fills the shade (0.85 left shaded streets near black); under cloud no hard shadow at all
+                sun.shadowStrength = Mathf.Lerp(useMoon ? 0.55f : 0.72f, 0.08f, oc);
             }
 
             // Ambient (trilight): at night a moonlit blue - the lamps, windows and headlights still carry the town, but a street
@@ -110,18 +113,24 @@ namespace Nainital
             Color eqDay = new Color(0.45f, 0.47f, 0.45f), eqNight = new Color(0.046f, 0.054f, 0.077f);
             Color grDay = new Color(0.20f, 0.21f, 0.16f), grNight = new Color(0.018f, 0.019f, 0.025f);
             if (nightVolume) nightVolume.weight = Mathf.SmoothStep(0f, 1f, NightFactor);
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = Color.Lerp(Color.Lerp(skyNight, skyDay, day), skyGold, golden * 0.5f);
-            RenderSettings.ambientEquatorColor = Color.Lerp(eqNight, eqDay, day);
-            RenderSettings.ambientGroundColor = Color.Lerp(grNight, grDay, day);
-
-            // Fog: valley haze by day, dark blue at night
-            Color fogDay = new Color(0.68f, 0.75f, 0.82f), fogNight = new Color(0.02f, 0.025f, 0.04f), fogGold = new Color(0.85f, 0.62f, 0.48f);
-            RenderSettings.fogColor = Color.Lerp(Color.Lerp(fogNight, fogDay, day), fogGold, golden * 0.6f);
-
-            // aerial-perspective haze for the full-screen atmosphere pass
+            // overcast (rain, fog, cloud: WeatherSystem.Overcast): the sun's share comes back as an even grey light from the
+            // whole sky - flat, shadowless, a little dimmer, no blue in it (owner, 23 Nov 2026: "baarish me bhi dhoop hai hlki")
+            float overcast = WeatherSystem.Instance ? WeatherSystem.Instance.Overcast : 0f;
             float wFog = WeatherSystem.Instance ? WeatherSystem.Instance.Fog : 0f;
             float wRain = WeatherSystem.Instance ? WeatherSystem.Instance.Rain : 0f;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = Color.Lerp(Color.Lerp(Color.Lerp(skyNight, skyDay, day), skyGold, golden * 0.5f), new Color(0.6f, 0.62f, 0.65f) * Mathf.Lerp(0.12f, 1f, day), overcast);
+            RenderSettings.ambientEquatorColor = Color.Lerp(Color.Lerp(eqNight, eqDay, day), new Color(0.5f, 0.51f, 0.52f) * Mathf.Lerp(0.1f, 1f, day), overcast);
+            RenderSettings.ambientGroundColor = Color.Lerp(Color.Lerp(grNight, grDay, day), new Color(0.22f, 0.22f, 0.21f) * Mathf.Lerp(0.1f, 1f, day), overcast);
+
+            // Fog: valley haze by day, dark blue at night; in weather a grey wall
+            Color fogDay = new Color(0.68f, 0.75f, 0.82f), fogNight = new Color(0.02f, 0.025f, 0.04f), fogGold = new Color(0.85f, 0.62f, 0.48f);
+            RenderSettings.fogColor = Color.Lerp(Color.Lerp(Color.Lerp(fogNight, fogDay, day), fogGold, golden * 0.6f), new Color(0.6f, 0.62f, 0.64f) * Mathf.Lerp(0.1f, 1f, day), Mathf.Max(overcast * 0.8f, wFog));
+            // the sky in it: grey under cloud, the fog's colour all over in a fog (Sky.shader, AtmosphereFog.shader)
+            Shader.SetGlobalFloat("_Overcast", overcast);
+            Shader.SetGlobalFloat("_SkyFog", Mathf.Clamp01(wFog * 0.9f));
+
+            // aerial-perspective haze for the full-screen atmosphere pass
             Color hz = Color.Lerp(Color.Lerp(new Color(0.017f, 0.021f, 0.033f), new Color(0.60f, 0.70f, 0.85f), day), new Color(0.9f, 0.66f, 0.5f), golden * 0.6f);   // night: the ridges stand out against a moonlit haze
             hz = Color.Lerp(hz, new Color(0.62f, 0.65f, 0.68f) * Mathf.Lerp(0.15f, 1f, day), wFog * 0.7f);
             bool moonUp = elev < -2f;

@@ -90,6 +90,64 @@ namespace Nainital
             }
             foreach (var v in Object.FindObjectsByType<Volume>(FindObjectsSortMode.None))
                 if (v.sharedProfile && v.sharedProfile.TryGet<DepthOfField>(out var dof)) dof.active = q == 2;
+            HighGrade(q == 2);
         }
+
+        static Volume highVol;
+
+        /// <summary>The High setting's own grade (owner, 23 Nov 2026: "ek volume bnaado, high graphics ki ..usme AO, Color
+        /// Corrections wgera dedo"), over the world's base grade (NainitalPost, priority 0) and under the night grade
+        /// (priority 1, DayNightCycle): more contrast and colour, lift / gamma / gain and split toning (cool shadows, warm
+        /// light), a warmer white balance, shadows / midtones / highlights, finer bloom, a deeper vignette, a little more
+        /// motion blur. The ambient occlusion is the SSAO pass of PC_Renderer, on at High (above; 0.85, 0.45 m, high samples).</summary>
+        static void HighGrade(bool on)
+        {
+            if (!on) { if (highVol) highVol.enabled = false; return; }
+            if (!highVol)
+            {
+                var go = new GameObject("High Graphics Grade");
+                Object.DontDestroyOnLoad(go);
+                highVol = go.AddComponent<Volume>();
+                highVol.isGlobal = true;
+                highVol.priority = 0.5f;
+                var p = ScriptableObject.CreateInstance<VolumeProfile>();
+                p.name = "HighGraphics";
+                // (first try at 00:55 read as dusk at 11 am - blue shadows from three places on top of the SSAO: now the
+                // shadows stay neutral and a touch lifted, the warmth only in the light)
+                var ca = p.Add<ColorAdjustments>(true);
+                ca.postExposure.Override(0.42f);   // the SSAO darkens corners: a little more light back
+                ca.contrast.Override(18f);
+                ca.saturation.Override(13f);
+                var lgg = p.Add<LiftGammaGain>(true);
+                lgg.lift.Override(new Vector4(1f, 1f, 1f, 0.01f));
+                lgg.gamma.Override(new Vector4(1f, 1f, 1f, 0.02f));
+                lgg.gain.Override(new Vector4(1.03f, 1.01f, 0.97f, 0.02f));
+                var st = p.Add<SplitToning>(true);
+                st.shadows.Override(new Color(0.5f, 0.5f, 0.52f));
+                st.highlights.Override(new Color(0.58f, 0.54f, 0.48f));
+                st.balance.Override(25f);
+                var wb = p.Add<WhiteBalance>(true);
+                wb.temperature.Override(5f);
+                var smh = p.Add<ShadowsMidtonesHighlights>(true);
+                smh.shadows.Override(new Vector4(1f, 1f, 1.02f, 0f));
+                smh.highlights.Override(new Vector4(1.05f, 1.01f, 0.94f, 0.02f));
+                var bloom = p.Add<Bloom>(true);
+                bloom.threshold.Override(0.95f);
+                bloom.intensity.Override(0.7f);
+                bloom.scatter.Override(0.72f);
+                bloom.highQualityFiltering.Override(true);
+                var vig = p.Add<Vignette>(true);
+                vig.intensity.Override(0.22f);
+                vig.smoothness.Override(0.45f);
+                var mb = p.Add<MotionBlur>(true);
+                mb.quality.Override(MotionBlurQuality.Medium);
+                mb.intensity.Override(0.26f);
+                highVol.sharedProfile = p;
+            }
+            highVol.enabled = true;
+        }
+
+        /// <summary>The High grade's volume now (tests), or null.</summary>
+        public static Volume HighVolume => highVol;
     }
 }

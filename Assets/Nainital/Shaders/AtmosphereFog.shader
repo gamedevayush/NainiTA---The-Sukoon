@@ -28,6 +28,7 @@ Shader "Nainital/AtmosphereFog"
             float _HazeBase;        // world height where the haze is densest (valley floor)
             float _HazeFalloff;     // how fast it thins with altitude
             float _HazeMax;         // cap so distant hills never fully vanish
+            float _SkyFog;          // 0..1 in a fog (DayNightCycle): the sky is in it overhead too, not only at the horizon
 
             half4 Frag(Varyings input) : SV_Target
             {
@@ -57,7 +58,7 @@ Shader "Nainital/AtmosphereFog"
                 float optical = _HazeDensity * exp(-k * h0) * dist * shape;
                 float fog = saturate(1.0 - exp(-optical));
                 fog = min(fog, _HazeMax);
-                if (sky) fog *= saturate(1.0 - dir.y * 2.5);
+                if (sky) fog *= lerp(saturate(1.0 - dir.y * 2.5), 1.0, saturate(_SkyFog));
 
                 float sunAmt = pow(saturate(dot(dir, normalize(_HazeLightDir.xyz + float3(0, 1e-4, 0)))), 5.0);
                 half3 haze = lerp(_HazeColor.rgb, _SunHazeColor.rgb, sunAmt);

@@ -19,6 +19,8 @@ namespace Nainital
         void Start()
         {
             if (Application.isMobilePlatform) { maxCars = Mathf.Min(maxCars, 8); maxBikes = Mathf.Min(maxBikes, 4); }
+            // traffic lights where 3+ main roads meet (owner, 23 Nov 2026), found from the network now (no Build World)
+            if (network && network.roads != null && network.roads.Length > 0) gameObject.AddComponent<TrafficSignals>().Build(network);
         }
 
         void Update()

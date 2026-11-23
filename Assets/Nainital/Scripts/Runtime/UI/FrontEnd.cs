@@ -256,6 +256,9 @@ namespace Nainital
                 RefreshMenuInfo();
                 OpenRight(status);
             });
+            // the bus ride, bus stand -> Khurpatal, him aboard (owner, 23 Nov 2026: "bus journey chlaane wala menu option ...
+            // add kro..jo ye play kre"): the game resumes and the ride starts
+            Item(pauseMenu, list, ref y, "BUS SAWARI", "BUS RIDE", () => { TogglePause(); BusTour.Begin(); });
             Item(pauseMenu, list, ref y, "MISSIONS", "MISSIONS", () => { RefreshMissionList(); OpenRight(missions); });
             Item(pauseMenu, list, ref y, "SETTINGS", "SETTINGS", () => OpenRight(settings));
             abandonItem = Item(pauseMenu, list, ref y, "MISSION CHHODO", "ABANDON MISSION", () =>
@@ -571,7 +574,7 @@ namespace Nainital
                 statusPlace.text = tr && !string.IsNullOrEmpty(tr.Place) ? Loc.T(tr.Place) : "Nainital";
                 var dn = DayNightCycle.Instance;
                 var ws = WeatherSystem.Instance;
-                string weather = ws ? Loc.T(new[] { "Saaf", "Baadal", "Kohra", "Baarish" }[(int)ws.current]) : "";
+                string weather = ws ? Loc.T(new[] { "Saaf", "Baadal", "Kohra", "Baarish", "Baarish + Kohra" }[(int)ws.current]) : "";
                 int mins = Mathf.FloorToInt(SaveGame.PlaySeconds / 60f);
                 string saved = SaveGame.Exists ? SaveGame.Ago(SaveGame.Read().savedAt) : UiKit.L("abhi nahi", "not yet");
                 string c = "<color=#FFA91F>◆</color>  ";
@@ -625,7 +628,7 @@ namespace Nainital
             {
                 foreach (var s in screens) Show(s, false);
                 Current = State.Playing;
-                Time.timeScale = 1f;
+                Time.timeScale = CheatCodes.GameSpeed;   // the pace the TEZ / DHEEMA cheat set (1 otherwise)
                 GameInput.Paused = false;
                 GameInput.UiBlocking = HUD.Instance && HUD.Instance.DialogOpen;
                 SetHud(1f);

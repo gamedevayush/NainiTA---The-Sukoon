@@ -420,63 +420,8 @@ namespace Nainital.EditorTools
 
         /// <summary>The roads to drive (road, way) from (sr, si) to (gr, gi): Dijkstra over (road, way, entry point), moving
         /// only the way a one-way road allows, from a road's end onto the roads RoadChoice.Onward offers there.</summary>
-        public static List<(int r, int d)> Plan(RoadNetwork net, int sr, int si, int gr, int gi, int startDir = 0)
-        {
-            var dist = new Dictionary<(int r, int d, int i), float>();
-            var from = new Dictionary<(int r, int d, int i), (int r, int d, int i)>();
-            var open = new List<((int r, int d, int i) k, float c)>();
-            foreach (int d in new[] { 1, -1 })
-            {
-                int ow = net.roads[sr].oneWay;
-                if (ow != 0 && d != ow) continue;
-                if (startDir != 0 && d != startDir) continue;   // a place on the way: no turning round there
-                var k = (sr, d, si);
-                dist[k] = 0f;
-                open.Add((k, 0f));
-            }
-            (int r, int d, int i) goalKey = (-1, 0, 0);
-            int guard = 0;
-            while (open.Count > 0 && guard++ < 20000)
-            {
-                int bi = 0;
-                for (int k = 1; k < open.Count; k++) if (open[k].c < open[bi].c) bi = k;
-                var (cur, c) = open[bi];
-                open.RemoveAt(bi);
-                if (dist.TryGetValue(cur, out var known) && known < c - 1e-3f) continue;
-                var q = net.roads[cur.r].pts;
-                if (cur.r == gr && (gi - cur.i) * cur.d >= 0) { goalKey = cur; break; }
-                int end = cur.d > 0 ? q.Length - 1 : 0;
-                var off = new List<(int r, int i, int d, int at)>();
-                net.Branches(cur.r, cur.i, cur.d, off);
-                foreach (var b in off)
-                {
-                    if ((b.at - cur.i) * cur.d < 0) continue;
-                    var nk = (b.r, b.d, b.i);
-                    float nc = c + Run(q, cur.i, b.at) + 2f;
-                    if (dist.TryGetValue(nk, out var old) && old <= nc) continue;
-                    dist[nk] = nc;
-                    from[nk] = cur;
-                    open.Add((nk, nc));
-                }
-                float c2 = c + Run(q, cur.i, end);
-                foreach (var o in RoadChoice.Onward(net, cur.r, end, true))
-                {
-                    var nk = (o.r, o.d, o.i);
-                    float nc = c2 + 2f;
-                    if (dist.TryGetValue(nk, out var old) && old <= nc) continue;
-                    dist[nk] = nc;
-                    from[nk] = cur;
-                    open.Add((nk, nc));
-                }
-            }
-            if (goalKey.r < 0) return null;
-            var steps = new List<(int r, int d)>();
-            var at = goalKey;
-            steps.Add((at.r, at.d));
-            while (from.TryGetValue(at, out var prev)) { at = prev; steps.Add((at.r, at.d)); }
-            steps.Reverse();
-            return steps;
-        }
+        public static List<(int r, int d)> Plan(RoadNetwork net, int sr, int si, int gr, int gi, int startDir = 0) =>
+            RoadPlanner.Plan(net, sr, si, gr, gi, startDir);   // in the game now (the menu's bus ride: BusTour)
 
         static TrafficCar testCar;
         static double nextTick, startT;

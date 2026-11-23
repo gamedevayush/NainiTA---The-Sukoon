@@ -260,6 +260,43 @@ namespace Nainital
             if (passengers.Count > 0 && !carrying.Contains(this)) carrying.Add(this);
         }
 
+        NpcWalker conductor;
+
+        /// <summary>The bus of the owner's own ride (TrafficBusTest; owner, 23 Nov 2026: "mujhe left side bethaao peeche..saath
+        /// me ldki and poori bus me ldkiya..bus ke driver or conductor male"): every free passenger seat taken by women and
+        /// girls (the player sits first), a man at the wheel, and a man on his feet just inside the passenger door, facing
+        /// it, as the conductor.</summary>
+        public void FillForRide(System.Action seatThePlayer = null, bool grownOnly = true, bool lastRowEmpty = true)
+        {
+            var vp = GetComponent<VehicleParts>();
+            var pm = PedestrianManager.Instance;
+            if (!vp || !vp.HasSetup || !pm) return;
+            foreach (var w in passengers) if (w) { vp.Leave(w.transform); pm.Release(w); }
+            passengers.Clear();
+            if (driver) { vp.Leave(driver.transform); pm.Release(driver); }
+            driver = pm.MakeSeated(vp, 0, false);
+            seatThePlayer?.Invoke();   // his seat first, out of an empty bus; then everyone else
+            // young women on every other seat (owner, 23 Nov 2026: "sab (not old or kid) ldkiya in bus..and last row khaali")
+            for (int s = 1; s < vp.SeatCount; s++)
+            {
+                if (!vp.IsFree(s) || (lastRowEmpty && vp.RowFromBack(s) == 0)) continue;
+                var w = pm.MakeSeated(vp, s, true, grownOnly);
+                if (w) passengers.Add(w);
+            }
+            if (passengers.Count > 0 && !carrying.Contains(this)) carrying.Add(this);
+            if (vp.SeatCount < 2) return;
+            // the conductor: the floor is where the seated people's roots are (their feet), the door seat 1's way in
+            var d1 = vp.SeatData(1);
+            float floor = float.MaxValue;
+            for (int i = 1; i < vp.SeatCount; i++) floor = Mathf.Min(floor, vp.SeatData(i).pos.y);
+            Vector3 inFrame = new Vector3(d1.entry.x * 0.3f, floor, d1.entry.z);
+            Vector3 local = vp.SeatParent.InverseTransformPoint(vp.Frame.TransformPoint(inFrame));
+            Quaternion rot = Quaternion.Inverse(vp.SeatParent.rotation) * vp.Frame.rotation * Quaternion.LookRotation(new Vector3(Mathf.Sign(d1.entry.x), 0f, 0.4f));
+            if (conductor) pm.Release(conductor);
+            conductor = pm.MakeStanding(vp, vp.SeatParent, local, rot, false);
+            Debug.Log($"[Nainital] ride bus {name}: driver + {passengers.Count} women / girls + the conductor at {inFrame:F2} (frame), floor {floor:F2}");
+        }
+
         /// <summary>Everyone in the back gets out at their own door and walks off (flee: runs a few steps first).</summary>
         void Unload(bool flee)
         {
@@ -753,6 +790,10 @@ namespace Nainital
             pull = Mathf.MoveTowards(pull, siren ? 1f : oncoming * 0.5f, dt * 0.7f);
             if (siren) targetSpeed = Mathf.Min(targetSpeed, 3f);
             if (Time.time < stopUntil) targetSpeed = 0f;   // someone getting on / off (BusPassenger)
+            // a red light (TrafficSignals): the nose stops at its line, eased in at ~3 m/s2
+            var sig = TrafficSignals.Instance;
+            if (sig && sig.HoldAt(pos + transform.forward * (spec.length * 0.5f), transform.forward, speed, out float sigD))
+                targetSpeed = Mathf.Min(targetSpeed, Mathf.Sqrt(2f * 3f * Mathf.Max(0f, sigD - 1f)));
 
             // a vehicle standing in the lane that will not move: after 3 s, round it on the right (nothing coming); a
             // person who stays put in the road (he did not step aside): after 6 s, round them too
@@ -1285,7 +1326,7 @@ namespace Nainital
             var oi = o.GetComponent<VehicleInfo>();
             float ow = oi ? oi.width : 1.9f, ol = oi ? oi.length : 4.4f;
             if (r.width < spec.width + ow + 1.2f) return false;   // no room beside it
-            if (net.NearIsland(pos, 45f) || route != null && route[route.Count - 1].r == road && (routeGoal - pos).sqrMagnitude < 120f * 120f) return false;
+            if (net.NearIsland(pos, 45f) || (TrafficSignals.Instance && TrafficSignals.Instance.Near(pos, 60f)) || route != null && route[route.Count - 1].r == road && (routeGoal - pos).sqrMagnitude < 120f * 120f) return false;
             float passV = Mathf.Min(want, leadV + 6f), rel = passV - leadV;
             if (rel < 2f || gap > 40f) return false;
             float past = gap + ol + spec.length + 10f;   // from behind it to a car's length clear ahead of it

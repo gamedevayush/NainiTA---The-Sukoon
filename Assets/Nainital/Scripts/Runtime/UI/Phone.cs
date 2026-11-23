@@ -537,7 +537,7 @@ namespace Nainital
         static string WeatherName()
         {
             var ws = WeatherSystem.Instance;
-            return ws ? new[] { "Saaf", "Baadal", "Kohra", "Baarish" }[(int)ws.current] : "Saaf";
+            return ws ? new[] { "Saaf", "Baadal", "Kohra", "Baarish", "Baarish + Kohra" }[(int)ws.current] : "Saaf";
         }
 
         /// <summary>A believable Nainital temperature for the hour and the weather (about 1-17 degrees in this season).</summary>
@@ -547,7 +547,7 @@ namespace Nainital
             float h = hourOverride ?? (dn ? dn.timeOfDay : 14f);
             float t = 9f + 7f * Mathf.Sin((h - 9f) / 24f * Mathf.PI * 2f);
             var ws = WeatherSystem.Instance;
-            if (ws) t -= new[] { 0f, 1.5f, 2.5f, 4f }[(int)ws.current];
+            if (ws) t -= new[] { 0f, 1.5f, 2.5f, 4f, 5f }[(int)ws.current];
             return Mathf.RoundToInt(t);
         }
 
