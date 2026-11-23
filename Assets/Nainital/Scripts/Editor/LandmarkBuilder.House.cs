@@ -204,6 +204,7 @@ namespace Nainital.EditorTools
             // the chimney over the fireplace
             Box(P(-hw - 0.05f, HsWall + rise * 0.5f + 0.9f, 3.0f), new Vector3(0.8f, rise + 1.8f, 0.8f), stone, true);
             Detail(P(-hw - 0.05f, HsWall + rise + 1.85f, 3.0f), new Vector3(0.95f, 0.12f, 0.95f), stone);
+            WorldBuilder.chimneySpots.Add(P(-hw - 0.05f, HsWall + rise + 2.0f, 3.0f));   // wood smoke morning and evening (AmbientLife)
 
             // ---- the balcony on the valley side
             float bz0 = HsD, bz1 = HsD + HsBalc;

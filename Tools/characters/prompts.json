@@ -1,0 +1,89 @@
+{
+ "items": [
+  {
+   "name": "01_player",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 19-year-old North Indian young man from Delhi, slim athletic build, wheatish skin, short black hair with a slightly messy side part, light stubble, sharp jawline, thoughtful dark brown eyes, small mole on the left cheek, wearing a black puffer jacket over a grey hoodie, dark blue slim jeans and white sneakers. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "02_mummy",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 46-year-old North Indian mother, average build, warm wheatish skin, kind soft face with gentle smile lines, black hair with a few greys in a low bun, small red bindi, thin gold earrings, mangalsutra, wearing a maroon salwar kameez with a cream woollen shawl and a cardigan, flat sandals. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "03_papa",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 50-year-old North Indian father, medium build with a slight belly, wheatish skin, neatly combed black-grey hair receding at the temples, trimmed moustache, thin rectangular glasses, calm face, wearing a light blue checked shirt, a navy V-neck sweater, beige trousers, a brown leather jacket and brown formal shoes. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "04_uncle",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 70-year-old Kumaoni Pahadi man, lean and upright, fair weathered skin with deep wrinkles, short white hair and a neat white beard, bushy white eyebrows, calm knowing eyes, wearing a black Pahadi topi, a grey woollen waistcoat over a cream kurta, a long brown woollen coat, a muffler, dark trousers and old leather shoes, a gentle but mysterious presence. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "05_dost",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 22-year-old Kumaoni Pahadi young man from Nainital, lean strong build from rowing, sun-tanned wheatish skin, short spiky black hair, thin moustache, cheerful mischievous face, bright eyes, wearing a red woollen cap, a red-and-black checked flannel shirt over a white t-shirt, an olive windcheater, faded blue jeans rolled at the ankle and rubber slippers. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "06_dost_gf",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 21-year-old North Indian young woman, slim, fair skin, long straight black hair left open with side-swept bangs, almond eyes with kohl, confident flirty look, wearing a beige teddy coat over a black turtleneck, blue skinny jeans, white chunky sneakers, small hoop earrings and a small sling bag. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "07_ladki",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 22-year-old Kumaoni Pahadi girl from Nainital, Uttarakhand, extremely beautiful and cute, glamorous fashion-model looks, slim fit hourglass figure, fair glowing skin with rosy cheeks from the cold, big sparkling dark eyes with a little kohl, soft pink lips, cute dimples, long silky dark brown hair in soft waves over one shoulder, small gold Pahadi nose pin (nath) and small jhumka earrings, wearing a fitted cropped cream cable-knit sweater, a short fitted olive-green woollen coat open at the front, high-waisted black skinny jeans, brown knee-high boots and a thin maroon Pahadi-pattern scarf, stylish and charming. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "08_doctor",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 45-year-old Indian male doctor, medium build, wheatish skin, short black hair, clean-shaven, rimless glasses, calm serious face, wearing a white doctor's coat over a light blue shirt and grey tie, a stethoscope round the neck, an ID card, grey trousers and black shoes. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "09_landlord",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 58-year-old Kumaoni Pahadi landlord, short and stocky, fair skin, balding with grey hair at the sides, thick grey moustache, small curious eyes, wearing a brown woollen sweater over a checked shirt, a grey shawl on one shoulder, dark trousers, slippers with socks and a bunch of keys at the waist. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "10_hotel",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 40-year-old North Indian hotel manager, plump, wheatish skin, slicked-back black hair, thick moustache, wide salesman smile held in a neutral expression, wearing a cream sweater over a white shirt, a black blazer, grey trousers, polished black shoes and a gold ring. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "11_rental",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 32-year-old Pahadi scooty-rental shop owner, medium build, wheatish skin, short black hair, friendly round face with a short beard, a pen behind one ear, wearing a dark grey hoodie under a black sleeveless puffer vest, black track pants and sports shoes. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "12_rto",
+   "aspect": "9:16",
+   "prompt": "Full-body character design for a 3D game, semi-realistic stylized style: a 52-year-old Indian government transport officer, tall and thin, wheatish skin, side-parted oiled grey-black hair, thin moustache, strict unsmiling face, reading glasses hanging on a cord, wearing a beige sweater over a white shirt, a navy blazer, dark grey trousers and black shoes. Standing in a neutral A-pose, arms 30 degrees away from the body, palms down, feet shoulder-width apart, facing the camera, neutral face, mouth closed, eyes open, front orthographic view, soft even studio lighting, plain light grey background, full body head to toe in frame, high detail on face, hands and clothes, no props, no text."
+  },
+  {
+   "name": "20_cow",
+   "aspect": "16:9",
+   "prompt": "A typical Indian street cow (desi zebu breed): white-grey coat with soft cream patches, a hump on the shoulders, loose dewlap, short curved horns, long ears, thin legs, long tail with a dark tuft, calm face, lean body as seen on Indian hill-town roads. Three-quarter side view from the left at eye level, the whole body in frame with space around it, standing naturally on all four legs, neutral pose, soft even studio lighting, plain light grey background, no shadow clutter, realistic proportions, high detail, semi-realistic stylized 3D game asset, no text, no props, no people."
+  },
+  {
+   "name": "21_dog",
+   "aspect": "16:9",
+   "prompt": "A typical Indian street dog (Indian pariah dog): short smooth tan-brown coat with a lighter chest, lean medium build, pointed upright ears, curled tail, alert friendly face, as seen in Nainital streets. Three-quarter side view from the left at eye level, the whole body in frame with space around it, standing naturally on all four legs, neutral pose, soft even studio lighting, plain light grey background, no shadow clutter, realistic proportions, high detail, semi-realistic stylized 3D game asset, no text, no props, no people."
+  },
+  {
+   "name": "22_cat",
+   "aspect": "16:9",
+   "prompt": "A typical Indian street cat: short brown tabby coat with darker stripes and a white chest and paws, slim body, upright ears, green eyes, tail held up. Three-quarter side view from the left at eye level, the whole body in frame with space around it, standing naturally on all four legs, neutral pose, soft even studio lighting, plain light grey background, no shadow clutter, realistic proportions, high detail, semi-realistic stylized 3D game asset, no text, no props, no people."
+  },
+  {
+   "name": "23_monkey",
+   "aspect": "16:9",
+   "prompt": "A rhesus macaque monkey as seen in Indian hill towns: grey-brown fur turning orange-brown on the lower back and legs, pink hairless face, short tail, standing on all four limbs, alert cheeky expression. Three-quarter side view from the left at eye level, the whole body in frame with space around it, standing naturally on all four legs, neutral pose, soft even studio lighting, plain light grey background, no shadow clutter, realistic proportions, high detail, semi-realistic stylized 3D game asset, no text, no props, no people."
+  },
+  {
+   "name": "24_firetruck",
+   "aspect": "16:9",
+   "prompt": "An original unbranded Indian municipal fire engine (fire tender), medium truck with a flat-fronted cab-over-engine cab, bright red body with white and yellow reflective stripes, roll-up shutters on the sides, a ladder on the roof, a blue light bar and siren on the cab roof, black steel bumpers, six wheels, must not look like any real Tata, Ashok Leyland, Eicher or BharatBenz model, no logos, no badges, the badge spot is smooth bare paint, no text or numbers anywhere. Three-quarter front view from the left at eye level, the whole vehicle in frame, soft even studio lighting, plain light grey background, high detail, semi-realistic stylized 3D game asset."
+  }
+ ]
+}

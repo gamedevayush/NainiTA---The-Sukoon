@@ -31,6 +31,7 @@ namespace Nainital
         static readonly int SunDirId = Shader.PropertyToID("_SunDir");
         static readonly int MoonDirId = Shader.PropertyToID("_MoonDir");
         static readonly int NightId = Shader.PropertyToID("_NightFactor");
+        static float interiorDim;
         static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
         float probeTimer;
         float lastProbeNight = -1f;
@@ -39,6 +40,8 @@ namespace Nainital
 
         void Awake() => Instance = this;
 
+        static readonly int HourP1Id = Shader.PropertyToID("_NtHourP1"), GameMinutesId = Shader.PropertyToID("_NtGameMinutes");
+        float gameMinutes, lastHourForMinutes = -1f;
         void OnEnable() => Shader.SetGlobalFloat(ProbeReadyId, 0f);
         void OnDisable() => Shader.SetGlobalFloat(ProbeReadyId, 0f);
 
@@ -122,6 +125,16 @@ namespace Nainital
             RenderSettings.ambientSkyColor = Color.Lerp(Color.Lerp(Color.Lerp(skyNight, skyDay, day), skyGold, golden * 0.5f), new Color(0.6f, 0.62f, 0.65f) * Mathf.Lerp(0.12f, 1f, day), overcast);
             RenderSettings.ambientEquatorColor = Color.Lerp(Color.Lerp(eqNight, eqDay, day), new Color(0.5f, 0.51f, 0.52f) * Mathf.Lerp(0.1f, 1f, day), overcast);
             RenderSettings.ambientGroundColor = Color.Lerp(Color.Lerp(grNight, grDay, day), new Color(0.22f, 0.22f, 0.21f) * Mathf.Lerp(0.1f, 1f, day), overcast);
+            // inside a building (InteriorZone): the sky's light does not come through the walls - a room's dim ambient, the
+            // same by day and night; its own lamps light it (owner, 23 Nov 2026, the game parlour)
+            interiorDim = Mathf.MoveTowards(interiorDim, InteriorZone.CameraInside ? 1f : 0f, Time.unscaledDeltaTime * 2.5f);
+            if (interiorDim > 0f)
+            {
+                float k = Mathf.Lerp(1f, 0.16f, interiorDim);
+                RenderSettings.ambientSkyColor = Color.Lerp(RenderSettings.ambientSkyColor * k, new Color(0.05f, 0.05f, 0.06f), interiorDim * 0.5f);
+                RenderSettings.ambientEquatorColor = Color.Lerp(RenderSettings.ambientEquatorColor * k, new Color(0.045f, 0.045f, 0.05f), interiorDim * 0.5f);
+                RenderSettings.ambientGroundColor = Color.Lerp(RenderSettings.ambientGroundColor * k, new Color(0.03f, 0.03f, 0.035f), interiorDim * 0.5f);
+            }
 
             // Fog: valley haze by day, dark blue at night; in weather a grey wall
             Color fogDay = new Color(0.68f, 0.75f, 0.82f), fogNight = new Color(0.02f, 0.025f, 0.04f), fogGold = new Color(0.85f, 0.62f, 0.48f);
@@ -148,6 +161,17 @@ namespace Nainital
             Shader.SetGlobalVector(SunDirId, sunDir);
             Shader.SetGlobalVector(MoonDirId, moonDir);
             Shader.SetGlobalFloat(NightId, NightFactor);
+            // windows on/off and shop shutters (Shaders/NainitalRooms.hlsl): only in play, the editor keeps all lit and open
+            if (Application.isPlaying)
+            {
+                if (lastHourForMinutes < 0f) lastHourForMinutes = timeOfDay;
+                float dh = Mathf.Repeat(timeOfDay - lastHourForMinutes, 24f);
+                if (dh < 6f) gameMinutes += dh * 60f;
+                lastHourForMinutes = timeOfDay;
+                Shader.SetGlobalFloat(HourP1Id, timeOfDay + 1f);
+                Shader.SetGlobalFloat(GameMinutesId, gameMinutes);
+            }
+            else Shader.SetGlobalFloat(HourP1Id, 0f);
             if (skyMaterial)
             {
                 skyMaterial.SetVector(SunDirId, sunDir);

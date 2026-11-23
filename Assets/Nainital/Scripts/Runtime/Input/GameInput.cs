@@ -151,7 +151,17 @@ namespace Nainital
             PausePressed = (kb != null && (kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame);
             HornPressed = Take(ref TouchHorn) || (kb != null && kb.gKey.wasPressedThisFrame) || (pad != null && pad.leftShoulder.wasPressedThisFrame);
             CameraPressed = Take(ref TouchCamera) || (kb != null && kb.vKey.wasPressedThisFrame) || (pad != null && pad.rightStickButton.wasPressedThisFrame);
+            if (StoryLock)
+            {
+                // a cutscene runs (Story/Cutscene.cs): the game hears nothing; the story UI reads the keys itself
+                Move = Look = Vector2.zero; Zoom = 0f;
+                JumpPressed = AttackPressed = KickPressed = RollPressed = InteractPressed = NightTogglePressed = false;
+                BlockHeld = SprintHeld = WalkHeld = JumpHeld = MapPressed = PausePressed = HornPressed = CameraPressed = false;
+            }
         }
+
+        /// <summary>A cutscene has the controls (Cutscene): every gameplay input reads as nothing.</summary>
+        public static bool StoryLock;
 
         /// <summary>The view in a vehicle: behind it / through his own eyes (ThirdPersonCamera, V / the Camera button).</summary>
         public static bool CameraPressed, TouchCamera;

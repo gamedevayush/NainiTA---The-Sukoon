@@ -51,6 +51,49 @@ namespace Nainital
             Shader.SetGlobalFloat(SdfId, sdfRange);
         }
 
+        static byte[] kinds;     // per cell: 0 ground, 1 asphalt, 2 black tarmac, 3 grey pavers, 4 red pavers
+        static int kindsN;
+        static Vector4 kindsRect;
+        const int KindsN = 2048;
+
+        /// <summary>The surface painted into the ground at a world point: 0 none, 1 asphalt, 2 black tarmac, 3 grey pavers,
+        /// 4 red pavers (footsteps). Read once from the mask on the GPU (the mask is compressed, not readable on the CPU).</summary>
+        public static int SurfaceAt(Vector3 p)
+        {
+            if (kinds == null || kindsN == 0) return 0;
+            float u = (p.x - kindsRect.x) / kindsRect.z, v = (p.z - kindsRect.y) / kindsRect.w;
+            if (u < 0f || v < 0f || u >= 1f || v >= 1f) return 0;
+            return kinds[(int)(v * kindsN) * kindsN + (int)(u * kindsN)];
+        }
+
+        void Start()
+        {
+            if (!Application.isPlaying || !mask || !SystemInfo.supportsAsyncGPUReadback) return;
+            var rt = RenderTexture.GetTemporary(KindsN, KindsN, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+            Graphics.Blit(mask, rt);
+            var r4 = rect;
+            UnityEngine.Rendering.AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, req =>
+            {
+                RenderTexture.ReleaseTemporary(rt);
+                if (req.hasError) return;
+                var data = req.GetData<Color32>();
+                var k = new byte[KindsN * KindsN];
+                for (int i = 0; i < k.Length; i++)
+                {
+                    var c = data[i];
+                    // signed distances: > 0.5 inside (sdfRange > 0), else plain coverage
+                    byte lim = sdfRange > 0f ? (byte)132 : (byte)128;
+                    int best = 0; byte bv = lim;
+                    if (c.r > bv) { best = 1; bv = c.r; }
+                    if (c.g > bv) { best = 2; bv = c.g; }
+                    if (c.b > bv) { best = 3; bv = c.b; }
+                    if (c.a > bv) { best = 4; }
+                    k[i] = (byte)best;
+                }
+                kinds = k; kindsN = KindsN; kindsRect = r4;
+            });
+        }
+
         void Update()
         {
             if (!Application.isPlaying) return;

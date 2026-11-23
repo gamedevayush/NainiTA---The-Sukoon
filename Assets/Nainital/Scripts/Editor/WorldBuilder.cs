@@ -208,6 +208,7 @@ namespace Nainital.EditorTools
             ctx.worldRoot = new GameObject("World (real Nainital data)").transform;
             ctx.gameplayRoot = new GameObject("Gameplay").transform;
 
+            ClearFestive();   // the LED dots and accent lights the steps below collect (WorldBuilder.Festive.cs)
             Step("Round the sharp road corners", () => SmoothRoadCorners(ctx));   // first: everything reads the roads
             Step("Terrain", () => BuildTerrain(ctx));
             Step("Lake", () => BuildLake(ctx));
@@ -218,10 +219,13 @@ namespace Nainital.EditorTools
             // after the levelling (its 2.5 m ease beside the walk filled the Capitol's lane up to the walk, 16 Nov) and before the
             // roads are built on the ground
             Step("Capitol terraces and the Mallital bank", () => ShapeCapitolGround(ctx));
+            Step("DSA road: its two levels (the lake side low)", () => ShapeDsaGround(ctx));   // WorldBuilder.DsaRoad.cs (23 Nov)
+            Step("Naina Devi chowk: flat", () => ShapeChowkGround(ctx));   // WorldBuilder.Chowk.cs (23 Nov)
             Step("Roads", () => { roadStrips.Clear(); deckEnds.Clear(); deckEndLines.Clear(); bankKeep.Clear(); trafficIslands.Clear(); footways.Clear(); upperDeck = null; BeginRoadMask(ctx); BuildRoads(ctx); SetGroundToPaintedRoads(ctx); });   // the ground is the road from here on
             Step("G.O.A.N. plan (civic sites)", () => PlanGoan(ctx));
             Step("Tallital plan", () => PlanTallital(ctx));
             Step("Mallital plan", () => PlanMallital(ctx));
+            Step("Ropeway station plan", () => LandmarkBuilder.PlanRopeway(ctx));   // the lower station's footprint (23 Nov)
             Step("Fire station plan", () => LandmarkBuilder.PlanFireStation(ctx));   // keeps its footprint clear (LandmarkBuilder.FireStation.cs, 22 Nov)
             Step("House plan (Zoo Road)", () => LandmarkBuilder.PlanHouse(ctx));   // the player's house replaces the one house on its spot (LandmarkBuilder.House.cs)
             Step("Pump and sit-out plans", () => { LandmarkBuilder.PlanPetrolPumps(ctx); LandmarkBuilder.PlanRestaurants(ctx); });   // the houses skip their ground (PetrolPumps.cs, Shops.cs)
@@ -244,6 +248,8 @@ namespace Nainital.EditorTools
             Step("Tallital (bus station, school, chowk)", () => BuildTallital(ctx));
             Step("Mallital (Capitol, Naina Devi gate, Tibetan market, ghat)", () => BuildMallital(ctx));
             Step("The Flats (DSA ground)", () => BuildFlats(ctx));
+            Step("Naina Devi chowk: paving, walls, stairs, shops", () => BuildChowk(ctx));   // WorldBuilder.Chowk.cs (23 Nov)
+            Step("DSA road: the wall's foot kept low", () => KeepDsaWallFootLow(ctx));   // after the roads raised their banks (23 Nov)
             Step("Shops and restaurants", () => LandmarkBuilder.BuildShopsAndRestaurants(ctx));   // LandmarkBuilder.Shops.cs (22 Nov): on the built shop fronts, before the trees (their sit-outs stay clear)
             Step("Trees", () => BuildTrees(ctx));
             Step("Lighting", () => BuildLighting(ctx));
@@ -252,7 +258,9 @@ namespace Nainital.EditorTools
             Step("Ground under the roads", () => CarveUnderRoads(ctx));   // last: everything above reads the ground (ctx.H)
             Step("Roads into the terrain", () => FinishRoadMask(ctx));
             Step("Kaladhungi road as on Street View (bushes, trees, barriers, roadside houses)", () => BuildStreetViewRoad(ctx));   // WorldBuilder.StreetViewRoad.cs (23 Nov): on the final ground
-            Step("City Joggers Park (open gym)", () => LandmarkBuilder.BuildJoggersPark(ctx));   // on the ground as it finally is (22 Nov)
+            Step("City Joggers Park (open gym)", () => LandmarkBuilder.BuildJoggersPark(ctx));
+            Step("DSA road: wall, railing, stairs (on the final ground)", () => BuildDsaRoad(ctx));   // WorldBuilder.DsaRoad.cs (23 Nov)
+            Step("Festive lights (LED strips, fairy lights, jhalar, the walk's lanterns)", () => FestiveStep(ctx));   // WorldBuilder.Festive.cs (23 Nov): on the final ground   // on the ground as it finally is (22 Nov)
             Step("Gameplay", () => BuildGameplay(ctx));
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
             Step("Placed by hand (Shaktipeeth gate ...)", () => RestorePlacedByHand(ctx));
@@ -743,8 +751,10 @@ namespace Nainital.EditorTools
             return false;
         }
 
+        static int housesOnRoads;
         static void BuildBuildings(WorldCtx ctx)
         {
+            housesOnRoads = 0;
             var parent = new GameObject("Buildings (OSM + generated)").transform;
             parent.SetParent(ctx.worldRoot, false);
             var chunks = new Dictionary<Vector2Int, MeshBuilder[]>();
@@ -778,6 +788,13 @@ namespace Nainital.EditorTools
                     }
                 if (gMax < ctx.lakeY + 0.5f || ctx.InLake(c)) continue;
                 if (ctx.InKeepClear(c, Mathf.Max(w, d) * 0.5f)) continue;   // a G.O.A.N. civic building stands here
+                // never on a carriageway (owner, 23 Nov 2026: "house on road?" - Colvin Road and Snowview Road had houses
+                // across them; RoadAudit.Colliders): the middle or any corner (half a metre in) on a road
+                {
+                    var rc = Clearance(ctx);
+                    if (rc.Blocked(c, 0.3f) || rc.Blocked(c + R * 0.85f + F * 0.85f, 0f) || rc.Blocked(c + R * 0.85f - F * 0.85f, 0f)
+                        || rc.Blocked(c - R * 0.85f + F * 0.85f, 0f) || rc.Blocked(c - R * 0.85f - F * 0.85f, 0f)) { housesOnRoads++; continue; }
+                }
                 bool lowOnly = false;
                 if (!WalkHouse(ctx, c, ref levels, out lowOnly)) continue;   // the walk from Mall Road to Naina Devi (user, 2026-11-14)
                 bool shop = NearMallRoad(ctx, c, 32f) || (bazaar.HasValue && (c - bazaar.Value).sqrMagnitude < BazaarShopRadius * BazaarShopRadius)
@@ -836,6 +853,7 @@ namespace Nainital.EditorTools
                 if (string.IsNullOrEmpty(b.name) && ctx.InKeepClear(c, 3f)) continue;
                 if (!string.IsNullOrEmpty(b.name) && b.name.IndexOf("Capitol", StringComparison.OrdinalIgnoreCase) >= 0) continue;
                 if (!string.IsNullOrEmpty(b.name) && b.name.IndexOf("Boat House", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                if (string.IsNullOrEmpty(b.name) && Clearance(ctx).Blocked(c, 0.3f)) { housesOnRoads++; continue; }   // an unnamed footprint across a road (23 Nov)
                 if (b.name == "Raj Bhavan") continue;   // LandmarkBuilder.Top10.cs builds it on this footprint (19 Nov)   // LandmarkBuilder.BoatClub.cs   // built in WorldBuilder.Mallital.cs   // unnamed buildings give way to built places (Tallital, civic sites)
                 int osmLevels = b.levels > 0 ? Mathf.Clamp(b.levels, 1, 8) : 3;
                 if (string.IsNullOrEmpty(b.name) && !WalkHouse(ctx, c, ref osmLevels, out _)) continue;
@@ -869,7 +887,7 @@ namespace Nainital.EditorTools
                 var go = ctx.MeshObject($"Houses {kv.Key.x},{kv.Key.y}", parent, kv.Value[0], ctx.mats.atlas, kv.Value[1]);
                 GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.OccludeeStatic | StaticEditorFlags.OccluderStatic);
             }
-            Debug.Log($"[Nainital] buildings: {count} in {chunks.Count} chunks ({highCount} high-street shop buildings + {infill} new street-wall shops, {colonialCount} Mall Road colonial fronts, {rooftopCount} rooftop cafes)");
+            Debug.Log($"[Nainital] buildings: {count} in {chunks.Count} chunks ({highCount} high-street shop buildings + {infill} new street-wall shops, {colonialCount} Mall Road colonial fronts, {rooftopCount} rooftop cafes); {housesOnRoads} left off the roads");
         }
 
         /// <summary>
@@ -1084,6 +1102,12 @@ namespace Nainital.EditorTools
             Debug.Log($"[Nainital] town trees added: {townTrees}");
             int hillTrees = HillForestFill(ctx, data, rnd);
             Debug.Log($"[Nainital] hillside forest added: {hillTrees} trees, forest now {data.Count / 6}");
+            foreach (var t4 in dsaTrees)   // the rows along DSA road (WorldBuilder.DsaRoad.cs)
+            {
+                var p = new Vector2(t4.x, t4.y);
+                data.Add(p.x); data.Add(ctx.H(p) - 0.15f); data.Add(p.y);
+                data.Add(t4.z); data.Add(t4.w); data.Add((float)rnd.NextDouble() * 360f);
+            }
             for (int k = 0; k < bankTrees.Count; k++)   // the Mall's own trees (LowerMallBank)
             {
                 var b = bankTrees[k];

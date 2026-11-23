@@ -142,6 +142,7 @@ namespace Nainital
                 case "SAAF":
                     if (WeatherSystem.Instance) { WeatherSystem.Instance.autoCycle = true; WeatherSystem.Instance.Set(WeatherSystem.Kind.Clear); }
                     break;
+                case "KAHANI": Cutscene.Play("demo_uncle"); break;   // the story system's test scene (Story/Cutscene.cs)
                 case "TEZ": Pace(+1); break;
                 case "DHEEMA": Pace(-1); break;
                 default:

@@ -336,6 +336,24 @@ namespace Nainital
             return false;
         }
 
+        /// <summary>p lies on some road's carriageway (its half width and a little more, any road of the network).</summary>
+        bool OnAnyRoad(Vector3 p)
+        {
+            foreach (var r in net.roads)
+            {
+                if (r?.pts == null) continue;
+                float lim = r.width * 0.5f + 0.6f, lim2 = lim * lim;
+                for (int i = 0; i + 1 < r.pts.Length; i++)
+                {
+                    Vector3 a = r.pts[i], b = r.pts[i + 1];
+                    Vector2 ab = new Vector2(b.x - a.x, b.z - a.z), ap = new Vector2(p.x - a.x, p.z - a.z);
+                    float t = ab.sqrMagnitude > 1e-4f ? Mathf.Clamp01(Vector2.Dot(ap, ab) / ab.sqrMagnitude) : 0f;
+                    if ((ap - ab * t).sqrMagnitude < lim2) return true;
+                }
+            }
+            return false;
+        }
+
         static bool Free(Vector3 g)
         {
             int n = Physics.OverlapCapsuleNonAlloc(g + Vector3.up * 0.6f, g + Vector3.up * 3.4f, 0.35f, block, groundMask, QueryTriggerInteraction.Ignore);
@@ -355,13 +373,16 @@ namespace Nainital
                 Vector3 spot = Vector3.zero;
                 bool ok = false;
                 // the kerb on the left, a little back if something stands there; else the right-hand kerb
+                // (owner, 23 Nov 2026: "why traffic signals are on road? vehicles are hitting with it"): never on any road's
+                // carriageway - the other arms meet here too - so a little further back / out until clear of all of them
                 foreach (float side in new[] { 1f, -1f })
                 {
-                    for (int k = 0; k < 4 && !ok; k++)
-                    {
-                        Vector3 p = a.stop - a.inDir * (k * 1.5f) + left * side * (a.width * 0.5f + 0.8f);
-                        if (Ground(p, out var g) && Free(g)) { spot = g; ok = true; }
-                    }
+                    for (int k = 0; k < 8 && !ok; k++)
+                        foreach (float extra in new[] { 0.8f, 1.6f, 2.6f })
+                        {
+                            Vector3 p = a.stop - a.inDir * (k * 1.5f) + left * side * (a.width * 0.5f + extra);
+                            if (!OnAnyRoad(p) && Ground(p, out var g) && Free(g)) { spot = g; ok = true; break; }
+                        }
                     if (ok) break;
                 }
                 if (!ok) continue;

@@ -91,6 +91,21 @@ float2 NtPhotoGrad(float2 metresPerPixel, NtFrame f)
     return metresPerPixel / (f.size * f.stretch * float2(NT_ROOM_COLS, NT_ROOM_ROWS));
 }
 
+// The town's clock (DayNightCycle): _NtHourP1 = hour + 1 (0: not running, the editor: everything lit and open),
+// _NtGameMinutes = game minutes since the start, for windows switching on and off.
+float _NtHourP1, _NtGameMinutes;
+float NtHash3(float3 p) { p = frac(p * 0.1031); p += dot(p, p.yzx + 33.33); return frac((p.x + p.y) * p.z); }
+
+// How many rooms are lit at this hour (owner, 23 Nov: "window lights random on/off at night").
+float NtLitShare(float hr)
+{
+    if (hr >= 17.0 && hr < 22.5) return 0.8;
+    if (hr >= 22.5 || hr < 0.5) return 0.5;
+    if (hr < 5.0) return 0.14;
+    if (hr < 7.5) return 0.4;
+    return 0.65;
+}
+
 // Room light: the sun's strength through the glass by day, the front's own glow at night (its colour and strength).
 half3 NtRoomLight(half3 photo, half3 nightGlow)
 {

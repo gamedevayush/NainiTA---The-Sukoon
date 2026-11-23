@@ -37,6 +37,10 @@ namespace Nainital.EditorTools
         }
 
         /// <summary>Paints the up-facing triangles of mb into channel ch (2 x 2 samples a texel).</summary>
+        /// <summary>exclusive: where this paints, the other surfaces are taken out (a red band over grey paving reads red).</summary>
+        static bool paintExclusive;
+        internal static void PaintRoadSurfaceOver(MeshBuilder mb, int ch) { paintExclusive = true; try { PaintRoadSurface(mb, ch); } finally { paintExclusive = false; } }
+
         internal static void PaintRoadSurface(MeshBuilder mb, int ch, float strength = 1f, int firstIndex = 0, int endIndex = -1)
         {
             if (roadMask == null || mb == null) return;
@@ -77,6 +81,8 @@ namespace Nainital.EditorTools
                     byte v = (byte)Mathf.Min(255, Mathf.RoundToInt(hits / 16f * strength * 255f));
                     // a triangle edge shared by two triangles is counted in both: coverage adds up to whole
                     roadMask[k] = (byte)Mathf.Min(255, roadMask[k] + v);
+                    if (paintExclusive)
+                        for (int o = 0; o < 4; o++) if (o != ch) { int ko = (y * RoadMaskN + x) * 4 + o; roadMask[ko] = (byte)Mathf.Max(0, roadMask[ko] - v); }
                 }
             paintedTris++;
         }

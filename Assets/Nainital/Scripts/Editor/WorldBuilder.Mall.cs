@@ -676,6 +676,20 @@ namespace Nainital.EditorTools
                     b[0].Box(c, size, rot, conc);
                     b[1].Box(c, size, rot, Vector2.zero);
                 }
+                // the two side walls (owner, 23 Nov 2026: "upper se lower ko jitne bhi stairs hain..unme side mesh nhi hai jisse
+                // andr ka terrain dikhra"): stone, from below the lower road up to 0.6 m over the top step, the flight's length
+                Vector3 right = rot * Vector3.right;
+                float len = n * run + 0.2f;
+                Vector2 mid = U.p[si] - s * (MallHalf + n * run * 0.5f);
+                float wb = bottom - 1.2f, wt = top + 0.6f;
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    var wc = new Vector3(mid.x, (wb + wt) * 0.5f, mid.y) + right * side * (3.9f * 0.5f + 0.15f);
+                    var ws = new Vector3(0.3f, wt - wb, len);
+                    b[0].Box(wc, ws, rot, Atlas.MaterialUV(Atlas.MatStone));
+                    b[0].Box(wc + Vector3.up * ((wt - wb) * 0.5f + 0.03f), new Vector3(0.38f, 0.06f, len + 0.04f), rot, conc);   // the coping
+                    b[1].Box(wc, ws, rot, Vector2.zero);
+                }
             }
             chunks.Flush();
             panels.Flush();
@@ -764,6 +778,7 @@ namespace Nainital.EditorTools
         static void MallLakeEdge(WorldCtx ctx, Transform parent, MallLine L, Material chain)
         {
             lowerLampSpots.Clear();
+            List<Vector3> railRun = null;   // the top rail, for the LED strip (WorldBuilder.Festive.cs)
             var solid = new MallChunks(ctx, parent, "Mall parapet", ctx.mats.atlas, true, 0.05f);
             var chainP = new MallChunks(ctx, parent, "Mall lane railing", chain, true, 0.16f);
             Rect plaster = Atlas.Facade(1, Atlas.StylePlain), stone = Atlas.Material(Atlas.MatDarkStone);
@@ -805,8 +820,10 @@ namespace Nainital.EditorTools
                 }
                 if (i % 2 != 0) continue;
                 Vector2 e = L.p[i + 2] + L.side[i + 2] * off;
-                if (!Here(e) || JoggersPark.InOpening(e)) continue;
+                if (!Here(e) || JoggersPark.InOpening(e)) { railRun = null; continue; }
                 Vector3 a3 = V(a, y0 + pH), e3 = V(e, L.y[i + 2] + pH);
+                if (railRun == null) { railRun = new List<Vector3> { a3 + Vector3.up * 1.12f }; mallRailRuns.Add(railRun); }
+                railRun.Add(e3 + Vector3.up * 1.12f);
                 var rot = Quaternion.LookRotation(Flat(L.tan[i]));
                 b[0].Box(a3 + Vector3.up * 0.52f, new Vector3(0.1f, 1.04f, 0.1f), rot, green);
                 b[0].Box(a3 + Vector3.up * 1.08f, new Vector3(0.16f, 0.07f, 0.16f), rot, green);
@@ -957,7 +974,14 @@ namespace Nainital.EditorTools
         };
 
         /// <summary>Grey rubble stone with moss, from the CC0 photo (null when the photo is missing).</summary>
-        static Material MossyStoneMaterial() => PhotoMaterial("old_stone_wall", "M_MallMossyStone", new Color(1.0f, 1.08f, 0.9f), 0.1f);
+        /// <summary>The mossy stone of every retaining wall (the Mall's and the roads'), seen from both sides (owner, 23 Nov
+        /// 2026: "make all these walls double sided": from behind / above they vanished) - URP Lit's Render Face: Both.</summary>
+        static Material MossyStoneMaterial()
+        {
+            var m = PhotoMaterial("old_stone_wall", "M_MallMossyStone", new Color(1.0f, 1.08f, 0.9f), 0.1f);
+            if (m) { m.SetFloat("_Cull", 0f); m.doubleSidedGI = true; EditorUtility.SetDirty(m); }
+            return m;
+        }
 
         /// <summary>A wall face between a and b (heights bottom/top at each end), seen from the side `toward` points to, textured in
         /// metres (`ua`/`ub`: distance along the wall at a and b) so the stones run on unbroken from one segment to the next.</summary>
@@ -1201,6 +1225,13 @@ namespace Nainital.EditorTools
             {
                 float seg = Vector2.Distance(U.p[i], U.p[i + 1]);
                 int wall = UpperWallAt(U.t[i]);
+                // a road coming down to the Mall here: no tall wall across its mouth (owner, 23 Nov 2026: "nainital zoo road
+                // is blocked from mall road by wall?? seriously?")
+                if (wall >= 0)
+                {
+                    float fw = UpperWalls[wall].face;
+                    if (LaneAt(U.p[i] + U.side[i] * fw) || LaneAt(U.p[i + 1] + U.side[i + 1] * fw) || LaneAt(U.p[i] + U.side[i] * (fw + 2f))) wall = -1;
+                }
                 if (wall >= 0)
                 {
                     TallWall(i, seg, wall);

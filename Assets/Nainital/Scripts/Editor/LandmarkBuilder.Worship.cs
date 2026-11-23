@@ -200,10 +200,208 @@ namespace Nainital.EditorTools
                 mb.Box(em + Vector3.up * 0.95f, new Vector3(0.06f, 0.06f, ed.magnitude), eq, gold);
                 for (float es = 0.6f; es < ed.magnitude; es += 1.2f) mb.Box(ea + ed.normalized * es + Vector3.up * 0.72f, new Vector3(0.06f, 0.46f, 0.06f), eq, gold);
             }
-            Edge(new Vector3(-13.8f, 0f, 10.8f), new Vector3(13.8f, 0f, 10.8f));
             Edge(new Vector3(13.8f, 0f, 10.8f), new Vector3(13.8f, 0f, -10.8f));
             Edge(new Vector3(13.8f, 0f, -10.8f), new Vector3(-13.8f, 0f, -10.8f));
             Edge(new Vector3(-13.8f, 0f, -10.8f), new Vector3(-13.8f, 0f, 1f));
+            NainaDeviCourt(mb, depth, c, h, d, ch, bg, t, Edge);
+        }
+
+        /// <summary>
+        /// The court in front of Naina Devi, full of shrines (owner, 23 Nov 2026: "naina devi mandir ke saamne mandir poore me
+        /// hain...ref dekhke create kro poora"; the 2025 night visit D:\Unity\ref\yt_nov23\naina): the paved court runs on
+        /// 12 m past the old edge; on its left a pavilion of lavender pillars hung with rows of brass bells, on its right the
+        /// hall of the ten avatars (dark idols on a ledge before a wall of coloured tiles), two small white marble shrines with
+        /// gold doors by the steps; red chunri tied round the peepal, a diya stand, potted plants; strings of bulbs across the
+        /// court; and at night gold and white LED lines along every roof edge, as the temple is lit.
+        /// </summary>
+        static void NainaDeviCourt(MeshBuilder mb, float depth, Vector3 c, Vector3 h, Vector3 d, Vector3 ch, Vector3 bg, Vector3 t, System.Action<Vector3, Vector3> edge)
+        {
+            Vector2 white = S(Pal.TempleWhite), red = S(Pal.TempleRed), gold = M(Atlas.MatGold), marble = M(Atlas.MatMarble), dark = S(Pal.IronBlack),
+                    lavender = S(Pal.SareePink), stone = S(Pal.StoneGrey), orange = M(Atlas.MatTempleOrange), yellow = S(Pal.BoatYellow), green = S(Pal.Oak);
+            Vector3 W(Vector3 local) => mb.M.MultiplyPoint3x4(local);
+            void LedL(Vector3 a, Vector3 b, Color col, float sp = 0.1f, float sz = 0.05f, float br = 2.6f) => WorldBuilder.Led(W(a), W(b), col, sp, sz, br);
+            void OctLed(Vector3 at, float r, Color col)
+            {
+                for (int k = 0; k < 8; k++)
+                {
+                    float a0 = Mathf.PI / 8f + k * Mathf.PI / 4f, a1 = a0 + Mathf.PI / 4f;
+                    LedL(at + new Vector3(Mathf.Cos(a0) * r, 0f, Mathf.Sin(a0) * r), at + new Vector3(Mathf.Cos(a1) * r, 0f, Mathf.Sin(a1) * r), col);
+                }
+            }
+            void SpireLed(Vector3 at, float r, float apex, Color col)
+            {
+                for (int k = 0; k < 8; k += 2)
+                {
+                    float a0 = Mathf.PI / 8f + k * Mathf.PI / 4f;
+                    LedL(at + new Vector3(Mathf.Cos(a0) * r, 0f, Mathf.Sin(a0) * r), at + Vector3.up * apex, col, 0.12f);
+                }
+            }
+            Color goldL = WorldBuilder.LedGold, whiteL = WorldBuilder.LedWhite, warm = WorldBuilder.LedWarm;
+
+            // the court: marble on a plinth from the old edge to the steps
+            const float z0 = 10.8f, z1 = 23f, hw = 13.8f;
+            mb.Box(new Vector3(0f, -(depth + 1.5f) * 0.5f + 0.0f, (z0 + z1) * 0.5f), new Vector3(hw * 2f + 0.4f, depth + 1.5f, z1 - z0), marble);
+            for (int s = 0; s < 3; s++)   // steps down at the front, the full width
+                mb.Box(new Vector3(0f, -0.15f - s * 0.17f, z1 + 0.2f + s * 0.35f), new Vector3(hw * 2f, 0.3f + s * 0.34f, 0.36f), marble);
+            edge(new Vector3(-hw, 0f, z0), new Vector3(-hw, 0f, z1));
+            edge(new Vector3(hw, 0f, z0), new Vector3(hw, 0f, z1));
+
+            // 1. the bell pavilion: two rows of lavender pillars on red bases with gold capitals, an orange tin roof, bells
+            float bx0 = -13f, bx1 = -6.6f;
+            for (int k = 0; k < 4; k++)
+                foreach (float x in new[] { bx0, bx1 })
+                {
+                    float z = 12.6f + k * 3.1f;
+                    mb.Box(new Vector3(x, 0.3f, z), new Vector3(0.6f, 0.6f, 0.6f), red);
+                    mb.Box(new Vector3(x, 1.9f, z), new Vector3(0.38f, 2.6f, 0.38f), lavender);
+                    mb.Box(new Vector3(x, 3.3f, z), new Vector3(0.55f, 0.22f, 0.55f), gold);
+                    LedL(new Vector3(x + 0.2f, 0.7f, z + 0.2f), new Vector3(x + 0.2f, 3.2f, z + 0.2f), warm, 0.12f, 0.04f, 2.2f);
+                }
+            mb.Box(new Vector3((bx0 + bx1) * 0.5f, 3.5f, 17.25f), new Vector3(bx1 - bx0 + 1.2f, 0.18f, 10.6f), orange);
+            mb.Box(new Vector3((bx0 + bx1) * 0.5f, 3.75f, 17.25f), new Vector3(bx1 - bx0 + 1.6f, 0.08f, 11f), red);
+            mb.Pyramid(new Vector3((bx0 + bx1) * 0.5f, 3.79f, 17.25f), bx1 - bx0 + 1.6f, 11f, 1.1f, red);
+            for (int row = 0; row < 3; row++)
+                for (float z = 12.4f; z <= 22.2f; z += 0.45f)
+                {
+                    float x = Mathf.Lerp(bx0 + 1.3f, bx1 - 1.3f, row / 2f);
+                    float len = 0.4f + ((int)(z * 7f + row) % 3) * 0.12f;
+                    mb.Limb(new Vector3(x, 3.4f, z), new Vector3(x, 3.4f - len, z), 0.01f, 0.01f, 3, dark, false);
+                    float bs = 0.12f + ((int)(z * 5f + row) % 4) * 0.035f;
+                    mb.Cylinder(new Vector3(x, 3.4f - len - bs * 2.2f, z), bs, bs * 0.45f, bs * 2.2f, 8, gold, true, true);
+                }
+            OctLedRect(new Vector3((bx0 + bx1) * 0.5f, 3.82f, 17.25f), (bx1 - bx0 + 1.6f) * 0.5f, 5.5f, goldL);
+            WorldBuilder.Accent(W(new Vector3((bx0 + bx1) * 0.5f, 3.1f, 15f)), new Color(1f, 0.82f, 0.55f), 7f, 9f);
+            WorldBuilder.Accent(W(new Vector3((bx0 + bx1) * 0.5f, 3.1f, 20f)), new Color(1f, 0.82f, 0.55f), 7f, 9f);
+
+            // 2. the hall of the avatars: a back wall of coloured tiles, a long ledge with ten dark idols, grey pillars in front
+            float hx0 = 6.4f, hx1 = 13.4f;
+            mb.Box(new Vector3(hx1, 2f, 17.25f), new Vector3(0.3f, 4f, 10f), white);
+            int[] tiles = { Pal.TempleRed, Pal.BoatYellow, Pal.BoatBlue, Pal.JacketGreen, Pal.ShirtWhite, Pal.SareePink };
+            for (int k = 0; k < 9; k++)
+                for (int j = 0; j < 6; j++)
+                    mb.Box(new Vector3(hx1 - 0.17f, 1.3f + j * 0.42f, 12.9f + k * 1.07f), new Vector3(0.02f, 0.38f, 1.0f), S(tiles[(k * 2 + j) % tiles.Length]));
+            mb.Box(new Vector3(hx1 - 0.7f, 0.5f, 17.25f), new Vector3(1.0f, 1.0f, 9.6f), marble);              // the ledge
+            mb.Box(new Vector3(hx1 - 0.7f, 1.02f, 17.25f), new Vector3(1.05f, 0.05f, 9.7f), S(Pal.WoodDark));
+            for (int k = 0; k < 10; k++)
+            {
+                Vector3 p = new Vector3(hx1 - 0.75f, 1.05f, 12.95f + k * 0.95f);
+                mb.Cylinder(p, 0.2f, 0.14f, 0.55f, 8, S(Pal.IronBlack), true);                     // the body
+                mb.Sphere(p + Vector3.up * 0.68f, Vector3.one * 0.13f, 8, 4, S(Pal.IronBlack));      // the head
+                mb.Cylinder(p + Vector3.up * 0.78f, 0.1f, 0.03f, 0.22f, 6, gold, true);              // the crown
+                mb.Box(new Vector3(hx1 - 0.2f, 0.85f, p.z), new Vector3(0.04f, 0.18f, 0.6f), red);   // the name plate
+            }
+            for (int k = 0; k < 4; k++)
+            {
+                float z = 12.7f + k * 3.05f;
+                mb.Box(new Vector3(hx0, 0.25f, z), new Vector3(0.5f, 0.5f, 0.5f), orange);
+                mb.Cylinder(new Vector3(hx0, 0.5f, z), 0.2f, 0.2f, 3f, 10, stone, true);
+            }
+            mb.Box(new Vector3((hx0 + hx1) * 0.5f, 3.6f, 17.25f), new Vector3(hx1 - hx0 + 0.8f, 0.25f, 10.6f), white);
+            mb.Box(new Vector3(hx0 - 0.42f, 3.5f, 17.25f), new Vector3(0.06f, 0.5f, 10.6f), orange);
+            OctLedRect(new Vector3((hx0 + hx1) * 0.5f, 3.75f, 17.25f), (hx1 - hx0 + 0.8f) * 0.5f, 5.3f, whiteL);
+            WorldBuilder.Accent(W(new Vector3(hx1 - 2f, 3f, 17.25f)), new Color(1f, 0.92f, 0.8f), 7f, 10f);
+
+            // 3. two white marble shrines by the steps, gold doors, red roofs with a gold finial, edged in light
+            foreach (float x in new[] { -3.9f, 3.9f })
+            {
+                Vector3 b = new Vector3(x, 0f, 20.6f);
+                mb.Box(b + Vector3.up * 0.2f, new Vector3(2.6f, 0.4f, 2.6f), marble);
+                mb.Box(b + Vector3.up * 1.7f, new Vector3(2.1f, 2.6f, 2.1f), white);
+                mb.Box(b + new Vector3(0f, 1.5f, 1.07f), new Vector3(0.95f, 1.9f, 0.05f), gold);
+                mb.Box(b + new Vector3(0f, 1.45f, 1.1f), new Vector3(0.7f, 1.6f, 0.03f), S(Pal.TempleRed));
+                mb.Box(b + Vector3.up * 3.08f, new Vector3(2.5f, 0.16f, 2.5f), yellow);
+                mb.Pyramid(b + Vector3.up * 3.16f, 2.5f, 2.5f, 1.6f, red);
+                Kalash(mb, b + Vector3.up * 4.7f, 0.4f, gold);
+                OctLedRect(b + Vector3.up * 3.2f, 1.25f, 1.25f, goldL);
+                foreach (var cx in new[] { new Vector3(1.25f, 0, 1.25f), new Vector3(-1.25f, 0, 1.25f), new Vector3(1.25f, 0, -1.25f), new Vector3(-1.25f, 0, -1.25f) })
+                    LedL(b + Vector3.up * 3.2f + cx, b + Vector3.up * 4.75f, whiteL, 0.1f);
+                LedL(b + new Vector3(-0.5f, 2.5f, 1.12f), b + new Vector3(0.5f, 2.5f, 1.12f), warm);
+                WorldBuilder.Accent(W(b + new Vector3(0f, 2.6f, 2.2f)), new Color(1f, 0.8f, 0.5f), 5f, 6f);
+            }
+
+            // 4. the peepal: red chunri tied round the trunk, threads; a diya stand before it
+            for (int k = 0; k < 14; k++)
+            {
+                float a = k / 14f * Mathf.PI * 2f, y = 1.2f + (k % 4) * 0.45f;
+                Vector3 p = t + new Vector3(Mathf.Cos(a) * 0.78f, y, Mathf.Sin(a) * 0.78f);
+                mb.Box(p, new Vector3(0.18f, 0.5f + (k % 3) * 0.2f, 0.04f), Quaternion.Euler(0f, -a * Mathf.Rad2Deg, 8f), red);
+            }
+            for (int k = 0; k < 5; k++) mb.Cylinder(t + Vector3.up * (1.1f + k * 0.35f), 0.86f, 0.86f, 0.05f, 10, k % 2 == 0 ? red : yellow, false);
+            Vector3 ds = t + new Vector3(2.4f, 0f, 2.4f);
+            mb.Cylinder(ds, 0.35f, 0.25f, 0.2f, 8, dark, true);
+            mb.Cylinder(ds, 0.04f, 0.04f, 1.2f, 5, dark, false);
+            for (int k = 0; k < 3; k++)
+            {
+                float rr = 0.45f - k * 0.12f, yy = 0.55f + k * 0.28f;
+                mb.Cylinder(ds + Vector3.up * yy, rr, rr, 0.03f, 10, gold, true, true);
+                for (int j = 0; j < 8 - k * 2; j++)
+                {
+                    float a = j / (float)(8 - k * 2) * Mathf.PI * 2f;
+                    WorldBuilder.Bulb(W(ds + new Vector3(Mathf.Cos(a) * rr, yy + 0.06f, Mathf.Sin(a) * rr)), new Color(1f, 0.6f, 0.15f), 0.05f, 3.2f);
+                }
+            }
+            WorldBuilder.Accent(W(ds + Vector3.up * 1.2f), new Color(1f, 0.6f, 0.2f), 4f, 4f);
+
+            // 5. potted plants along the sides and the front
+            for (float z = 12f; z <= 22.5f; z += 1.6f)
+                foreach (float x in new[] { -hw + 0.6f, hw - 0.6f })
+                {
+                    if (x < 0f && z > 11.8f && z < 22.6f && x > bx0 - 1f) continue;
+                    mb.Cylinder(new Vector3(x, 0f, z), 0.25f, 0.32f, 0.5f, 8, red, true);
+                    mb.Sphere(new Vector3(x, 0.8f, z), new Vector3(0.38f, 0.36f, 0.38f), 6, 4, green);
+                }
+            for (float x = -1.6f; x <= 1.61f; x += 3.2f)
+            {
+                mb.Cylinder(new Vector3(x, 0f, 22.4f), 0.3f, 0.38f, 0.6f, 8, red, true);
+                mb.Sphere(new Vector3(x, 0.95f, 22.4f), new Vector3(0.45f, 0.42f, 0.45f), 6, 4, green);
+            }
+
+            // 6. strings of bulbs across the court, from poles at its corners to the old flag poles
+            var poles = new[] { new Vector3(-hw + 0.3f, 0f, z1 - 0.3f), new Vector3(hw - 0.3f, 0f, z1 - 0.3f), new Vector3(-12.5f, 0f, 9.5f), new Vector3(12.5f, 0f, 9.5f), new Vector3(3.6f, 0f, 3.5f) };
+            for (int k = 0; k < 2; k++) mb.Cylinder(poles[k], 0.07f, 0.05f, 7f, 6, red, true);
+            void String(Vector3 a, Vector3 b) => WorldBuilder.SagString(W(a), W(b), 0.9f, warm, 0.35f, 0.06f, 2.8f);
+            String(poles[0] + Vector3.up * 6.8f, poles[3] + Vector3.up * 6.5f);
+            String(poles[1] + Vector3.up * 6.8f, poles[2] + Vector3.up * 6.5f);
+            String(poles[0] + Vector3.up * 6.8f, poles[1] + Vector3.up * 6.8f);
+            String(poles[2] + Vector3.up * 6.5f, poles[4] + Vector3.up * 6.5f);
+            String(poles[3] + Vector3.up * 6.5f, poles[4] + Vector3.up * 6.5f);
+
+            // 7. LED lines on the old buildings: the sanctum's eave, drum band and spire, the side shrine, the dharamshala's
+            //    roof edge, the bell gate's arch, the chhatri; the sanctum's door lit
+            OctLed(c + Vector3.up * 3.86f, 5.82f, goldL);
+            OctLed(c + Vector3.up * 5.36f, 2.66f, whiteL);
+            OctLed(c + Vector3.up * 7.1f, 3.18f, goldL);
+            SpireLed(c + Vector3.up * 7.12f, 3.15f, 6.15f, whiteL);
+            for (int k = 0; k < 8; k += 2)
+            {
+                float a0 = Mathf.PI / 8f + k * Mathf.PI / 4f;
+                LedL(c + Vector3.up * 3.88f + new Vector3(Mathf.Cos(a0) * 5.8f, 0f, Mathf.Sin(a0) * 5.8f), c + Vector3.up * 5.34f + new Vector3(Mathf.Cos(a0) * 2.7f, 0f, Mathf.Sin(a0) * 2.7f), goldL, 0.12f);
+            }
+            float face = 3.0f * Mathf.Cos(Mathf.PI / 8f);
+            WorldBuilder.Accent(W(c + new Vector3(0f, 2.4f, face + 2.2f)), new Color(1f, 0.75f, 0.45f), 8f, 12f);
+            WorldBuilder.Accent(W(c + new Vector3(0f, 1.6f, face - 0.8f)), new Color(1f, 0.55f, 0.25f), 4f, 6f);   // the lamp inside
+            OctLedRect(h + Vector3.up * 3.56f, 3.2f, 3.2f, goldL);
+            OctLedRect(h + Vector3.up * 5.52f, 1.7f, 1.7f, whiteL);
+            OctLedRect(d + Vector3.up * 6.52f, 5.9f, 3.7f, warm);
+            for (int k = 0; k < 16; k++)
+            {
+                float a = k / 16f, a1 = (k + 1) / 16f;
+                float l0 = Mathf.Sin(a * Mathf.PI) * 0.7f + Mathf.Pow(Mathf.Abs(a - 0.5f) * 2f, 6f) * 0.55f;
+                float l1 = Mathf.Sin(a1 * Mathf.PI) * 0.7f + Mathf.Pow(Mathf.Abs(a1 - 0.5f) * 2f, 6f) * 0.55f;
+                LedL(bg + new Vector3((a - 0.5f) * 5.6f, 4.25f + l0, 0.27f), bg + new Vector3((a1 - 0.5f) * 5.6f, 4.25f + l1, 0.27f), goldL, 0.09f);
+            }
+            for (int k = 0; k < 16; k++)
+            {
+                float a0 = k / 16f * Mathf.PI * 2f, a1 = (k + 1) / 16f * Mathf.PI * 2f;
+                LedL(ch + new Vector3(Mathf.Cos(a0) * 1.36f, 2.53f, Mathf.Sin(a0) * 1.36f), ch + new Vector3(Mathf.Cos(a1) * 1.36f, 2.53f, Mathf.Sin(a1) * 1.36f), whiteL);
+            }
+
+            // a rectangle of LED along a roof's edge (half sizes along x and z)
+            void OctLedRect(Vector3 at, float hx, float hz, Color col)
+            {
+                var q = new[] { new Vector3(-hx, 0, -hz), new Vector3(hx, 0, -hz), new Vector3(hx, 0, hz), new Vector3(-hx, 0, hz) };
+                for (int k = 0; k < 4; k++) LedL(at + q[k], at + q[(k + 1) % 4], col);
+            }
         }
 
         // ------------------------------------------------------------------ Gurudwara Sri Guru Singh Sabha

@@ -28,6 +28,10 @@ namespace Nainital
         float baseFogStart = -1f, baseFogEnd = -1f;
         static readonly int CloudId = Shader.PropertyToID("_CloudCover");
         static readonly int SmoothId = Shader.PropertyToID("_Smoothness");
+        static readonly int WindId = Shader.PropertyToID("_NtWind");
+        float wind = 0.35f;
+        /// <summary>The wind now, 0.25 still .. 1 a storm (sounds, flags).</summary>
+        public float Wind => wind;
 
         void Awake() => Instance = this;
 
@@ -114,6 +118,12 @@ namespace Nainital
             float to = current == Kind.Cloudy ? 0.55f : current == Kind.Fog ? 0.8f : current == Kind.Rain || current == Kind.RainFog ? 1f : 0f;
             Overcast = Mathf.MoveTowards(Overcast, to, dt * 0.06f);
             Shader.SetGlobalFloat(CloudId, Cloud);
+            // the wind on trees, grass and cloth (Shaders/NtWind.hlsl): a breeze in fair weather, stronger with cloud, rain,
+            // the storm; gusts come and go
+            float baseWind = current == Kind.RainFog ? 1f : current == Kind.Rain ? 0.8f : current == Kind.Cloudy ? 0.5f : current == Kind.Fog ? 0.25f : 0.35f;
+            wind = Mathf.MoveTowards(wind, baseWind, dt * 0.05f);
+            float gusts = 0.75f + 0.25f * Mathf.PerlinNoise(Time.time * 0.07f, 3.1f) * 2f;
+            Shader.SetGlobalFloat(WindId, wind * gusts);
 
             if (baseFogEnd < 0f) { baseFogStart = RenderSettings.fogStartDistance; baseFogEnd = RenderSettings.fogEndDistance; }
             RenderSettings.fogStartDistance = Mathf.Lerp(baseFogStart, Mathf.Lerp(5f, 1.5f, heavy), Fog);

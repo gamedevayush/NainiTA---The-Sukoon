@@ -766,3 +766,152 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
     POI, -150, 230) -> Eco Cave Park -> Lovers Point -> Khurpatal (Mall Road dropped: a 3 km detour from Mallital), in
     RainFog (weather back to its own cycle when the ride ends). Checked: 3 roads planned, the bus climbing out of Mallital
     in the rain and fog.
+- 23 Nov (10:45) radio. Owner: "koi bhi vehicle me random song, and bus me bus.mp3 hi hmesha from random place". Code
+  done + offline compile OK; NOT tested in Unity yet (owner: "unity me abhi mt test kro").
+  - `Audio/Radio.cs`: every time he gets into a car / auto / taxi or onto a bike: his own songs ("Apne Gaane"), a random
+    one, from a random place in it - not the last ride's station (his editor had "Radio band" saved, nt_radio = 4, so
+    nothing played). R still changes the station for that ride. No own songs: the first bundled station. Own songs now
+    load whole and compressed (a streamed clip cannot start in the middle). Log line `[Nainital] radio: <song> ... from N s`.
+  - `Audio/BusRadio.cs`: back to bus.mp3 only, looping, from a random place each time a bus's radio comes on; also when
+    he DRIVES a bus (Radio hands a bus to BusRadio). The 10-songs-from-his-folder bus playlist was dropped. Log line
+    `[Nainital] bus radio: bus.mp3 (N s) from N s`.
+  - TO TEST (next session): (1) drive a car (`VehicleTest.CarE`), get out, get in again x3 -> a different song and start
+    each time; (2) a bike the same; (3) `VehicleTest.Tour` / pause menu BUS SAWARI -> bus.mp3 from the middle, 3D at the
+    driver, no car radio on top; (4) drive a bus -> bus.mp3, not his songs; (5) R in a car still cycles to Radio band.
+- 23 Nov (evening) story system, game parlour, lights, temple court, ropeway, Snow View. Owner: "cutscene, dialogue and choice
+  UI system bnaalo proper..or mall road, choki se niana devi mandir tk lighting add kro path pe...nainta devi mandir ke saamne
+  mandir poore me hain...bandstand ke andr light..capitol ke neeche video games ki dukaan me pool wgera, bowling and basic
+  playable games...upar 360 tower or uske paas ka market...ropeways interactable bnaao... proper both sides entry.. or side
+  concrete barricade...lighting mujhe bhdiya chahiye...specially mall raod to khatarnaak".
+  - References (reference only, never in the game or the repo): `D:\Unity\ref\yt_nov23\` - naina (Naina Devi at night),
+    snowmkt + snow360 (Snow View, Tower 360, adventure park, market), rope (both stations), mallnight (Mall Road, the walk,
+    Capitol at night), zoom (Zoom Land / Video Games on the lakeside). 4x4 contact sheets with times in each folder.
+  - Story system (`Runtime/Story/`): `Cutscene` runs a JSON script from `Resources/Story/<id>.json` (actors from the
+    character library, shots / glides / orbits / follows, lines, choices with flags and jumps, if / goto / labels, walk /
+    face / place, the QTE `mash`, fade / bars / blur / objective); `StoryUI` (cinema bars, typed subtitles with names, choices
+    by 1-4 / arrows / tap / pad with an optional timer, hold-Esc skip that stops at choices, the QTE meter, a DOF + vignette
+    blur volume); `StoryFlags` (one PlayerPrefs key `nt_story`, in TestSave). `GameInput.StoryLock` mutes gameplay input.
+    Test scene `demo_uncle` (relative to the player): cheat KAHANI, menu Nainital > Story, bridge `call StoryTest.Play`.
+    Hindi lines: `Tools/loc/strings_story.tsv` (build_loc.py). Offline compile OK; not yet played in the editor.
+  - Game parlour (`Runtime/Games/`): `ArcadeScreen` (Bandar Bhagao whack-a-monkey, Pahadi Dash lane dodger, practice Pool
+    with real ball physics) opened by `ArcadeCabinet` (E, Rs 20/30); `BowlingLane` builds its own lane / pins / ball with
+    rigid bodies (6 kg ball, 1.5 kg pins), 5 frames, strike +10, spare +5 (Rs 50). The Video Games / Zoom Land hall
+    (`WorldBuilder.Capitol.cs`) is hollow now: door in the middle bay, floor, ceiling, neon edges, tube lights (accent
+    lights), 6 machines, 2 pool tables, the bowling lane on the lake side; the Capitol front washed violet / pink.
+  - Lights (`WorldBuilder.Festive.cs`, a build step on the final ground): LED dots drawn by the LampGlow shader (faded in at
+    dusk): warm strip + post bulbs along the Lower Mall's lake railing (`mallRailRuns`, from MallLakeEdge), fairy lights on
+    the Mall's own trees (every fourth blue / violet), jhalar over the Mall's shop fronts, the walk Mall -> Naina Devi with
+    white lantern posts every 12 m (real lamps), a violet strip and warm foot-lights on its lake side; accent lights
+    (LampManager: new accent category, colour / range / intensity each) for the bandstand's lamp, the temples, the parlour,
+    the ropeway stations. The bandstand has a lamp under its roof and gold LED on its eave, ridges and posts.
+  - Naina Devi (`LandmarkBuilder.Worship.cs` NainaDeviCourt): the court runs 12 m on toward the market: the bell pavilion
+    (lavender pillars, three rows of brass bells), the hall of the ten avatars (tile wall), two white marble shrines with gold
+    doors, chunri on the peepal, a diya stand, potted plants, strings of bulbs across, gold / white LED on every roof edge.
+  - Ropeway (`LandmarkBuilder.RopewayStation.cs`, `Runtime/World/Ropeway.cs`, `RopewayRide.cs`): the same station at both
+    ends - ENTRY door, ticket hall with counter and rate board, queue rails, 26 stairs to the platform, two bays, red steel
+    frame, the curved guides outside, jersey barriers along the door's lane where the ground is free; two cabins on two
+    tracks passing each other (jig-back); E at your cabin's door on the platform, off onto the other platform.
+  - Snow View: Tower 360 yellow with red / white top bands, a maroon ring with "360"; the adventure park and market lane
+    (`LandmarkBuilder.SnowViewPark.cs`) - in progress.
+  - Snow View also: a food court on the open grass east of the Gol Market (chai / Maggi carts, umbrellas, stools, benches,
+    coin binoculars, strings of bulbs, steps down the slope) and a zip line (yellow tower, cable, seat).
+  - Barriers: the check box ignores the terrain now (slopes cut it before) and spots along the side walls were added:
+    Mallital 16, Snow View 24. A "rain roof" (a box on the vehicle layer, which the rain collides with) over the parlour and
+    both stations. Parlour lights down the middle, range <= half the hall (no shadows: they lit the walls outside).
+  - PLAY TEST (20:00-20:30, desktop view, bridge): demo cutscene ran end to end (line, choice 2 -> its branch, walk, orbit,
+    QTE passed by presses, flags demo_reply=hide demo_qte=1, controls back); Bandar / Dash / Pool open and play; bowling 5
+    frames with real pins (strikes), the score bar shows; ropeway: cabin 0 docked at Snow View, boarded at its platform door
+    (Rs 300), rode down, got off on the Mallital platform beside its cabin; night in Play with real lights: Naina Devi court,
+    bandstand lamp, the walk's lanterns, Mall railing LED + fairy trees in the rain, Capitol violet, Snow View lane lanterns;
+    TOOFAN: no rain inside the parlour. Fixed on the way: pool aimed at the wall, pool label, bowling bar empty + player in
+    the camera's way, a game opening over bowling. Test hooks: StoryTest.Play/Next/Pick/Mash/Skip/State, Arcade, Bowl,
+    Rope, RopeBoard, PutAt (Editor/StoryTest.cs).
+  - OPEN (owner's review 21:05, "baaki abhi fix mt krna..jab main kahu to krna" - wait for his go): game parlour - (1) the
+    walls inside glow by day (sky ambient reaches in): the inside must look the same day and night, outside light only at
+    the door; (2) the ceiling lights look right but little light reaches the floor (6.4 m ceiling, range 6.2): hang them
+    lower / more range; (3) add 5-10 more arcade machines and real game-zone vibes (carpet, neon boards, decor) - it is bare;
+    (4) the bowling lane flickers: its top (y 0.12) z-fights the hall floor top (0.12) - lift the lane.
+  - OPEN (owner 21:15, with 3 Street View 360s; "abhi kaam mt krna"): the Naina Devi / Tibetan Market chowk is a hill
+    mound in the game (white curved paint lines on a bump, the walk climbing over it); in reality the whole chowk is FLAT,
+    grey and red pavers with round cobble medallions; of the two roads ahead the first is on this same level, the upper one
+    higher, with stairs between them; the chowk is lined with shops all round (China Town, the Tibetan market's clothes
+    stalls under blue tarps, Fartiyal's, the temple's red gate) - the game has open grass there. Level it, pave it as the
+    photos, add the stairs, fill the edges with the shop rows.
+  - OPEN (owner 21:20, the walk Mall -> Naina Devi at night): (1) walkers press into the red wall on one side and through
+    the green railing on the other and get nowhere ("isme brain nhi hai?") - check their route line against the walk's
+    real width and whether the new lantern posts / anything new blocks them; (2) the violet LED strip and its uplights lie
+    on the grass outside the green railing: Festive.cs put them 3.2 m from the walk's centre - follow the real railing line.
+  - OPEN (owner 21:30, a marked Google Maps image; wait for his go): DSA road is on two levels. Green = the main road
+    (upper) Mall Road -> Naina Devi; yellow = the lower path along the lake, parallel to it, from the Boat House past the
+    bandstand to Children's Park; the two joined by stairs (two connectors near the bandstand / Boat Point park); orange =
+    the two parks (the small one by the bandstand between the levels, Children's Park); pink = the Boat House club's ground,
+    also low; black = trees lining the upper road thickly on both sides, so from the upper road the lake shows only at the
+    bandstand opening. In the data (Tools/satcheck/capcrop.py 45 55 85): upper road (87,114) -> (-15,-30); lower path
+    (107,97) -> (58,51) -> (51,37) -> (28,-28); connectors around (40-55, 20-50); small park (32-57, 34-55); Children's
+    Park (0-35, -27..25); Boat House lawn (62-104, 55-95).
+  - OPEN (owner 21:35, Mallital chowki junction at night): (1) traffic signal posts stand inside the carriageway and buses
+    hit them instead of passing (TrafficSignals.cs: push each post out past the kerb / onto the footway, never in a lane);
+    (2) the walk's violet LED strip runs across the road at the chowki (Festive.cs: skip any piece where Clearance says
+    road).
+  - OPEN (owner 21:40, Upper Mall -> Lower Mall stairs): every flight between the two decks has no side walls, so the
+    terrain inside shows beside the steps. Close both sides of each flight with walls (the divider's mossy stone) from the
+    upper road down to the lower one (WorldBuilder.Mall.cs MallDivider stairs).
+  - OPEN (owner 21:45, night, rain): the Zoo Road mouth off Mall Road is shut by a long mossy stone wall (the Mall's
+    divider / retaining wall runs straight past the junction); Zoo Road is visible behind it but cannot be entered. Open
+    the wall wherever a road meets the Mall (check every junction along both decks, not only Zoo Road).
+  - OPEN (owner 21:50): the Himgiri petrol pump stands in the wrong place (on Mall Road at the lake's edge). Find its real
+    spot (Google Maps / satellite), move it there (LandmarkBuilder.PlanPetrolPumps / PetrolPumps.cs: position, facing,
+    the way in and out), and dress the place it leaves as the photos show.
+  - OPEN (owner 21:55, a hillside lane at night, minimap: a road running north-south through houses): a house stands on
+    the road - the road runs into it. Run Editor/RoadAudit.cs (every built object with a road through it) and clear all of
+    them, not only this one; the lane must stay drivable.
+  - OPEN (owner 22:00, a road wall at night): the road walls show from one side only (seen from behind / above they vanish).
+    Make all of them double-sided (the wall material's cull off, or back faces built) - WorldBuilder.RoadWalls.cs and the
+    Mall's walls alike.
+- 23 Nov (night, 22:00-23:30) the OPEN list above, all fixed (owner: "itna kro pehle bilkul perfect", then "ok"):
+  - Signals: TrafficSignals.Dress never puts a post on ANY road of the network (OnAnyRoad: half width + 0.6), trying back
+    and out (Play: Mallital chowki junction post on the footway corner).
+  - Walk LEDs: the generic violet strip / foot lights (3.2 m from the walk's centre) removed; they come with the DSA wall.
+  - Walls double-sided: M_MallMossyStone (every retaining wall) _Cull 0.
+  - Mall stairs: both sides of each Upper -> Lower Mall flight closed with stone walls and a coping.
+  - "Zoo road": the road the owner meant is Snowview Road (Zoo is up it), meeting Upper Mall at (785,-635): two generated
+    houses stood across its mouth (now left off) and the tall-wall stretches never asked LaneAt - they do now (Play: open).
+    (Zoo Road itself starts 78 m off the Mall, from the road above it - right in the data.)
+  - Houses on roads: BuildBuildings skips a house whose middle or corners are on a carriageway (38 left off), unnamed OSM
+    footprints too; Kaladhungi roadside items skip a road after stepping back; zoo fence opens where a road passes; the
+    G.O.A.N. plinth shrinks off a road; Land's End's ring steps forward off its road. New audit RoadAudit.Colliders (every
+    collider on a drivable road, per 10 m) - left: the Tallital traffic island (by design), the Army centre on a 3.5 m lane.
+  - Petrol pump: the Tallital pin moved to IndianOil's locator (29.380094, 79.462100) -> (688.5,-1153.6), the lake road west
+    of the chowk.
+  - Game parlour: InteriorZone (Runtime/World): while the camera is inside, DayNightCycle dims the ambient (same by day and
+    night); 12 real lamps 1.2 m under the ceiling + pool lamps + violet / pink glows, on day and night, switched by distance;
+    dark blue walls on a black dado, black ceiling, neon carpet (procedural texture), neon boards; 31 machines / tables
+    (wall rows, a back-to-back island, 2 racers, 2 claw machines, basketball, air hockey); the bowling lane on a 16 cm
+    base (no flicker).
+  - Walkers: ClearWalks (Living.cs) cuts every walkway at points a walker-sized capsule finds blocked (3555 cut, 320 -> 441
+    pieces), so nobody walks into a wall, railing or fence.
+  - DSA road two levels (WorldBuilder.DsaRoad.cs): the lake side of the upper road from (24,29) to the Mall at the lower
+    level 748.2 (upper 750.3-754.4), the Boat House path a grade to the Mall, a 1.5 m stone retaining wall with coping and
+    green railing (violet LED on top, warm foot lights) sloping with the road, a flat ledge on the high side, 13 stairs
+    (39,51)->(53,42) between side walls, the small park's fence, 49 trees in rows both sides (lake side open by the
+    bandstand); the wall's foot kept low after the roads (bankKeep).
+  - Naina Devi chowk (WorldBuilder.Chowk.cs): flat at 749.32 over the satellite outline, grey pavers with red bands and
+    medallions (PaintRoadSurfaceOver: red wins over grey), stone walls where the ground beyond differs, stairs where paths
+    climb out (2), 6 shops round the free edges; the old painted "Tibetan market ring" removed.
+
+## 23 Nov 2026 (23:30-, main PC) - the town feels alive (owner: "saare krdo inme...and bandar bhi tripo pe pending krdo")
+- Wind (Shaders/FoliageWind.shader = URP Lit + Shaders/NtWind.hlsl; `_NtWind` from WeatherSystem, gusts): tree leaves and
+  bark, grass, cloth (flags, prayer flags, tarps, awnings, shawls, coats: one "Cloth in the wind" mesh, FestiveStep).
+- Moored boats bob on a swell (`_WindBob`, "Moored boats on the swell" mesh: Details + Mallital ghat rowing boats, swans).
+- Sounds (AudioManager.Alive): vendor calls + boatmen (Resources/Audio/vendor_*, boatman_* - CLIPS STILL NEEDED: Windows
+  has no Hindi TTS voice here, edge-tts install was not allowed), far horns, bus-stand air horn, lake lapping, rain on a
+  tin roof overhead, aarti bells at Naina Devi (6:00-6:36, 18:24-19:12), azaan from the Jama Masjid at prayer times
+  (needs Resources/Audio/azaan), footsteps on roads / pavers (TerrainRoads.SurfaceAt: the mask read back from the GPU).
+  Reverb: the parlour (InteriorZone) and both ropeway halls (AudioReverbZone).
+- Particles (Runtime/World/AmbientLife.cs): falling leaves, dust in the sun, morning / fog mist on the lake, breath fog
+  (player + people near), steam at tea stalls and Mall eateries, chimney smoke (cottage) mornings / evenings.
+- Town: shop shutters down 21:30-23:30 till 7:30-9:30 (each shop its own time), windows switch on / off at night
+  (NainitalRooms.hlsl, `_NtHourP1`, `_NtGameMinutes`); ~3% of lamp halos flicker in bursts (LampGlow).
+- NPCs: when they stop (12% per waypoint, 3-7 s): photo of the lake (phone up), phone call, eating a bhutta, wave, a bow
+  towards Naina Devi, a look round.
+- PENDING (Tripo): monkeys (bandar) - with the animals and the fire truck.

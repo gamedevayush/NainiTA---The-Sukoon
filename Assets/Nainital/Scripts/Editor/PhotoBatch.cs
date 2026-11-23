@@ -50,6 +50,27 @@ namespace Nainital.EditorTools
                             PreviewCapture.Custom = arg;
                             try { PreviewCapture.Capture(); } finally { PreviewCapture.Only = null; PreviewCapture.Custom = null; }
                             break;
+                        case "shotobj":   // cameras round a built object: "name;Object Name;fx,fy,fz;lx,ly,lz;hour" joined by "|",
+                        {                 // from / look in the object's own frame (x right, y up, z its front)
+                            UnityEditor.SceneManagement.EditorSceneManager.OpenScene(WorldBuilder.ScenePath);
+                            var specs = new System.Collections.Generic.List<string>();
+                            var inv = System.Globalization.CultureInfo.InvariantCulture;
+                            foreach (var spec in arg.Split('|'))
+                            {
+                                var f = spec.Split(';');
+                                if (f.Length < 5) continue;
+                                var go = GameObject.Find(f[1]);
+                                if (!go) { Debug.LogWarning("[Batch] shotobj: no object " + f[1]); continue; }
+                                Vector3 P(string v) { var n = v.Split(','); return new Vector3(float.Parse(n[0], inv), float.Parse(n[1], inv), float.Parse(n[2], inv)); }
+                                Vector3 from = go.transform.TransformPoint(P(f[2])), look = go.transform.TransformPoint(P(f[3]));
+                                Debug.Log($"[Batch] shotobj {f[0]}: {f[1]} at {go.transform.position}");
+                                specs.Add(string.Format(inv, "{0};{1},{2},{3};{4},{5},{6};{7}", f[0], from.x, from.y, from.z, look.x, look.y, look.z, f[4]));
+                            }
+                            PreviewCapture.Only = new[] { "-" };
+                            PreviewCapture.Custom = string.Join("|", specs);
+                            try { PreviewCapture.Capture(); } finally { PreviewCapture.Only = null; PreviewCapture.Custom = null; }
+                            break;
+                        }
                         default: throw new ArgumentException("unknown step: " + line);
                     }
                     Debug.Log($"[Batch] done {cmd} in {(DateTime.Now - t0).TotalSeconds:F0}s");

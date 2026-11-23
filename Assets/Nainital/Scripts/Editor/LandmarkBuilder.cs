@@ -154,14 +154,17 @@ namespace Nainital.EditorTools
             mb.Box(new Vector3(0, -depth * 0.5f, 0), new Vector3(size.x, depth, size.z), uv);
         }
 
+        /// <summary>The cloth mesh (WorldBuilder.cloth) with mb's transform: what is drawn on it moves in the wind.</summary>
+        internal static MeshBuilder Cloth(MeshBuilder mb) { WorldBuilder.cloth.M = mb.M; return WorldBuilder.cloth; }
+
         static void Flag(MeshBuilder mb, Vector3 poleBase, float height, int color)
         {
             mb.Limb(poleBase, poleBase + Vector3.up * height, 0.07f, 0.04f, 5, S(Pal.Gold));
             Vector3 t = poleBase + Vector3.up * (height - 0.1f);
             Vector3 b = poleBase + Vector3.up * (height - 1.3f);
             Vector3 tip = poleBase + Vector3.up * (height - 0.7f) + Vector3.right * 2.2f;
-            mb.Tri(t, b, tip, S(color), Vector3.forward);
-            mb.Tri(t, b, tip, S(color), Vector3.back);
+            Cloth(mb).Tri(t, b, tip, S(color), Vector3.forward);
+            Cloth(mb).Tri(t, b, tip, S(color), Vector3.back);
         }
 
         // ------------------------------------------------------------------ landmarks
@@ -362,14 +365,15 @@ namespace Nainital.EditorTools
             foreach (float x in new[] { -1.6f, 1.6f })
                 foreach (float z in new[] { -1.2f, 1.2f })
                     mb.Box(new Vector3(x, z > 0 ? 1.1f : 1.3f, z), new Vector3(0.07f, z > 0 ? 2.2f : 2.6f, 0.07f), pole);
-            mb.QuadDouble(new Vector3(-1.8f, 2.2f, 1.45f), new Vector3(1.8f, 2.2f, 1.45f), new Vector3(1.8f, 2.6f, -1.3f), new Vector3(-1.8f, 2.6f, -1.3f), new Rect(tp.x, tp.y, 0f, 0f), Vector3.up);
+            Cloth(mb).QuadDouble(new Vector3(-1.8f, 2.2f, 1.45f), new Vector3(1.8f, 2.2f, 1.45f), new Vector3(1.8f, 2.6f, -1.3f), new Vector3(-1.8f, 2.6f, -1.3f), new Rect(tp.x, tp.y, 0f, 0f), Vector3.up);
             mb.Box(new Vector3(0f, 0.45f, -0.6f), new Vector3(2.6f, 0.9f, 0.7f), S(Pal.WoodLight));
             mb.Cylinder(new Vector3(-0.8f, 0.9f, -0.6f), 0.17f, 0.15f, 0.25f, 8, S(Pal.Concrete), true);
+            WorldBuilder.steamSpots.Add(mb.M.MultiplyPoint3x4(new Vector3(-0.8f, 1.2f, -0.6f)));   // the tea pot steams (AmbientLife)
             int[] packets = { Pal.JacketRed, Pal.BoatYellow, Pal.JacketBlue, Pal.SareeOrange, Pal.JacketGreen };
             for (int k = 0; k < 7; k++)
                 mb.Box(new Vector3(-0.35f + k * 0.2f, 1.0f, -0.75f), new Vector3(0.15f, 0.2f, 0.1f), S(packets[rng.Next(packets.Length)]));
             for (int k = 0; k < 5; k++)   // snack strips hanging from the front pole line
-                mb.Box(new Vector3(-1.2f + k * 0.6f, 1.75f, 1.2f), new Vector3(0.12f, 0.6f, 0.02f), S(packets[rng.Next(packets.Length)]));
+                Cloth(mb).Box(new Vector3(-1.2f + k * 0.6f, 1.75f, 1.2f), new Vector3(0.12f, 0.6f, 0.02f), S(packets[rng.Next(packets.Length)]));
             mb.M = saved;
         }
 
@@ -409,11 +413,11 @@ namespace Nainital.EditorTools
             foreach (float sd in new[] { -1f, 1f }) mb.Box(new Vector3(sd * w * 0.5f, 1.6f, -0.7f), new Vector3(0.2f, 3.2f, 3f), wc);
             mb.Box(new Vector3(0f, 3.28f, -0.6f), new Vector3(w + 0.3f, 0.1f, 3.6f), S(tins[rng.Next(tins.Length)]));
             mb.Box(new Vector3(0f, 2.95f, 0.82f), new Vector3(w - 0.2f, 0.5f, 0.06f), S(goods[rng.Next(goods.Length)]));     // the board
-            mb.QuadDouble(new Vector3(-w * 0.5f, 2.35f, 1.7f), new Vector3(w * 0.5f, 2.35f, 1.7f), new Vector3(w * 0.5f, 2.7f, 0.85f), new Vector3(-w * 0.5f, 2.7f, 0.85f),
+            Cloth(mb).QuadDouble(new Vector3(-w * 0.5f, 2.35f, 1.7f), new Vector3(w * 0.5f, 2.35f, 1.7f), new Vector3(w * 0.5f, 2.7f, 0.85f), new Vector3(-w * 0.5f, 2.7f, 0.85f),
                           new Rect(S(new[] { Pal.Awning, Pal.Canopy, Pal.BoatBlue }[rng.Next(3)]), Vector2.zero), Vector3.up);
             mb.Box(new Vector3(0f, 0.45f, 0.4f), new Vector3(w - 0.6f, 0.9f, 0.5f), S(Pal.WoodLight));                          // counter
             for (float x = -w * 0.5f + 0.4f; x < w * 0.5f - 0.3f; x += 0.42f)                                                // shawls and jackets on show
-                mb.Box(new Vector3(x, 1.55f + (float)rng.NextDouble() * 0.3f, 0.75f), new Vector3(0.36f, 0.75f, 0.04f), S(goods[rng.Next(goods.Length)]));
+                Cloth(mb).Box(new Vector3(x, 1.55f + (float)rng.NextDouble() * 0.3f, 0.75f), new Vector3(0.36f, 0.75f, 0.04f), S(goods[rng.Next(goods.Length)]));
             for (float x = -w * 0.5f + 0.4f; x < w * 0.5f - 0.3f; x += 0.5f)
                 mb.Box(new Vector3(x, 1.3f, -1.9f), new Vector3(0.42f, 1.6f, 0.2f), S(goods[rng.Next(goods.Length)]));      // shelves at the back
             mb.M = saved;
@@ -525,8 +529,10 @@ namespace Nainital.EditorTools
             var site = MakeSite(ctx, p, ctx.lakeCenter, 13f);
             var mb = new MeshBuilder { M = Matrix4x4.TRS(site.origin, site.rot, Vector3.one) };
             Plinth(mb, new Vector3(30f, 0f, 26f), site.depth, M(Atlas.MatStone));
-            Vector2 white = S(Pal.ShirtWhite);
-            const float H = 34f, half = 0.8f;
+            // owner, 23 Nov 2026: "upar 360 tower ... real structure me nhi hai" - the videos (D:\Unity\ref\yt_nov23\snowmkt
+            // 5:36, snow360 13:20): a yellow lattice mast, red and white bands at its top, the ring gondola maroon with 360 on it
+            Vector2 white = S(Pal.BoatYellow);
+            const float H = 34f, half = 1.0f;
             // the mast: four legs, rings and cross bracing
             foreach (float x in new[] { -half, half })
                 foreach (float z in new[] { -half, half })
@@ -549,6 +555,15 @@ namespace Nainital.EditorTools
                 mb.Limb(new Vector3(0f, H, 0f), new Vector3(Mathf.Cos(a) * 1.4f, H + 1.6f, Mathf.Sin(a) * 1.4f), 0.04f, 0.03f, 4, white);
             }
             mb.Sphere(new Vector3(0f, H + 1.9f, 0f), Vector3.one * 0.3f, 6, 4, S(Pal.Gold));
+            for (int k = 0; k < 4; k++)   // the red and white bands round the top
+                mb.Box(new Vector3(0f, H - 4f + k * 1f + 0.5f, 0f), new Vector3(half * 2f + 0.3f, 1f, half * 2f + 0.3f), S(k % 2 == 0 ? Pal.TempleRed : Pal.ShirtWhite));
+            mb.Box(new Vector3(0f, H + 0.15f, 0f), new Vector3(half * 2f + 0.6f, 0.3f, half * 2f + 0.6f), S(Pal.TempleRed));
+            // at night: warm dots up the four legs, a red light on top
+            foreach (float x in new[] { -half, half })
+                foreach (float z in new[] { -half, half })
+                    WorldBuilder.Led(mb.M.MultiplyPoint3x4(new Vector3(x * 1.08f, 0.6f, z * 1.08f)), mb.M.MultiplyPoint3x4(new Vector3(x * 1.08f, H - 4f, z * 1.08f)), WorldBuilder.LedGold, 0.3f, 0.06f, 2.6f);
+            WorldBuilder.Bulb(mb.M.MultiplyPoint3x4(new Vector3(0f, H + 2.3f, 0f)), WorldBuilder.LedRed, 0.35f, 3.5f);
+            WorldBuilder.Accent(mb.M.MultiplyPoint3x4(new Vector3(0f, 3f, 5f)), new Color(1f, 0.85f, 0.55f), 12f, 14f);
             // boarding deck under a glass roof, a ticket booth, shops facing the yard
             mb.Box(new Vector3(0f, 0.3f, 0f), new Vector3(7f, 0.6f, 7f), M(Atlas.MatConcrete));    // the boarding deck round the mast
             foreach (float x in new[] { 4.2f, 9.8f })                                                // the queue shelter beside it, glass-roofed
@@ -565,7 +580,7 @@ namespace Nainital.EditorTools
 
             // the gondola: an open ring round the mast, bronze plate, gold rail, people standing at it
             var g = new MeshBuilder();
-            Vector2 bronze = S(Pal.WoodDark), gold = S(Pal.Gold);
+            Vector2 bronze = S(Pal.BoatRed), gold = S(Pal.Gold);
             const int seg = 24;
             for (int k = 0; k < seg; k++)
             {
@@ -581,6 +596,12 @@ namespace Nainital.EditorTools
             var gond = ctx.MeshObject("Tower 360 gondola", go.transform.parent, g, ctx.mats.atlas, null, true, false);
             gond.transform.SetPositionAndRotation(site.origin + Vector3.up * 0.6f, site.rot);
             gond.AddComponent<Tower360Ride>().top = H - 4f;
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            for (int k = 0; k < 3; k++)   // "360" painted round the ring, three times
+            {
+                var dirK = site.rot * Quaternion.Euler(0f, k * 120f, 0f) * Vector3.back;
+                WorldBuilder.Label(gond.transform, font, "360", gond.transform.position + Vector3.up * 0.6f + dirK * 2.64f, dirK, 0.55f, new Color(0.98f, 0.9f, 0.85f));
+            }
             Sign(ctx, "Tower 360", site, new Vector3(-6f, 0f, -11f), parent);
             ctx.Zone("Tower 360 (Snow View)", site.origin, 40f);
             ctx.landmarkSites["Tower 360"] = site.origin;
@@ -717,6 +738,12 @@ namespace Nainital.EditorTools
 
             Make("Naina Devi", "Naina Devi Mandir", 12f, (mb, s) =>
             {
+                // the court in front (LandmarkBuilder.Worship.cs NainaDeviCourt): the ground there no higher than the court,
+                // no tree or house on it
+                Vector3 cc = s.origin + s.rot * new Vector3(0f, 0f, 17f);
+                Vector3 fw = s.rot * Vector3.forward;
+                CutGround(ctx, new Vector2(cc.x, cc.z), new Vector2(fw.x, fw.z).normalized, 14.5f, 7f, s.origin.y - 0.08f);
+                foreach (float x in new[] { -8f, 0f, 8f }) { Vector3 k = s.origin + s.rot * new Vector3(x, 0f, 17f); ctx.keepClear.Add((new Vector2(k.x, k.z), 7.5f)); }
                 NainaDeviTemple(mb, s.depth);
                 Shot("WorshipShot Naina Devi", s, new Vector3(9f, 3.2f, 19f), new Vector3(-1f, 4.5f, -2f));
             }, 45f, null, new Vector3(5f, 0, 10f));
@@ -804,7 +831,7 @@ namespace Nainital.EditorTools
                 Vector3 p = Vector3.Lerp(a, b, t) + Vector3.down * (Mathf.Sin(t * Mathf.PI) * dir.magnitude * 0.06f);
                 Vector3 along = dir.normalized * 0.16f;
                 var uv = new Rect(Atlas.ExtraUV(cols[i % cols.Length]), Vector2.zero);
-                mb.QuadDouble(p - along - side + Vector3.down * 0.3f, p + along - side + Vector3.down * 0.3f, p + along - side, p - along - side, uv, side);
+                Cloth(mb).QuadDouble(p - along - side + Vector3.down * 0.3f, p + along - side + Vector3.down * 0.3f, p + along - side, p - along - side, uv, side);
             }
         }
 
@@ -958,19 +985,49 @@ namespace Nainital.EditorTools
         }
 
         /// <summary>Lower station near the Flats, cable with pylons up to Snow View, moving cabin.</summary>
+        /// <summary>The lower station's footprint kept free of houses (the plan step; LandmarkBuilder.RopewayStation.cs).</summary>
+        internal static void PlanRopeway(WorldCtx ctx)
+        {
+            var station = ctx.Poi("Ropeway Mallital station");
+            if (!station.HasValue) return;
+            Vector2 dir2 = (SvRopeway - station.Value).normalized;
+            ctx.keepClear.Add((station.Value + dir2 * ((RwBack + RwFront) * 0.5f), 10f));
+        }
+
+        /// <summary>The ropeway (owner, 23 Nov 2026: "ropeways interactable bnaao... proper both sides entry"): a station at
+        /// each end (LandmarkBuilder.RopewayStation.cs: ENTRY, ticket hall, stairs, the platform with two bays), the cable on
+        /// pylons between them carrying two cabins that pass each other (Ropeway / RopewayRide).</summary>
         static void BuildRopeway(WorldCtx ctx, Transform parent)
         {
-            if (!ctx.landmarkSites.TryGetValue("Snow View ropeway", out var upper) && !ctx.landmarkSites.TryGetValue("Snow View", out upper)) return;
+            if (!ctx.landmarkSites.TryGetValue("Snow View ropeway", out var upperSite) && !ctx.landmarkSites.TryGetValue("Snow View", out upperSite)) return;
             var station = ctx.Poi("Ropeway Mallital station");   // Google Maps (2026-11-11)
             Vector2 lowerP = station ?? ctx.PushFromLake(ctx.mallitalShore + ctx.mallitalAlong * -45f, 22f);
-            Vector3 lower = new Vector3(lowerP.x, ctx.H(lowerP), lowerP.y);
+            Vector2 upperP = new Vector2(upperSite.x, upperSite.z);
+            Vector2 dir2 = (upperP - lowerP).normalized;
+            float yaw = Mathf.Atan2(dir2.x, dir2.y) * Mathf.Rad2Deg;
+            var rotL = Quaternion.Euler(0f, yaw, 0f);
+            var rotU = Quaternion.Euler(0f, yaw + 180f, 0f);
+            // each floor at the highest ground under its footprint; the plinth goes down to the lowest
+            (Vector3 origin, float depth) Floor(Vector2 p, Quaternion r)
+            {
+                float hi = float.MinValue, lo = float.MaxValue;
+                foreach (float x in new[] { -RwHalfW, 0f, RwHalfW })
+                    foreach (float z in new[] { RwBack, (RwBack + RwFront) * 0.5f, RwFront })
+                    {
+                        Vector3 w = r * new Vector3(x, 0f, z);
+                        float h = ctx.H(p + new Vector2(w.x, w.z));
+                        hi = Mathf.Max(hi, h); lo = Mathf.Min(lo, h);
+                    }
+                return (new Vector3(p.x, hi + 0.05f, p.y), hi - lo + 1f);
+            }
+            var lo = Floor(lowerP, rotL);
+            var up = Floor(upperP, rotU);
+            var doorsL = RopewayStation(ctx, parent, "Ropeway station (Mallital)", lo.origin, rotL, lo.depth, false);
+            var doorsU = RopewayStation(ctx, parent, "Ropeway station (Snow View)", up.origin, rotU, up.depth, true);
+            Vector3 a = lo.origin + rotL * new Vector3(0f, RwDeck + 3.2f, 1f), b = up.origin + rotU * new Vector3(0f, RwDeck + 3.2f, 1f);
+
             var mb = new MeshBuilder();
             var col = new MeshBuilder();
-            var st = new BuildingKit.Style { wall = 1, roof = 2, flatRoof = true, litChance = 0.8f };
-            Vector2 dir2 = new Vector2(upper.x - lower.x, upper.z - lower.z).normalized;
-            float yaw = Mathf.Atan2(dir2.x, dir2.y) * Mathf.Rad2Deg;
-            BuildingKit.House(mb, col, lowerP, 10f, 7f, yaw, 2, ctx.H(lowerP) - 1f, ctx.H(lowerP), st, new System.Random(9));
-            Vector3 a = lower + Vector3.up * 7.5f, b = upper + Vector3.up * 5.5f;
             var pts = new List<Vector3> { a };
             // add pylons where the straight cable would come too close to the ground
             for (int pass = 0; pass < 3; pass++)
@@ -981,9 +1038,6 @@ namespace Nainital.EditorTools
                     for (int k = 1; k < 40; k++)
                     {
                         Vector3 q = Vector3.Lerp(all[sgi], all[sgi + 1], k / 40f);
-                        // not beside a station: the cable comes down to the station's roof there, so the worst clearance
-                        // was always at the upper station and every pylon went up on top of it (15 Nov build log: three
-                        // towers at (557..586, 493..507), two in the same spot, none on the 600 m span from Mallital)
                         if (new Vector2(q.x - a.x, q.z - a.z).sqrMagnitude < 35f * 35f || new Vector2(q.x - b.x, q.z - b.z).sqrMagnitude < 35f * 35f) continue;
                         float clearance = q.y - ctx.H(new Vector2(q.x, q.z));
                         if (12f - clearance > worst) { worst = 12f - clearance; worstP = q; worstSeg = sgi; }
@@ -992,43 +1046,58 @@ namespace Nainital.EditorTools
                 Vector3 top = new Vector3(worstP.x, ctx.H(new Vector2(worstP.x, worstP.z)) + 16f, worstP.z);
                 pts.Insert(worstSeg + 1, top);
                 LatticeTower(ctx, mb, col, top, yaw);
+                // the cross-arm carrying both tracks
+                var arm = Quaternion.Euler(0f, yaw, 0f);
+                mb.Box(top + Vector3.up * 0.1f, new Vector3(RwGap + 1.6f, 0.35f, 0.5f), arm, S(Pal.JacketRed));
             }
             pts.Add(b);
             var towerLog = new System.Text.StringBuilder();
             for (int i = 1; i < pts.Count - 1; i++) towerLog.Append($" ({pts[i].x:F0}, {pts[i].y:F0}, {pts[i].z:F0})");
             Debug.Log($"[Nainital] ropeway: lower ({a.x:F0}, {a.y:F0}, {a.z:F0}), upper ({b.x:F0}, {b.y:F0}, {b.z:F0}), tower tops:{towerLog}");
-            Vector3 side = Quaternion.Euler(0, yaw + 90f, 0) * Vector3.forward * 1.2f;
-            for (int i = 0; i < pts.Count - 1; i++)
-            {
-                mb.Limb(pts[i] + side, pts[i + 1] + side, 0.04f, 0.04f, 4, S(Pal.IronBlack), false);
-                mb.Limb(pts[i] - side, pts[i + 1] - side, 0.04f, 0.04f, 4, S(Pal.IronBlack), false);
-            }
+            Vector3 right = Quaternion.Euler(0, yaw + 90f, 0) * Vector3.forward;
+            foreach (float s in new[] { -1f, 1f })   // two tracks, two ropes each
+                foreach (float r in new[] { -0.3f, 0.3f })
+                {
+                    Vector3 off = right * (s * RwGap * 0.5f + r);
+                    for (int i = 0; i < pts.Count - 1; i++) mb.Limb(pts[i] + off, pts[i + 1] + off, 0.035f, 0.035f, 4, S(Pal.IronBlack), false);
+                }
             ctx.MeshObject("Ropeway (Mallital - Snow View)", parent, mb, ctx.mats.atlas, col);
 
-            // the cabin (2025 video): red, windows all round, a white roof, hung from a yoke under a carriage on the cables
-            var cab = new MeshBuilder();
-            Vector2 red = S(Pal.JacketRed), glassUV = M(Atlas.MatGlass), steel = S(Pal.StoneGrey);
-            cab.Box(new Vector3(0, -2.75f, 0), new Vector3(2.2f, 0.9f, 2.6f), red);                 // lower body
-            cab.Box(new Vector3(0, -1.55f, 0), new Vector3(2.2f, 0.12f, 2.6f), red);                // the band over the windows
-            foreach (float x in new[] { -1.04f, 1.04f })
-                foreach (float z in new[] { -1.24f, 1.24f }) cab.Box(new Vector3(x, -1.95f, z), new Vector3(0.12f, 0.8f, 0.12f), red);   // corner pillars
-            cab.Box(new Vector3(0, -1.95f, 1.28f), new Vector3(1.96f, 0.78f, 0.03f), glassUV);
-            cab.Box(new Vector3(0, -1.95f, -1.28f), new Vector3(1.96f, 0.78f, 0.03f), glassUV);
-            cab.Box(new Vector3(1.08f, -1.95f, 0), new Vector3(0.03f, 0.78f, 2.36f), glassUV);
-            cab.Box(new Vector3(-1.08f, -1.95f, 0), new Vector3(0.03f, 0.78f, 2.36f), glassUV);
-            cab.Box(new Vector3(0, -1.4f, 0), new Vector3(2.35f, 0.18f, 2.75f), S(Pal.SailWhite));   // white roof
-            cab.Limb(new Vector3(-0.5f, -1.3f, 0), new Vector3(-0.15f, -0.25f, 0), 0.05f, 0.05f, 5, steel);   // the yoke
-            cab.Limb(new Vector3(0.5f, -1.3f, 0), new Vector3(0.15f, -0.25f, 0), 0.05f, 0.05f, 5, steel);
-            cab.Box(new Vector3(0, -0.15f, 0), new Vector3(0.5f, 0.35f, 1.6f), steel);               // the carriage on the cables
-            foreach (float z in new[] { -0.6f, 0.6f }) cab.Limb(new Vector3(-0.3f, 0.02f, z), new Vector3(0.3f, 0.02f, z), 0.12f, 0.12f, 8, S(Pal.IronBlack));
-            var cabinGo = ctx.MeshObject("Ropeway Cabin", parent, cab, ctx.mats.atlas, null, true, false);
-            var rw = cabinGo.AddComponent<Ropeway>();
-            rw.cabin = cabinGo.transform;
+            // the cabins (2025 video): red, windows all round, a white roof, hung from a yoke under a carriage on the cables
+            GameObject Cabin(string name)
+            {
+                var cab = new MeshBuilder();
+                Vector2 red = S(Pal.JacketRed), glassUV = M(Atlas.MatGlass), steel = S(Pal.StoneGrey);
+                cab.Box(new Vector3(0, -2.75f, 0), new Vector3(2.2f, 0.9f, 2.6f), red);
+                cab.Box(new Vector3(0, -1.55f, 0), new Vector3(2.2f, 0.12f, 2.6f), red);
+                foreach (float x in new[] { -1.04f, 1.04f })
+                    foreach (float z in new[] { -1.24f, 1.24f }) cab.Box(new Vector3(x, -1.95f, z), new Vector3(0.12f, 0.8f, 0.12f), red);
+                cab.Box(new Vector3(0, -1.95f, 1.28f), new Vector3(1.96f, 0.78f, 0.03f), glassUV);
+                cab.Box(new Vector3(0, -1.95f, -1.28f), new Vector3(1.96f, 0.78f, 0.03f), glassUV);
+                cab.Box(new Vector3(1.08f, -1.95f, 0), new Vector3(0.03f, 0.78f, 2.36f), glassUV);
+                cab.Box(new Vector3(-1.08f, -1.95f, 0), new Vector3(0.03f, 0.78f, 2.36f), glassUV);
+                cab.Box(new Vector3(0, -1.4f, 0), new Vector3(2.35f, 0.18f, 2.75f), S(Pal.SailWhite));
+                cab.Box(new Vector3(0, -2.6f, 1.31f), new Vector3(0.9f, 0.3f, 0.02f), S(Pal.ShirtWhite));   // the KMVN roundel
+                cab.Limb(new Vector3(-0.5f, -1.3f, 0), new Vector3(-0.15f, -0.25f, 0), 0.05f, 0.05f, 5, steel);
+                cab.Limb(new Vector3(0.5f, -1.3f, 0), new Vector3(0.15f, -0.25f, 0), 0.05f, 0.05f, 5, steel);
+                cab.Box(new Vector3(0, -0.15f, 0), new Vector3(0.5f, 0.35f, 1.6f), steel);
+                foreach (float z in new[] { -0.6f, 0.6f }) cab.Limb(new Vector3(-0.3f, 0.02f, z), new Vector3(0.3f, 0.02f, z), 0.12f, 0.12f, 8, S(Pal.IronBlack));
+                return ctx.MeshObject(name, parent, cab, ctx.mats.atlas, null, true, false);
+            }
+            var c0 = Cabin("Ropeway Cabin");
+            var c1 = Cabin("Ropeway Cabin 2");
+            var rw = c0.AddComponent<Ropeway>();
+            rw.cabin = c0.transform;
+            rw.cabin2 = c1.transform;
+            rw.trackGap = RwGap;
             rw.cable = pts.ToArray();
-            cabinGo.AddComponent<RopewayRide>();   // E at a station: ride it (ticket Rs 300)
-            cabinGo.transform.position = pts[0];
-            ctx.Zone("Ropeway (Mallital)", lower, 25f);
-            RopewayMarket(ctx, parent, lowerP, -dir2, new System.Random(390));
+            c0.transform.position = pts[0] + right * RwGap * 0.5f;
+            c1.transform.position = pts[pts.Count - 1] - right * RwGap * 0.5f;
+            // the doors: cabin 0 starts down at the lower station on the +x side of its frame, and is up on the upper station's -x
+            var r0 = c0.AddComponent<RopewayRide>(); r0.rope = rw; r0.index = 0; r0.doorLow = doorsL[0]; r0.doorHigh = doorsU[1];
+            var r1 = c1.AddComponent<RopewayRide>(); r1.rope = rw; r1.index = 1; r1.doorLow = doorsL[1]; r1.doorHigh = doorsU[0];
+            ctx.Zone("Ropeway (Mallital)", lo.origin, 25f);
+            RopewayMarket(ctx, parent, lowerP - dir2 * 4f, -dir2, new System.Random(390));
         }
     }
 }

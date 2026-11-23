@@ -11,7 +11,7 @@ namespace Nainital.EditorTools
         /// roads run close the pole landed on the other road. This answers "is this spot on any road or junction?" for every
         /// road of the network (after the corners are rounded), from a 16 m grid of road pieces.
         /// </summary>
-        sealed class RoadClearance
+        internal sealed class RoadClearance
         {
             const float Cell = 16f;
             readonly List<(Vector2 a, Vector2 b, float half)> segs = new List<(Vector2, Vector2, float)>();
@@ -83,7 +83,7 @@ namespace Nainital.EditorTools
         static RoadClearance clearance;
         static WorldCtx clearanceFor;
 
-        static RoadClearance Clearance(WorldCtx ctx)
+        internal static RoadClearance Clearance(WorldCtx ctx)
         {
             if (clearanceFor != ctx) { clearance = new RoadClearance(ctx); clearanceFor = ctx; }
             return clearance;

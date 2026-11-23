@@ -204,6 +204,7 @@ namespace Nainital.EditorTools
             set.perRoom[room]++;
             MallSign(mb, letters, c, nrm, uw, H, room, rnd);
             bool eatery = Atlas.RoomIsEatery(room), desk = Atlas.RoomIsDesk(room), hotel = Atlas.RoomIsHotel(room);
+            if (eatery && Mathf.Repeat(Mathf.Sin(c.x * 12.9898f + c.z * 78.233f) * 43758.5453f, 1f) < 0.5f) steamSpots.Add(c + nrm * 0.7f + Vector3.up * 1.4f);   // a pan or a momo steamer at the front
             bool open = !eatery && !desk;
             // the room: one tagged quad over the opening (uv = metres from the opening's centre, to the right as seen
             // from the street, i.e. along -along; and up from the floor)

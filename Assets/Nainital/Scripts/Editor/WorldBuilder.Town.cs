@@ -341,6 +341,7 @@ namespace Nainital.EditorTools
             {
                 Vector2 a = pts[i], b = pts[(i + 1) % pts.Count];
                 if ((a - skip).sqrMagnitude < skipR * skipR || (b - skip).sqrMagnitude < skipR * skipR || ctx.InLake(a)) continue;
+                if (Clearance(ctx).Blocked(a, 0.4f) || Clearance(ctx).Blocked(b, 0.4f) || Clearance(ctx).Blocked((a + b) * 0.5f, 0.4f)) continue;   // a road goes through: open (23 Nov, RoadAudit)
                 Vector3 a3 = V(a, ctx.H(a) - 0.05f), b3 = V(b, ctx.H(b) - 0.05f);
                 Vector2 d = (b - a).normalized;
                 Vector3 outward = Flat(new Vector2(d.y, -d.x));

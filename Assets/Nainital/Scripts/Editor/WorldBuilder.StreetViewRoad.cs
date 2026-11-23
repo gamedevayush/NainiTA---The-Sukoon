@@ -482,6 +482,12 @@ namespace Nainital.EditorTools
                         Vector2 c = fc + n * (it.d * 0.5f);
                         var q = Quaternion.Euler(0f, yaw, 0f);
                         float gy = ctx.H(c);
+                        {   // still across a road after stepping back (another lane, a hairpin's leg): leave it out (23 Nov)
+                            Vector3 r3 = q * Vector3.right * (it.w * 0.42f), f3 = q * Vector3.forward * (it.d * 0.42f);
+                            Vector2 rr = new Vector2(r3.x, r3.z), ff = new Vector2(f3.x, f3.z);
+                            if (roads.Blocked(c, 0.3f) || roads.Blocked(c + rr + ff, 0f) || roads.Blocked(c + rr - ff, 0f) || roads.Blocked(c - rr + ff, 0f) || roads.Blocked(c - rr - ff, 0f))
+                            { Debug.Log($"[Nainital] Street View road: {tag} skipped, on a road"); continue; }
+                        }
                         bool clash = false;
                         foreach (var cl in Physics.OverlapBox(new Vector3(c.x, gy + 3f, c.y), new Vector3(it.w * 0.5f - 0.4f, 2f, it.d * 0.5f - 0.4f), q, mask, QueryTriggerInteraction.Ignore))
                         {
@@ -507,6 +513,7 @@ namespace Nainital.EditorTools
                     case "shop":
                     {
                         Vector2 c = fc + n * 1.6f;
+                        if (roads.Blocked(c, 0.6f)) { Debug.Log($"[Nainital] Street View road: {tag} skipped, on a road"); continue; }
                         mb.M = Matrix4x4.TRS(new Vector3(c.x, ctx.H(c), c.y), Quaternion.identity, Vector3.one);
                         if (it.kind == "stall") LandmarkBuilder.TarpStall(mb, Vector3.zero, yaw, tarps[Mathf.Abs(it.tarp) % tarps.Length], rng);
                         else LandmarkBuilder.HillShop(mb, Vector3.zero, yaw, Mathf.Max(2.5f, it.w), rng);

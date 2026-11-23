@@ -32,7 +32,7 @@ namespace Nainital.EditorTools
         /// <summary>PlayTest's own switches: never the player's, so every restore takes them off. They outlived the 22 Nov
         /// power cut (PlayTest.End never ran): the owner's next Play had phone buttons and no menu.</summary>
         static readonly string[] Switches = { PlayTest.TouchPref, PlayTest.SkipMenuPref };
-        static readonly string[] Strings = { "nt_save", "nt_done", "nt_inv", "nt_outfit" };
+        static readonly string[] Strings = { "nt_save", "nt_done", "nt_inv", "nt_outfit", "nt_story" };
 
         [Serializable]
         class Entry

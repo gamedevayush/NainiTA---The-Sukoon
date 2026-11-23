@@ -25,6 +25,7 @@ namespace Nainital.EditorTools
             yield return (SvRopeway, 9f);
             yield return (SvGames, 15f);
             yield return (SvDinoPark, 15f);
+            foreach (var sp in SnowViewParkSpots()) yield return sp;   // the adventure park and its market (LandmarkBuilder.SnowViewPark.cs)
         }
 
         static void BuildSnowView(WorldCtx ctx, Transform parent, System.Random rng)
@@ -41,9 +42,11 @@ namespace Nainital.EditorTools
 
             var gol = Part("Snow View Gol Market", SvGolMarket, SvDeck, 15f, (mb, s) => GolMarket(mb, s.depth, rng));
             var deck = Part("Snow View", SvDeck, north, 8f, (mb, s) => PanoramaDeck(mb, s.depth, rng));
-            var rope = Part("Snow View ropeway station", SvRopeway, SvGolMarket, 7f, (mb, s) => RopewayTopStation(mb, s.depth));
+            // the station itself is built with the ropeway (LandmarkBuilder.RopewayStation.cs, both ends alike); its site stays
+            var rope = Part("Snow View ropeway site", SvRopeway, SvGolMarket, 7f, (mb, s) => { });
             Part("Snow View games", SvGames, SvGolMarket, 13f, (mb, s) => GamesYard(mb, s.depth, rng));
             Part("Dinosaur Park (Snow View)", SvDinoPark, SvGames, 12f, (mb, s) => DinoPark(mb, s.depth, rng));
+            BuildSnowViewPark(ctx, parent, rng);   // go-karting, bumping cars, climbing wall, the mosaic gate, the chequered market lane (23 Nov)
 
             ctx.landmarkSites["Snow View"] = deck.origin;
             ctx.landmarkSites["Snow View ropeway"] = rope.origin + Vector3.up * 1.5f;
@@ -66,7 +69,7 @@ namespace Nainital.EditorTools
                 float t = (i + 0.5f) / n;
                 Vector3 p = Vector3.Lerp(a, b, t) + Vector3.down * (len * 0.04f * 4f * t * (1f - t));
                 Vector3 r = (b - a).normalized * 0.16f;
-                mb.QuadDouble(p - r + Vector3.down * 0.34f, p + r + Vector3.down * 0.34f, p + r, p - r, new Rect(S(cols[i % cols.Length]), Vector2.zero), side);
+                Cloth(mb).QuadDouble(p - r + Vector3.down * 0.34f, p + r + Vector3.down * 0.34f, p + r, p - r, new Rect(S(cols[i % cols.Length]), Vector2.zero), side);
             }
         }
 

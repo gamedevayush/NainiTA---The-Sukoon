@@ -78,6 +78,17 @@ Shader "Nainital/LampGlow"
                 }
                 else o.pos = TransformWorldToHClip(ws);
                 o.col = i.col;
+                if (size > 0)   // (owner, 23 Nov: "tube lights / neon ka flicker") ~3% of the lights stutter in bursts
+                {
+                    float id = Hash1(floor(ws.xz * 2.0) + floor(ws.y * 2.0) * 0.37);
+                    if (id < 0.03)
+                    {
+                        float t = _Time.y;
+                        float burst = step(0.62, VNoise1(float2(t * 0.3, id * 977.0)));
+                        float blink = step(0.4, VNoise1(float2(t * 11.0, id * 531.0)));
+                        o.col.a *= lerp(1.0, 0.08 + 0.92 * blink, burst);
+                    }
+                }
                 o.uv = i.uv;
                 if (size >= 0) o.halo = size > 0 ? 1 : 0;
                 o.fog = ComputeFogFactor(o.pos.z);

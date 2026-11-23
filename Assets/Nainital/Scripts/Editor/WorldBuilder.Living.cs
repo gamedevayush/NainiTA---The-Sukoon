@@ -70,7 +70,7 @@ namespace Nainital.EditorTools
             var grass = new GameObject("Grass (GPU instanced)").AddComponent<GrassRenderer>();
             grass.transform.SetParent(ctx.worldRoot, false);
             grass.terrain = ctx.terrain;
-            grass.material = ctx.mats.atlas;
+            grass.material = WindAtlasMaterial(ctx, "M_GrassWind", 0.09f, 2.2f, 0.03f);   // the grass sways too (23 Nov)
             FillGrassMask(ctx, grass);
 
             if (LowPolyRidesAndVehicles || realCars) BuildParkedVehicles(ctx, root, realCars);
@@ -342,6 +342,46 @@ namespace Nainital.EditorTools
             Debug.Log($"[Nainital] traffic lanes: {shut} lane points shut, {moved} moved clear, {left0.Count} with no room: {string.Join("; ", left0)}");
         }
 
+        /// <summary>
+        /// The walkways cut where something built stands on them (owner, 23 Nov 2026, the walk to Naina Devi: "ye saare log
+        /// kahan jaana cahhre hai? isme brain nhi hai? road ki wajaye boundary me ghus ke chlre hain ..aage bhi nhi bhdpaare"):
+        /// a footpath line drawn beside a road or from the map ran through a parapet, a railing or a fence built after it, and
+        /// the walkers pressed into it for ever. Each point is tested with a walker-sized capsule against everything but the
+        /// ground, people, vehicles and triggers; a walkway is split at the blocked points, pieces shorter than 4 points dropped.
+        /// </summary>
+        static RoadNetwork.Path[] ClearWalks(List<RoadNetwork.Path> walks)
+        {
+            Physics.SyncTransforms();
+            int mask = ~((1 << 2) | (1 << 4) | (1 << 8) | (1 << 9) | (1 << VehicleFactory.VehicleLayer));
+            var hits = new Collider[8];
+            bool Blocked(Vector3 p)
+            {
+                int n = Physics.OverlapCapsuleNonAlloc(p + Vector3.up * 0.5f, p + Vector3.up * 1.6f, 0.3f, hits, mask, QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < n; i++) if (!(hits[i] is TerrainCollider)) return true;
+                return false;
+            }
+            var outList = new List<RoadNetwork.Path>();
+            int cut = 0, dropped = 0;
+            foreach (var w in walks)
+            {
+                var run = new List<Vector3>();
+                void Flush()
+                {
+                    if (run.Count >= 4) outList.Add(new RoadNetwork.Path { name = w.name, width = w.width, pts = run.ToArray() });
+                    else if (run.Count > 0) dropped++;
+                    run = new List<Vector3>();
+                }
+                foreach (var p in w.pts)
+                {
+                    if (Blocked(p)) { cut++; Flush(); continue; }
+                    run.Add(p);
+                }
+                Flush();
+            }
+            Debug.Log($"[Nainital] walkways: {walks.Count} -> {outList.Count} after cutting {cut} blocked points ({dropped} short pieces dropped)");
+            return outList.ToArray();
+        }
+
         // ------------------------------------------------------------------ road + footpath graph
         static RoadNetwork BuildRoadNetwork(WorldCtx ctx)
         {
@@ -429,7 +469,7 @@ namespace Nainital.EditorTools
             if (File.Exists(path)) AssetDatabase.DeleteAsset(path);
             var net = ScriptableObject.CreateInstance<RoadNetwork>();
             net.roads = roads.ToArray();
-            net.walks = walks.ToArray();
+            net.walks = ClearWalks(walks);
             net.meetings = RoadJoins(roads, onMap);
             net.islands = trafficIslands.ToArray();
             AssetDatabase.CreateAsset(net, path);

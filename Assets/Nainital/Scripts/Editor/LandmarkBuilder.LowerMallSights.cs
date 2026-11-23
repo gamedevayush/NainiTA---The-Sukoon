@@ -56,12 +56,13 @@ namespace Nainital.EditorTools
                     Vector3 c = V3(p, ctx.lakeY + 0.05f);
                     var q = Quaternion.LookRotation(new Vector3(-lake.x, 0f, -lake.y));   // nose to the bank
                     int pal = pals[boats % pals.Length];
-                    sm.atlas.Box(c + Vector3.up * 0.25f, new Vector3(1.5f, 0.5f, 2.1f), q, S(pal));
-                    sm.atlas.Box(c + Vector3.up * 0.55f + q * new Vector3(0f, 0f, -0.3f), new Vector3(1.2f, 0.1f, 0.7f), q, S(Pal.ShirtWhite));   // the seat
+                    var sw = WorldBuilder.Bobbing(sm.atlas);   // they rise and fall on the swell
+                    sw.Box(c + Vector3.up * 0.25f, new Vector3(1.5f, 0.5f, 2.1f), q, S(pal));
+                    sw.Box(c + Vector3.up * 0.55f + q * new Vector3(0f, 0f, -0.3f), new Vector3(1.2f, 0.1f, 0.7f), q, S(Pal.ShirtWhite));   // the seat
                     Vector3 neck0 = c + q * new Vector3(0f, 0.45f, 0.9f), neck1 = c + q * new Vector3(0f, 1.5f, 1.05f);
-                    sm.atlas.Limb(neck0, neck1, 0.16f, 0.1f, 6, S(pal), false);
-                    sm.atlas.Sphere(neck1 + q * new Vector3(0f, 0.05f, 0.12f), new Vector3(0.28f, 0.26f, 0.42f), 8, 4, S(pal));
-                    sm.atlas.Box(neck1 + q * new Vector3(0f, 0f, 0.38f), new Vector3(0.08f, 0.07f, 0.18f), q, S(Pal.Saffron));   // the beak
+                    sw.Limb(neck0, neck1, 0.16f, 0.1f, 6, S(pal), false);
+                    sw.Sphere(neck1 + q * new Vector3(0f, 0.05f, 0.12f), new Vector3(0.28f, 0.26f, 0.42f), 8, 4, S(pal));
+                    sw.Box(neck1 + q * new Vector3(0f, 0f, 0.38f), new Vector3(0.08f, 0.07f, 0.18f), q, S(Pal.Saffron));   // the beak
                     boats++;
                 }
                 Debug.Log($"[Nainital] Lower Mall: {boats} swan boats");

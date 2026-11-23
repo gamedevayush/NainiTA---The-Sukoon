@@ -124,7 +124,7 @@ namespace Nainital.EditorTools
                         PropKit.RowBoat(moored, colors[rnd.Next(colors.Length)], rnd.NextDouble() < 0.6);
                 }
             }
-            ctx.MeshObject("Moored boats", parent, moored, ctx.mats.atlas);
+            Bobbing(new MeshBuilder()).Append(moored);   // they rise and fall on the swell (FestiveStep emits the bob mesh)
 
             // ---- welcome gate on the highway into town
             foreach (var r in ctx.world.roads)
@@ -183,6 +183,7 @@ namespace Nainital.EditorTools
             weather.wetMaterials = new[] { ctx.mats.asphalt, ctx.mats.paver };
             var audio = sys.gameObject.AddComponent<AudioManager>();
             if (ctx.landmarkSites.TryGetValue("Naina Devi Mandir", out var temple)) audio.templePosition = temple;
+            if (ctx.landmarkSites.TryGetValue("Jama Masjid", out var masjid)) audio.mosquePosition = masjid;
             BuildSoundZones(ctx, audio);
 
             var birds = new GameObject("Birds & kites").AddComponent<Birds>();

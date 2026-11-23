@@ -19,7 +19,7 @@ namespace Nainital.EditorTools
         const string PumpBrand = "HIMGIRI";
         static readonly (string place, Vector2 pin)[] Pumps =
         {
-            ("Tallital", new Vector2(861.1f, -1104.9f)),
+            ("Tallital", new Vector2(688.5f, -1153.6f)),   // (owner, 23 Nov 2026: "petrol pump is at wrong place") the real one, IndianOil's locator: 29.380094, 79.462100 - west of the chowk on the lake road, not on Mall Road
             ("Sukhatal", new Vector2(-862.1f, 304.5f)),
         };
 

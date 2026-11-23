@@ -228,7 +228,7 @@ namespace Nainital.EditorTools
                     ring2.Quad(V(p0, ctx.H(p0) + 0.02f), V(q0, ctx.H(q0) + 0.02f), V(q1, ctx.H(q1) + 0.02f), V(p1, ctx.H(p1) + 0.02f), dark, Vector3.up);   // on the painted flagstones
                 }
             }
-            ctx.MeshObject("Tibetan market ring", parent, ring2, ctx.mats.atlas, null, false);
+            // (the painted ring is gone: the chowk is paved with its own medallions now - WorldBuilder.Chowk.cs, 23 Nov)
             noGrassExtra.Add((new[] { c - Vector2.right * R, c + Vector2.right * R }, R));
 
             // the stall row: a long run of small shops, tarps sloping towards the plaza
@@ -323,6 +323,22 @@ namespace Nainital.EditorTools
             }
             mb.Cylinder(c + Vector3.up * 4.1f, 4.6f, 4.6f, 0.3f, 8, timber, true);
             mb.Pyramid(c + Vector3.up * 4.4f, 9.2f, 9.2f, 2.0f, maroon);
+            // at night (owner, 23 Nov 2026: "bandstand ke andr light"): a warm lamp under the roof lighting the floor, a gold
+            // LED line round the eave and up the roof's four ridges, warm strips up the posts
+            mb.Cylinder(c + Vector3.up * 3.55f, 0.02f, 0.02f, 0.55f, 4, Atlas.SolidUV(Pal.IronBlack), false);
+            mb.Sphere(c + Vector3.up * 3.5f, Vector3.one * 0.18f, 8, 4, Atlas.SolidUV(Pal.LampBulb));
+            Bulb(c + Vector3.up * 3.5f, LedWarm, 0.32f, 3.2f);
+            Accent(c + Vector3.up * 3.4f, new Color(1f, 0.78f, 0.5f), 9f, 14f);
+            for (int k = 0; k < 8; k++)
+            {
+                Vector3 e0 = c + Quaternion.Euler(0, yaw + 22.5f + k * 45f, 0) * Vector3.forward * 4.62f + Vector3.up * 4.3f;
+                Vector3 e1 = c + Quaternion.Euler(0, yaw + 22.5f + (k + 1) * 45f, 0) * Vector3.forward * 4.62f + Vector3.up * 4.3f;
+                Led(e0, e1, LedGold, 0.1f, 0.05f, 2.6f);
+                Vector3 q = c + Quaternion.Euler(0, yaw + 22.5f + k * 45f, 0) * Vector3.forward * 3.9f;
+                Led(q + Vector3.up * 1.0f + (c - q).normalized * -0.17f, q + Vector3.up * 4.0f + (c - q).normalized * -0.17f, LedWarm, 0.12f, 0.04f, 2.2f);
+            }
+            foreach (var corner in new[] { new Vector3(4.6f, 0f, 4.6f), new Vector3(-4.6f, 0f, 4.6f), new Vector3(4.6f, 0f, -4.6f), new Vector3(-4.6f, 0f, -4.6f) })
+                Led(c + Vector3.up * 4.45f + corner, c + Vector3.up * 6.35f, LedGold, 0.12f, 0.05f, 2.4f);
             mb.Cylinder(c + Vector3.up * 6.3f, 0.12f, 0.05f, 0.9f, 6, timber, true);
         }
 
@@ -382,7 +398,7 @@ namespace Nainital.EditorTools
                 using (PropKit.At(boats, V(q, water + 0.05f), Quaternion.LookRotation(Flat(-o)) * Quaternion.Euler(0, (b % 2) * 6f - 3f, 0)))
                     PropKit.RowBoat(boats, hulls[b], b % 3 == 0);
             }
-            ctx.MeshObject("Mallital boat ghat boats", parent, boats, ctx.mats.atlas);
+            Bobbing(new MeshBuilder()).Append(boats);   // on the swell (FestiveStep)
         }
     }
 }

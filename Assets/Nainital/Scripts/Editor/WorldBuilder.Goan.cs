@@ -364,6 +364,20 @@ namespace Nainital.EditorTools
                 civic++;
                 go.name = g.title ?? b.name;
                 float pad = g.kit == "Proto_BusStand" ? 0.6f : 1.5f;
+                {   // the plinth never over a road (23 Nov, RoadAudit: one ran 1.5 m out onto a lane): its corners tested
+                    var cl = Clearance(ctx);
+                    Vector3 r3 = rot * Vector3.right, f3 = rot * Vector3.forward;
+                    bool OnRoad(float pd)
+                    {
+                        foreach (float sx in new[] { -1f, 1f }) foreach (float sz2 in new[] { -1f, 1f })
+                            {
+                                Vector3 q = new Vector3(g.pos.x, 0f, g.pos.y) + r3 * sx * (b.size.x * 0.5f + pd) + f3 * sz2 * (b.size.z * 0.5f + pd);
+                                if (cl.Blocked(new Vector2(q.x, q.z), 0f)) return true;
+                            }
+                        return false;
+                    }
+                    if (OnRoad(pad)) pad = 0.2f;
+                }
                 if (g.top - g.gMin > 0.1f)
                 {
                     float hgt = g.top - g.gMin + 0.4f;

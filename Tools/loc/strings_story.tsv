@@ -1,0 +1,36 @@
+# Naini Sukoon - the story: cutscene lines, choices, names (Story/*.cs, Resources/Story/*.json). Same format as strings.tsv.
+Tum	You	तुम
+Skip: Esc dabaake rakho	Skip: hold Esc	छोड़ें: Esc दबाकर रखो
+Anjaan Uncle	A Stranger	अनजान अंकल
+Beta, yahan akele kyun khade ho?	Son, why are you standing here all alone?	बेटा, यहाँ अकेले क्यों खड़े हो?
+Mere mummy-papa ab nahi rahe...	My mum and dad are gone...	मेरे मम्मी-पापा अब नहीं रहे...
+Kuch nahi, bas aise hi.	Nothing. Just like that.	कुछ नहीं, बस ऐसे ही।
+Jhooth mat bolo beta, aankhein sab bata deti hain.	Don't lie, son. Your eyes tell me everything.	झूठ मत बोलो बेटा, आँखें सब बता देती हैं।
+Main...	I...	मैं...
+Mujhe sab pata hai... koi baat nahi. Tum mere ghar mein reh sakte ho.	I know everything... it's alright. You can stay at my house.	मुझे सब पता है... कोई बात नहीं। तुम मेरे घर में रह सकते हो।
+Main aksar ghar ke bahar rehta hoon. Aao, ghar chalo.	I'm mostly out anyway. Come, let's go home.	मैं अक्सर घर के बाहर रहता हूँ। आओ, घर चलो।
+Shishe se bahar niklo!	Get out through the glass!	शीशे से बाहर निकलो!
+Uncle ke peeche chalo	Follow the stranger	अंकल के पीछे चलो
+Aag phail gayi... phir koshish karo.	The fire spread... try again.	आग फैल गई... फिर कोशिश करो।
+Score: {0}	Score: {0}	स्कोर: {0}
+Shots: {0}	Shots: {0}	शॉट: {0}
+Samay: {0}	Time: {0}	समय: {0}
+Bachi: {0}	Left: {0}	बचीं: {0}
+Naya record!	New best!	नया रिकॉर्ड!
+Phir khelo: Space / tap	Again: Space / tap	फिर खेलो: Space / टैप
+Bandar pe tap / click karo, ya 1-9	Tap / click the monkeys, or 1-9	बंदर पर टैप / क्लिक करो, या 1-9
+Bandar bhagaaye: {0}	Monkeys chased: {0}	बंदर भगाए: {0}
+A / D ya screen ke dono taraf tap	A / D or tap either side	A / D या स्क्रीन के दोनों तरफ़ टैप
+Takkar! Doori: {0}	Crash! Distance: {0}	टक्कर! दूरी: {0}
+White ball se peeche khencho aur chhodo (ya A/D + Space)	Drag back from the white ball and let go (or A/D + Space)	सफ़ेद गेंद से पीछे खींचो और छोड़ो (या A/D + Space)
+White ball gir gayi	Scratch	सफ़ेद गेंद गिर गई
+Sab pot! {0} shots mein	All potted! In {0} shots	सब पॉट! {0} शॉट में
+{0} khelo (Rs {1})	Play {0} (Rs {1})	{0} खेलो (₹{1})
+Rs {0} chahiye	You need Rs {0}	₹{0} चाहिए
+Bowling khelo (Rs 50)	Play bowling (Rs 50)	बॉलिंग खेलो (₹50)
+A/D: jagah  Q/E: tircha  Space dabaake chhodo	A/D: move  Q/E: angle  hold & release Space	A/D: जगह  Q/E: तिरछा  Space दबाकर छोड़ो
+Frame {0}/5  Roll {1}  Score {2}   {3}	Frame {0}/5  Roll {1}  Score {2}   {3}	फ़्रेम {0}/5  रोल {1}  स्कोर {2}   {3}
+Khel khatam! Score: {0}	Game over! Score: {0}	खेल ख़त्म! स्कोर: {0}
+Bandar Bhagao	Bandar Bhagao	बंदर भगाओ
+Pahadi Dash	Pahadi Dash	पहाड़ी डैश
+Pool	Pool	पूल

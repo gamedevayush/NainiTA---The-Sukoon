@@ -1,0 +1,48 @@
+{
+  "id": "demo_uncle",
+  "title": "Test: A Roof Over My Head",
+  "relative": true,
+  "skippable": true,
+  "actors": [
+    { "name": "uncle", "nameKey": "Anjaan Uncle", "nameEn": "A Stranger", "elder": true, "color": "#f2b33d",
+      "pos": [0.4, 2.6], "yaw": 180 }
+  ],
+  "steps": [
+    { "op": "fade", "v": "1" },
+    { "op": "bars", "v": "1" },
+    { "op": "cam", "of": "player", "pos": [3.2, 1.9, -3.4], "look": [0, 1.4, 1.4], "fov": 42 },
+    { "op": "fade", "v": "0", "t": 1.2 },
+    { "op": "cam", "of": "player", "pos": [1.6, 1.7, -2.2], "look": [0, 1.5, 2.6], "fov": 38, "t": 3.5, "wait": false },
+    { "op": "say", "who": "uncle", "key": "Beta, yahan akele kyun khade ho?", "en": "Son, why are you standing here all alone?" },
+    { "op": "cam", "of": "uncle", "pos": [-0.5, 1.62, 1.5], "fov": 34 },
+    { "op": "choice", "flag": "demo_reply",
+      "opts": [
+        { "key": "Mere mummy-papa ab nahi rahe...", "en": "My mum and dad are gone...", "v": "truth" },
+        { "key": "Kuch nahi, bas aise hi.", "en": "Nothing. Just like that.", "v": "hide" }
+      ] },
+    { "op": "if", "flag": "demo_reply", "v": "truth", "go": "knows" },
+    { "op": "say", "who": "uncle", "key": "Jhooth mat bolo beta, aankhein sab bata deti hain.", "en": "Don't lie, son. Your eyes tell me everything." },
+    { "op": "label", "name": "knows" },
+    { "op": "cam", "of": "player", "pos": [-0.6, 1.62, 1.6], "fov": 34 },
+    { "op": "say", "who": "player", "key": "Main...", "en": "I..." },
+    { "op": "cam", "of": "uncle", "pos": [0.7, 1.5, 2.2], "fov": 36 },
+    { "op": "say", "who": "uncle", "key": "Mujhe sab pata hai... koi baat nahi. Tum mere ghar mein reh sakte ho.", "en": "I know everything... it's alright. You can stay at my house." },
+    { "op": "say", "who": "uncle", "key": "Main aksar ghar ke bahar rehta hoon. Aao, ghar chalo.", "en": "I'm mostly out anyway. Come, let's go home." },
+    { "op": "walk", "who": "uncle", "to": [4.0, 9.0], "speed": 1.3, "wait": false },
+    { "op": "orbit", "of": "uncle", "r": 4.2, "h": 1.9, "a": 150, "b": 210, "t": 3.2, "fov": 45 },
+    { "op": "set", "flag": "demo_met_uncle", "v": "1" },
+    { "op": "fade", "v": "1", "t": 0.8 },
+    { "op": "label", "name": "qte" },
+    { "op": "cam", "of": "player", "pos": [0.9, 1.1, 1.3], "look": [0, 0.9, 0], "fov": 50 },
+    { "op": "blur", "v": "0.7" },
+    { "op": "fade", "v": "0", "t": 0.6 },
+    { "op": "mash", "key": "Shishe se bahar niklo!", "en": "Get out through the glass!", "per": 8, "decay": 12, "limit": 12, "flag": "demo_qte", "go": "qte_fail" },
+    { "op": "blur", "v": "0", "t": 1 },
+    { "op": "objective", "key": "Uncle ke peeche chalo", "en": "Follow the stranger", "t": 4 },
+    { "op": "goto", "go": "end" },
+    { "op": "label", "name": "qte_fail" },
+    { "op": "fade", "v": "1", "t": 0.5 },
+    { "op": "say", "who": "", "key": "Aag phail gayi... phir koshish karo.", "en": "The fire spread... try again.", "t": 2 },
+    { "op": "goto", "go": "qte" }
+  ]
+}

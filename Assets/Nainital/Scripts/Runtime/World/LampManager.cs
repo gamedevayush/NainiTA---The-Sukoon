@@ -18,6 +18,11 @@ namespace Nainital
         /// <summary>The bulbs by house doors (WorldBuilder.BuildPorchLights): small warm lights, the nearest few lit for real.</summary>
         public Vector3[] porchLights;
         public float porchRange = 8f;
+        /// <summary>Coloured accent lights (WorldBuilder.Festive.cs: the bandstand's lamp, the walk's uplights, the temples,
+        /// rooms): position, colour, and range / intensity each.</summary>
+        public Vector3[] accentLights;
+        public Color[] accentColors;
+        public Vector2[] accentRanges;
         public float porchIntensity = 7f;
         static readonly Color PorchColor = new Color(1f, 0.76f, 0.46f);
         public int poolSize = 72;                // (56 left the street dark between lamps a little way off; a phone keeps 32)
@@ -34,17 +39,24 @@ namespace Nainital
         float timer;
 
         int ShopCount => shopLights?.Length ?? 0;
-        int Count => (lampHeads?.Length ?? 0) + ShopCount + (porchLights?.Length ?? 0);
-        Vector3 Pos(int i) => i < lampHeads.Length ? lampHeads[i] : i < lampHeads.Length + ShopCount ? shopLights[i - lampHeads.Length] : porchLights[i - lampHeads.Length - ShopCount];
+        int PorchCount => porchLights?.Length ?? 0;
+        int AccentStart => (lampHeads?.Length ?? 0) + ShopCount + PorchCount;
+        int Count => AccentStart + (accentLights?.Length ?? 0);
+        Vector3 Pos(int i) => i < lampHeads.Length ? lampHeads[i] : i < lampHeads.Length + ShopCount ? shopLights[i - lampHeads.Length]
+                            : i < AccentStart ? porchLights[i - lampHeads.Length - ShopCount] : accentLights[i - AccentStart];
         bool IsShop(int i) => i >= lampHeads.Length && i < lampHeads.Length + ShopCount;
-        bool IsPorch(int i) => i >= lampHeads.Length + ShopCount;
+        bool IsPorch(int i) => i >= lampHeads.Length + ShopCount && i < AccentStart;
+        bool IsAccent(int i) => i >= AccentStart;
         Color Col(int i)
         {
+            if (IsAccent(i)) { int a = i - AccentStart; return accentColors != null && a < accentColors.Length ? accentColors[a] : color; }
             if (IsPorch(i)) return PorchColor;
             if (!IsShop(i)) return lampColors != null && i < lampColors.Length ? lampColors[i] : color;
             int k = i - lampHeads.Length;
             return shopColors != null && k < shopColors.Length ? shopColors[k] : new Color(1f, 0.88f, 0.7f);
         }
+
+        Vector2 AccentRange(int i) { int a = i - AccentStart; return accentRanges != null && a < accentRanges.Length ? accentRanges[a] : new Vector2(6f, 8f); }
 
         void Start()
         {
@@ -90,6 +102,7 @@ namespace Nainital
                     float d = (Pos(i) - c).sqrMagnitude;
                     if (IsShop(i)) d *= 1.6f;   // street lamps first, the nearer shop fronts too
                     else if (IsPorch(i)) d *= 2.6f;   // a door's bulb only close by
+                    else if (IsAccent(i)) d *= 1.8f;  // the coloured accents near by
                     if (d >= best[best.Length - 1]) continue;
                     int k = best.Length - 1;
                     while (k > 0 && best[k - 1] > d) { best[k] = best[k - 1]; nearest[k] = nearest[k - 1]; k--; }
@@ -101,10 +114,10 @@ namespace Nainital
                     int j = nearest[i];
                     if (j < 0) continue;
                     var l = pool[i];
-                    bool shop = IsShop(j), porch = IsPorch(j);
-                    l.transform.position = Pos(j) + (shop ? Vector3.zero : porch ? Vector3.down * 0.1f : Vector3.down * 0.4f);
+                    bool shop = IsShop(j), porch = IsPorch(j), accent = IsAccent(j);
+                    l.transform.position = Pos(j) + (shop || accent ? Vector3.zero : porch ? Vector3.down * 0.1f : Vector3.down * 0.4f);
                     l.color = Col(j);
-                    l.range = shop ? shopRange : porch ? porchRange : range;
+                    l.range = accent ? AccentRange(j).x : shop ? shopRange : porch ? porchRange : range;
                 }
             }
             for (int i = 0; i < pool.Length; i++)
@@ -115,7 +128,7 @@ namespace Nainital
                 // fade the farthest pooled lights so swapping is invisible
                 float fade = 1f - Mathf.Clamp01((i - pool.Length * 0.7f) / (pool.Length * 0.3f));
                 int j2 = nearest[i];
-                pool[i].intensity = (IsShop(j2) ? shopIntensity : IsPorch(j2) ? porchIntensity : intensity) * on * fade;
+                pool[i].intensity = (IsAccent(j2) ? AccentRange(j2).y : IsShop(j2) ? shopIntensity : IsPorch(j2) ? porchIntensity : intensity) * on * fade;
             }
         }
     }

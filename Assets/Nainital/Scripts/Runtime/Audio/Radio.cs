@@ -18,6 +18,10 @@ namespace Nainital
     /// under Resources/Radio/ (a station per folder, its name from Resources/Radio/stations.txt "folder = Name"; tracks
     /// with a free licence only, credited in Resources/Radio/CREDITS.txt). A station keeps "playing" while you are on
     /// another: coming back starts where it would be by now, like GTA.
+    /// Every time he gets into a vehicle (owner, 23 Nov 2026: "koi bhi vehicle me random song, and bus me bus.mp3 hi hmesha
+    /// from random place"): his own songs, a random one, from somewhere in its middle (a radio that was already on) - not
+    /// the station of the last ride, nor "Radio band"; R still changes it for this ride. No own songs: the first bundled
+    /// station. A bus has its own radio instead (BusRadio: his bus.mp3), driven or ridden.
     /// </summary>
     public class Radio : MonoBehaviour
     {
@@ -30,7 +34,8 @@ namespace Nainital
         AudioSource src;
         float vol;
         int userIndex = -1;
-        bool inVehicle, loading;
+        bool inVehicle, loading, fromMiddle;
+        CarController busFor;
         int userFails;   // own files in a row that would not play (an .m4a on a PC): after all of them, the first station
         Coroutine userLoad;
 
@@ -104,8 +109,17 @@ namespace Nainital
 
         void Update()
         {
-            bool now = CarController.Driving != null || PlayerBike.Riding != null;
-            if (now && !inVehicle) { inVehicle = true; Tune(false); }
+            var drv = CarController.Driving;
+            bool bus = drv != null && drv.type == CarType.Bus;   // a bus plays its own bus.mp3 (BusRadio)
+            if (bus && busFor != drv) BusRadio.On(drv.gameObject);
+            busFor = bus ? drv : null;
+            bool now = (drv != null && !bus) || PlayerBike.Riding != null;
+            if (now && !inVehicle)
+            {
+                inVehicle = true;
+                current = UserFiles().Count > 0 ? 0 : stations.Count > 1 ? 1 : 0;   // his own songs, every ride
+                Tune(false);
+            }
             else if (!now && inVehicle) { inVehicle = false; }
             var kb = Keyboard.current;
             if (inVehicle && kb != null && kb.rKey.wasPressedThisFrame && !GameInput.UiBlocking) Next();
@@ -152,7 +166,15 @@ namespace Nainital
             }
             var s = stations[current];
             if (announce || inVehicle) GameEvents.ShowToast(Loc.F("Radio: {0}", Loc.T(s.key)), 2f);
-            if (s.user) { userIndex = -1; PlayUser(); return; }
+            if (s.user)
+            {
+                // a random one of his songs from a random place in it
+                int n = UserFiles().Count;
+                userIndex = n > 0 ? Random.Range(0, n) - 1 : -1;
+                fromMiddle = true;
+                PlayUser();
+                return;
+            }
             // where this station would be by now: its tracks played back to back since it "started"
             float total = 0f;
             foreach (var c in s.clips) total += c.length;
@@ -244,7 +266,8 @@ namespace Nainital
             try { uri = new System.Uri(path).AbsoluteUri; } catch { uri = "file://" + path; }
             using (var req = UnityWebRequestMultimedia.GetAudioClip(uri, type))
             {
-                ((DownloadHandlerAudioClip)req.downloadHandler).streamAudio = true;
+                // the whole song, kept compressed in memory (a few MB): a streamed clip cannot start from its middle
+                ((DownloadHandlerAudioClip)req.downloadHandler).compressed = true;
                 yield return req.SendWebRequest();
                 loading = false;
                 if (req.result != UnityWebRequest.Result.Success) { userFails++; yield break; }   // Update moves on to the next file
@@ -255,8 +278,10 @@ namespace Nainital
                 if (src.clip && src.clip != clip && stations[0].user && src.clip.name.StartsWith("user:")) Destroy(src.clip);
                 clip.name = "user:" + Path.GetFileNameWithoutExtension(path);
                 src.clip = clip;
-                src.time = 0f;
+                src.time = fromMiddle ? Random.Range(0f, Mathf.Max(0f, clip.length - 10f)) : 0f;
+                fromMiddle = false;
                 src.Play();
+                Debug.Log($"[Nainital] radio: {clip.name} ({clip.length:F0} s) from {src.time:F0} s");
                 GameEvents.ShowToast(Loc.F("Ab baj raha hai: {0}", Path.GetFileNameWithoutExtension(path)), 2.5f);
             }
         }

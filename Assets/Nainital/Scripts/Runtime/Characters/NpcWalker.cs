@@ -305,10 +305,78 @@ namespace Nainital
             knockTimer = 0f;
             if (health && health.IsDead) health.Revive();
             if (!rig) rig = GetComponentInChildren<HumanoidRig>(true);
+            EndActivity();
             if (rig) { rig.Revive(); rig.riding = false; rig.carrying = false; }
             var cas = GetComponent<Casualty>();
             if (cas) Destroy(cas);
             lastHurtBy = null;
+        }
+
+        // ---- small things people do when they stop (owner, 23 Nov 2026: "NPC small activities: photo, eating, phone,
+        // folding hands"): a photo of the lake on the phone, a call, a bhutta, a wave, a bow to the temple, a look round
+        GameObject actProp;
+        bool actAim;
+        Vector3 actFace;
+        static Material propDark, propCorn;
+
+        void StartActivity()
+        {
+            EndActivity();
+            if (!rig || onBike || InCar) return;
+            Vector3 pos = transform.position;
+            var am = AudioManager.Instance;
+            if (am && am.templePosition != Vector3.zero && (am.templePosition - pos).sqrMagnitude < 45f * 45f && Random.value < 0.6f)
+            {
+                actFace = am.templePosition - pos;   // hands together, a bow towards the Mother
+                rig.PlayGesture("Nod", 2.2f);
+                return;
+            }
+            var lake = LakeArea.Instance;
+            bool nearLake = lake && lake.outline != null && !LakeArea.Contains(pos) && Geo.DistanceToPolyline(lake.outline, new Vector2(pos.x, pos.z), true) < 30f;
+            int k = Random.Range(0, 5);
+            if (nearLake && k < 3)
+            {
+                actFace = lake.Centre - pos;   // a photo of the lake
+                Prop(false);
+                rig.aiming = actAim = true;
+            }
+            else if (k <= 1) { Prop(false); rig.PlayGesture("Talk", pause); }      // on the phone
+            else if (k == 2) { Prop(true); rig.PlayGesture("Nod", 1.6f); }        // eating a bhutta
+            else if (k == 3) rig.PlayGesture("Wave", 0f);
+            else actFace = Quaternion.Euler(0f, Random.Range(-120f, 120f), 0f) * transform.forward;   // a look round
+        }
+
+        void EndActivity()
+        {
+            if (actAim && rig) rig.aiming = false;
+            actAim = false;
+            actFace = Vector3.zero;
+            if (actProp) actProp.SetActive(false);
+        }
+
+        /// <summary>A phone (or a roasted corn cob) in the right hand.</summary>
+        void Prop(bool corn)
+        {
+            var hand = rig ? rig.RightHand : null;
+            if (!hand) return;
+            if (!actProp)
+            {
+                actProp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Destroy(actProp.GetComponent<Collider>());
+                actProp.name = "Hand prop";
+            }
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            if (!propDark && sh) { propDark = new Material(sh) { color = new Color(0.06f, 0.06f, 0.07f) }; propDark.SetFloat("_Smoothness", 0.8f); }
+            if (!propCorn && sh) propCorn = new Material(sh) { color = new Color(0.85f, 0.62f, 0.18f) };
+            actProp.GetComponent<Renderer>().sharedMaterial = corn ? propCorn : propDark;
+            actProp.transform.SetParent(hand, false);
+            Vector3 want = corn ? new Vector3(0.045f, 0.16f, 0.045f) : new Vector3(0.075f, 0.15f, 0.012f);
+            Vector3 ls = hand.lossyScale;
+            actProp.transform.localScale = new Vector3(want.x / Mathf.Max(1e-3f, ls.x), want.y / Mathf.Max(1e-3f, ls.y), want.z / Mathf.Max(1e-3f, ls.z));
+            actProp.transform.localPosition = Vector3.zero;
+            actProp.transform.position = hand.position + transform.forward * 0.05f;
+            actProp.transform.rotation = Quaternion.LookRotation(transform.forward, Vector3.up);
+            actProp.SetActive(true);
         }
 
         void SetHidden(bool h)
@@ -432,6 +500,7 @@ namespace Nainital
             if (fleeOtherT > 0f) fleeOtherT -= dt;
             if (fleeTimer > 0f)   // out of a car's way first, whatever else
             {
+                if (actProp && actProp.activeSelf || actAim) EndActivity();
                 fleeTimer -= dt;
                 // half a second of running and hardly moved: a wall / railing that side, so over to the other
                 fleeShutT += dt;
@@ -476,7 +545,12 @@ namespace Nainital
             }
             else if (path != null && path.Length > 1)
             {
-                if (pause > 0f) pause -= dt;
+                if (pause > 0f)
+                {
+                    pause -= dt;
+                    if (actFace.sqrMagnitude > 0.01f) face = actFace;
+                    if (pause <= 0f) EndActivity();
+                }
                 else
                 {
                     index = Mathf.Clamp(index, 0, path.Length - 1);
@@ -490,7 +564,7 @@ namespace Nainital
                             direction = -direction;
                             index = Mathf.Clamp(index + 2 * direction, 0, path.Length - 1);
                         }
-                        if (Random.value < 0.06f) pause = Random.Range(2f, 6f);
+                        if (Random.value < 0.12f) { pause = Random.Range(3f, 7f); StartActivity(); }
                         to = path[index] - transform.position;
                         to.y = 0f;
                     }

@@ -247,13 +247,27 @@ namespace Nainital.EditorTools
             return m;
         }
 
-        public static Material LeafMaterial() => Cutout("M_TreeLeaves", Save(LeafPixels(), LW, LH, "T_TreeLeaves"), 0.12f);
+        public static Material LeafMaterial() => Wind(Cutout("M_TreeLeaves", Save(LeafPixels(), LW, LH, "T_TreeLeaves"), 0.12f), 0.35f, 0.07f, 0.05f);
+
+        /// <summary>The wind (owner, 23 Nov 2026: "air reaction with trees"): the material onto Shaders/FoliageWind (URP Lit with
+        /// the vertices moved by Shaders/NtWind.hlsl), its keywords and settings kept.</summary>
+        static Material Wind(Material m, float amount, float height, float flutter)
+        {
+            var sh = Shader.Find("Nainital/FoliageWind");
+            if (!m || !sh) return m;
+            m.shader = sh;
+            m.SetFloat("_WindAmount", amount);
+            m.SetFloat("_WindHeight", height);
+            m.SetFloat("_WindFlutter", flutter);
+            EditorUtility.SetDirty(m);
+            return m;
+        }
         public static Material ImpostorMaterial() => Cutout("M_TreeImpostors", ImpostorTexture(), 0.05f);
 
         public static Material BarkMaterial(Material fallback)
         {
             var m = WorldBuilder.PhotoMaterial("bark_brown_02", "M_TreeBark", new Color(0.82f, 0.78f, 0.74f), 0.12f);
-            if (m) m.enableInstancing = true;
+            if (m) { m.enableInstancing = true; Wind(m, 0.35f, 0.07f, 0f); }   // the trunk and limbs bend with the leaves
             return m ? m : fallback;
         }
 

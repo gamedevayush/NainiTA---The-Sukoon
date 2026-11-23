@@ -330,6 +330,22 @@ namespace Nainital.EditorTools
             var wood = sm.Photo("brown_planks_04", new Color(0.75f, 0.68f, 0.6f));
             // Land's End is a ledge at its road's edge (the road runs behind it): its ring sits forward, over the drop
             float fwd = kind == 2 ? 2.6f : 0f;
+            if (kind == 2)   // (23 Nov, RoadAudit: its ring reached onto the road) forward until no part of it is on the road
+            {
+                var cl = WorldBuilder.Clearance(ctx);
+                for (int tries = 0; tries < 12; tries++)
+                {
+                    bool on = false;
+                    for (int k = 0; k < 12 && !on; k++)
+                    {
+                        float a = k * Mathf.PI / 6f;
+                        Vector3 q = s.origin + s.rot * new Vector3(Mathf.Sin(a) * 5.6f, 0f, Mathf.Cos(a) * 5.6f + fwd);
+                        on = cl.Blocked(new Vector2(q.x, q.z), 0.2f);
+                    }
+                    if (!on) break;
+                    fwd += 0.5f;
+                }
+            }
             Vector3 L(float x, float y, float z) => s.origin + s.rot * new Vector3(x, y, z + fwd);
             Vector2 c = XZ(L(0f, 0f, 0f));
             float R = kind == 1 ? 6.5f : kind == 2 ? 5.4f : 6f, yTop = s.origin.y + 0.02f;

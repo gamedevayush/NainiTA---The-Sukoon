@@ -20,6 +20,10 @@ namespace Nainital
     {
         public static AudioManager Instance { get; private set; }
         public Vector3 templePosition;
+        /// <summary>The Jama Masjid (Mallital): the azaan at prayer times, when Resources/Audio/azaan is there.</summary>
+        public Vector3 mosquePosition;
+        /// <summary>How much the listener is in town (bazaar, street, traffic, bus stand), 0..1: AmbientLife thins the leaves.</summary>
+        public float Town { get; private set; }
         [UnityEngine.Serialization.FormerlySerializedAs("masterVolume")] public float baseVolume = 0.8f;
         /// <summary>One-shots and engines: the base level times the Effects setting (GameSettings).</summary>
         public float masterVolume => baseVolume * GameSettings.Effects;
@@ -37,6 +41,13 @@ namespace Nainital
         AudioSource sEngine, sJet, sSwim, s2D;
         float birdTimer = 3f, bellTimer = 5f, dogTimer = 20f, roosterTimer = 10f, cowTimer = 90f, stepTimer, lakeTimer, zoneTimer, airTime;
         float lakeDist = 999f;
+        // (owner, 23 Nov 2026: "ambience sound... game feels alive") vendors' calls, boatmen, far horns, the bus's air horn,
+        // rain on a tin roof, the lake lapping at the shore, the aarti's bells, the azaan
+        float vendorTimer = 8f, boatmanTimer = 12f, farHornTimer = 15f, airHornTimer = 30f, lapTimer = 2f, roofTimer;
+        bool underRoof;
+        AudioSource sTin;
+        int lastAzaan = -1;
+        static readonly float[] AzaanHours = { 5.2f, 12.6f, 16.3f, 18.1f, 19.5f };
         readonly float[] zoneNear = new float[6];
         bool wasFlying, wasGrounded = true;
         int lastStep = -1;
@@ -121,6 +132,9 @@ namespace Nainital
             Set("click", "click");
             Set("carStart", "car_start");
             Set("carDoor", "car_door");
+            Set("vendor", "vendor_momo_m", "vendor_chai_m", "vendor_bhutta_m", "vendor_maggi_m", "vendor_shawl_f", "vendor_candle_f", "vendor_balloon_m", "vendor_chana_m");
+            Set("boatman", "boatman_1_m", "boatman_2_m");
+            Set("azaan", "azaan");
             // synthesised stand-ins for anything missing
             if (sets["step_road"].Length == 0) sets["step_road"] = new[] { AudioSynth.Step() };
             if (sets["punch"].Length == 0) sets["punch"] = new[] { AudioSynth.Punch() };
@@ -138,6 +152,9 @@ namespace Nainital
             sEngine = Loop(engineClip, 0.6f, "EngineAudio");
             sJet = Loop(Load("loop_jet") ?? AudioSynth.Wind(), 0.3f, "JetpackAudio");
             sSwim = Loop(Load("loop_swim") ?? AudioSynth.Water(), 0.3f, "SwimAudio");
+            // rain drumming on the tin roof overhead: the light rain, brighter and harder
+            sTin = Loop(Load("amb_rain_light") ?? AudioSynth.Rain(), 0f, "TinRoofRain");
+            sTin.pitch = 1.45f;
 
             GameEvents.Hit += (p, blocked) => PlayAt(One(blocked ? "block" : "punch") ?? One("punch"), p, blocked ? 0.5f : 0.9f, Random.Range(0.92f, 1.08f));
             GameEvents.Splash += p => PlayAt(One("splash"), p, 0.9f, Random.Range(0.95f, 1.05f));
@@ -238,6 +255,7 @@ namespace Nainital
             float market = zoneNear[(int)Zone.Market], street = zoneNear[(int)Zone.Street], cafe = zoneNear[(int)Zone.Cafe];
             float kids = zoneNear[(int)Zone.Kids], bus = zoneNear[(int)Zone.BusStand], traffic = zoneNear[(int)Zone.Traffic];
             float town = Mathf.Max(Mathf.Max(market, street), Mathf.Max(traffic * 0.8f, bus));
+            Town = town;
             float elevation = LakeArea.Instance ? Mathf.Clamp01((listener.y - LakeArea.WaterY) / 400f) : 0f;
             float day = 1f - night, dry = 1f - rain;
             bool morning = hour > 5f && hour < 9.5f;
@@ -273,6 +291,7 @@ namespace Nainital
             }
 
             Occasional(dt, listener, night, hour, rain, town);
+            Alive(dt, listener, night, hour, rain, market, street, traffic, bus, open);
             PlayerSounds(dt, p, m);
         }
 
@@ -316,6 +335,72 @@ namespace Nainital
             }
         }
 
+        void Alive(float dt, Vector3 listener, float night, float hour, float rain, float market, float street, float traffic, float bus, float open)
+        {
+            Vector3 Around(float near, float far)
+            {
+                Vector2 c = Random.insideUnitCircle.normalized * Random.Range(near, far);
+                return listener + new Vector3(c.x, Random.Range(-3f, 2f), c.y);
+            }
+            float busy = Mathf.Max(market, street * 0.8f);
+            // vendors calling out in the bazaar and on the Mall (when their clips are there)
+            vendorTimer -= dt;
+            if (vendorTimer <= 0f)
+            {
+                vendorTimer = Random.Range(7f, 16f);
+                if (busy > 0.25f && open > 0.5f && rain < 0.6f) PlayAt(One("vendor"), Around(8f, 26f), 0.45f * busy, Random.Range(0.96f, 1.04f), 45f);
+            }
+            // boatmen along the shore by day
+            boatmanTimer -= dt;
+            if (boatmanTimer <= 0f)
+            {
+                boatmanTimer = Random.Range(10f, 22f);
+                if (lakeDist < 35f && hour > 8f && hour < 18.5f && rain < 0.4f) PlayAt(One("boatman"), Around(6f, 20f), 0.5f, Random.Range(0.96f, 1.04f), 50f);
+            }
+            // far horns over the town (a hill town never quite stops honking), quieter late at night
+            farHornTimer -= dt;
+            if (farHornTimer <= 0f)
+            {
+                farHornTimer = Random.Range(9f, 28f) * (night > 0.7f ? 2.5f : 1f);
+                float near = Mathf.Max(traffic, busy * 0.6f);
+                if (near > 0.1f || Random.value < 0.3f) PlayAt(One("horn"), Around(70f, 170f) + Vector3.up * 6f, 0.22f + 0.15f * near, Random.Range(0.9f, 1.08f), 260f);
+            }
+            // the bus stand: an air horn now and then
+            airHornTimer -= dt;
+            if (airHornTimer <= 0f)
+            {
+                airHornTimer = Random.Range(20f, 50f);
+                if (bus > 0.2f && hour > 5f && hour < 22.5f) PlayAt(One("hornBig") ?? One("horn"), Around(20f, 60f), 0.4f * bus + 0.15f, Random.Range(0.95f, 1.03f), 220f);
+            }
+            // the lake lapping at the shore (the splash, low and soft)
+            lapTimer -= dt;
+            if (lapTimer <= 0f)
+            {
+                lapTimer = Random.Range(1.4f, 3.8f);
+                if (lakeDist > 0.5f && lakeDist < 14f) PlayAt(One("splash"), Around(3f, 9f) + Vector3.down * 2f, 0.1f * (1f - lakeDist / 14f) + 0.03f, Random.Range(0.5f, 0.68f), 25f);
+            }
+            // rain on a tin roof: something solid just overhead
+            roofTimer -= dt;
+            if (roofTimer <= 0f)
+            {
+                roofTimer = 0.5f;
+                underRoof = rain > 0.05f && Physics.Raycast(listener + Vector3.up * 0.3f, Vector3.up, out var hit, 9f, ~((1 << 8) | (1 << 9) | (1 << 2)), QueryTriggerInteraction.Ignore)
+                            && !(hit.collider is TerrainCollider);
+            }
+            Fade(sTin, underRoof ? 0.55f * Mathf.Clamp01(rain * 1.6f) * baseVolume * GameSettings.Ambience : 0f, dt * 0.8f);
+            // the aarti at Naina Devi: dawn and dusk, the bells ring on and on
+            bool aarti = (hour > 6f && hour < 6.6f) || (hour > 18.4f && hour < 19.2f);
+            if (aarti && (templePosition - listener).sqrMagnitude < 220f * 220f && bellTimer > 1.1f) bellTimer = Random.Range(0.45f, 1.1f);
+            // the azaan from the Jama Masjid, once at each prayer time (needs Resources/Audio/azaan)
+            if (mosquePosition != Vector3.zero)
+                for (int i = 0; i < AzaanHours.Length; i++)
+                    if (hour >= AzaanHours[i] && hour < AzaanHours[i] + 0.1f && lastAzaan != i)
+                    {
+                        lastAzaan = i;
+                        if ((mosquePosition - listener).sqrMagnitude < 900f * 900f) PlayAt(One("azaan"), mosquePosition + Vector3.up * 22f, 0.75f, 1f, 900f);
+                    }
+        }
+
         /// <summary>Which recording a footstep at this point uses: the terrain's main texture there, or the kind of
         /// thing the collider is (roads, paving, decks).</summary>
         string Surface(Vector3 pos)
@@ -324,6 +409,11 @@ namespace Nainital
                 return "step_road";
             if (hit.collider is TerrainCollider tc)
             {
+                switch (TerrainRoads.SurfaceAt(hit.point))   // a road or paving painted into the ground (owner, 23 Nov)
+                {
+                    case 1: case 2: return "step_road";
+                    case 3: case 4: return "step_stone";
+                }
                 var td = tc.terrainData;
                 var t = tc.GetComponent<Terrain>();
                 if (td && t && td.alphamapLayers > 0)

@@ -80,13 +80,46 @@ void NainitalInterior(float2 rawUV, float3 positionWS, float3 normalWS, float sg
     float3 T = sgn * normalize(cross(float3(0.0, 1.0, 0.0), N));
     NtFrame f = NtBayFrame();
     float2 glassM = float2((bay.x - 0.5) * NT_BAY_W, bay.y * NT_BAY_H);
+    half3 nightGlow = s.emission;
+    if (_NtHourP1 > 0.5)
+    {
+        // this opening's own number: its bottom-middle point in the world, the same over the whole opening
+        float3 origin = positionWS - T * glassM.x - float3(0.0, glassM.y, 0.0);
+        float h = NtHash3(floor(origin * 2.0) + 0.5);
+        float hr = _NtHourP1 - 1.0;
+        if (shop)
+        {
+            // the shutter: down from 21:30-23:30 (each shop its own time) till 7:30-9:30
+            bool shut = hr > 21.5 + h * 2.0 || hr < 7.5 + h * 2.0;
+            if (shut)
+            {
+                half rib = 0.82h + 0.18h * (half)step(0.5, frac(glassM.y * 9.0));
+                half3 metal = h < 0.45 ? half3(0.42h, 0.43h, 0.44h) : (h < 0.7 ? half3(0.22h, 0.33h, 0.45h) : half3(0.28h, 0.38h, 0.3h));
+                s.albedo = lerp(s.albedo, metal * rib, glass);
+                s.emission = lerp(s.emission, half3(0.0h, 0.0h, 0.0h), glass);
+                s.smoothness = lerp(s.smoothness, 0.35h, glass);
+                s.metallic = lerp(s.metallic, 0.5h, glass);
+                s.occlusion = lerp(s.occlusion, 1.0h, glass);
+                s.normalTS = normalize(lerp(s.normalTS, half3(0.0h, (rib - 0.9h) * 2.0h, 1.0h), glass));
+                return;
+            }
+        }
+        else
+        {
+            // each window switches on and off at its own times (every 25-75 game minutes it may change)
+            float period = 25.0 + 50.0 * h;
+            float slot = floor((_NtGameMinutes + h * 900.0) / period);
+            bool on = NtHash3(float3(origin.xz * 2.0, slot)) < NtLitShare(hr);
+            nightGlow *= on ? 1.0h : 0.05h;
+        }
+    }
     float2 plane = NtBackPlane(glassM, positionWS - GetCameraPositionWS(), T, N, shop ? f.depthB : f.depthA);
     half inside;
     float2 puv = NtPhotoUV(room, plane, f, inside);
     float2 sc = float2(NT_BAY_W, NT_BAY_H);
     half3 photo = SAMPLE_TEXTURE2D_GRAD(_RoomTex, sampler_RoomTex, puv, NtPhotoGrad(bayDx * sc, f), NtPhotoGrad(bayDy * sc, f)).rgb * inside;
 
-    s.emission = lerp(s.emission, NtRoomLight(photo, s.emission), glass);
+    s.emission = lerp(s.emission, NtRoomLight(photo, nightGlow), glass);
     // a window is glass (dark, glossy: the sky and street reflect in it); a shop front is open
     half3 behind = shop ? half3(0.0h, 0.0h, 0.0h) : half3(NT_GLASS_ALBEDO, NT_GLASS_ALBEDO, NT_GLASS_ALBEDO);
     s.albedo = lerp(s.albedo, behind, glass);
