@@ -270,6 +270,7 @@ namespace Nainital.EditorTools
             Step("Traffic lanes clear", () => ClearLanes(ctx));   // last: everything stands, the hand-placed things too
             BuildingKit.Ground = null;
 
+            MeshMemory.MarkRenderOnly(bank);   // WorldBuilder.MeshMemory.cs (24 Nov): no CPU copy of what only draws
             EditorUtility.SetDirty(bank);
             AtlasCheck.Relink();   // the building atlas material keeps its textures on disk (they were lost on reload: white buildings)
             AssetDatabase.SaveAssets();
