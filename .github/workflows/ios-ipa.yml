@@ -1,35 +1,83 @@
 # Turns the Xcode project that Unity writes on Windows (Nainital > 9. iOS: build Xcode project) into an unsigned .ipa,
-# on GitHub's free macOS runner. The project zip is attached to a release (default tag "ios-build"); the .ipa is
-# attached to the same release. Install it on an iPhone with Sideloadly (signs it with your own Apple ID).
+# on GitHub's free macOS runner. The project is on a release (default tag "ios-build"), either as one zip
+# (mode "zip", NainitalGame-iOS-Xcode.zip) or as delta packs + delta-manifest.json.gz (mode "delta",
+# Tools/pipeline/ipa_delta.py: only what changed is uploaded). The .ipa is attached to the same release. Install it on
+# an iPhone with Sideloadly (signs it with your own Apple ID).
+# The compile goes through ccache, kept between runs in the Actions cache (24 Nov 2026: 13 min cold).
 name: iOS IPA (unsigned, for Sideloadly)
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag that holds NainitalGame-iOS-Xcode.zip
+        description: Release tag that holds the Xcode project
         required: true
         default: ios-build
+      mode:
+        description: "zip (one NainitalGame-iOS-Xcode.zip) or delta (ipa_delta.py packs)"
+        required: false
+        default: zip
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   ipa:
     runs-on: macos-15
     timeout-minutes: 300
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_COMPILERCHECK: content
+      CCACHE_DEPEND: "true"
+      CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime,modules,clang_index_store,system_headers,ivfsoverlay,file_stat_matches
+      CCACHE_MAXSIZE: 4G
     steps:
-      - name: Download the Xcode project
+      - name: Download the Xcode project (zip)
+        if: inputs.mode != 'delta'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download "${{ inputs.tag }}" -R "${{ github.repository }}" -p "NainitalGame-iOS-Xcode.zip" -D .
           unzip -q NainitalGame-iOS-Xcode.zip -d xc
+          rm NainitalGame-iOS-Xcode.zip
           ls xc
           df -h .
 
+      - name: Rebuild the Xcode project (delta)
+        if: inputs.mode == 'delta'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/contents/Tools/pipeline/ipa_delta.py?ref=${{ github.sha }}" \
+            -H "Accept: application/vnd.github.raw" > ipa_delta.py
+          sed -i '' "s#^TAG = .*#TAG = '${{ inputs.tag }}'#" ipa_delta.py
+          python3 ipa_delta.py pull xc
+          rm -rf _packs
+          ls xc
+          df -h .
+
+      - name: ccache
+        run: |
+          brew install ccache >/dev/null
+          mkdir -p "$HOME/ccbin"
+          printf '#!/bin/sh\nexec ccache "%s" "$@"\n' "$(xcrun -f clang)" > "$HOME/ccbin/clang"
+          printf '#!/bin/sh\nexec ccache "%s" "$@"\n' "$(xcrun -f clang++)" > "$HOME/ccbin/clang++"
+          chmod +x "$HOME/ccbin/clang" "$HOME/ccbin/clang++"
+
+      - name: Restore the compile cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .ccache
+          key: ccache-ios-${{ github.run_id }}
+          restore-keys: ccache-ios-
+
       - name: Xcode version
-        run: xcodebuild -version
+        run: |
+          xcodebuild -version
+          ccache -z
 
       - name: Build the app (no signing)
         run: |
@@ -38,7 +86,29 @@ jobs:
             -sdk iphoneos -destination 'generic/platform=iOS' \
             -archivePath "$PWD/build/NainiTA.xcarchive" archive \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
+            CC="$HOME/ccbin/clang" CPLUSPLUS="$HOME/ccbin/clang++" \
+            LD="$(xcrun -f clang)" LDPLUSPLUS="$(xcrun -f clang++)" \
+            COMPILER_INDEX_STORE_ENABLE=NO CLANG_ENABLE_EXPLICIT_MODULES=NO \
             -quiet
+
+      - name: Compile cache stats
+        if: always()
+        run: ccache -s || true
+
+      - name: Save the compile cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ccache-ios-${{ github.run_id }}
+
+      - name: Drop older compile caches (the repo has 10 GB of cache)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh cache list -R "${{ github.repository }}" --key ccache-ios- --sort created_at --order desc --json id -q '.[1:][].id' \
+            | while read id; do gh cache delete "$id" -R "${{ github.repository }}" || true; done
 
       - name: Package the .ipa
         run: |

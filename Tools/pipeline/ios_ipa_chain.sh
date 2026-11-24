@@ -9,7 +9,10 @@ B="$(cd "$(dirname "$0")/../.." && pwd)/Builds"   # the project's Builds folder 
 Z=$B/NainitalGame-iOS-Xcode.zip
 OUT=$B/NainiTA-unsigned.ipa
 TAR_PID=${1:-1}   # make_ipa.ps1 passes a finished pid: the zip is done
+MODE=${2:-zip}    # delta: ipa_delta.py uploads only the changed chunks of Builds/iOS (no zip)
+PY=python; py -3 -c "import numpy" 2>/dev/null && PY="py -3"   # the Python with numpy cuts the best chunks
 
+if [ "$MODE" = zip ]; then
 while tasklist //FI "PID eq $TAR_PID" | grep -q "$TAR_PID"; do sleep 15; done
 echo "zip done: $(du -m "$Z" | cut -f1) MB"
 python -c "
@@ -21,11 +24,14 @@ print('zip entries', len(n), 'xcodeproj', ok)
 sys.exit(0 if ok else 1)
 " "$(cygpath -w "$Z")" || { echo "ZIP BAD - stopping"; exit 1; }
 
+fi
+
 TOK=$(printf 'protocol=https\nhost=github.com\nusername=gamedevayush\n\n' | git credential fill 2>/dev/null | sed -n 's/^password=//p')
 [ -n "$TOK" ] || TOK=$(gh auth token -u gamedevayush 2>/dev/null)   # a PC where only the GitHub CLI is signed in
 [ -n "$TOK" ] || { echo "NO TOKEN - stopping"; exit 1; }
 H=(-H "Authorization: token $TOK" -H "Accept: application/vnd.github+json" -H "User-Agent: nainita-ios-build")
 
+if [ "$MODE" = zip ]; then
 # the 12 Nov assets go, so the IPA fetched at the end is surely the new one
 for id in $(curl -s "${H[@]}" "https://api.github.com/repos/$R/releases/$REL/assets" | python -c "import json,sys; [print(a['id']) for a in json.load(sys.stdin) if a['name'] in ('NainitalGame-iOS-Xcode.zip','NainiTA-unsigned.ipa')]"); do
   curl -s -o /dev/null -w "deleted old asset $id: %{http_code}\n" -X DELETE "${H[@]}" "https://api.github.com/repos/$R/releases/assets/$id"
@@ -38,9 +44,20 @@ code=$(curl -s -X POST -T "$Z" "${H[@]}" -H "Content-Type: application/zip" \
 echo "upload: http $code s  $(date +%H:%M:%S)"
 [ "${code%% *}" = "201" ] || { echo "UPLOAD FAILED - stopping"; exit 1; }
 
+else
+  # the old IPA goes, so the one fetched at the end is surely the new one
+  for id in $(curl -s "${H[@]}" "https://api.github.com/repos/$R/releases/$REL/assets" | python -c "import json,sys; [print(a['id']) for a in json.load(sys.stdin) if a['name']=='NainiTA-unsigned.ipa']"); do
+    curl -s -o /dev/null -w "deleted old ipa $id: %{http_code}\n" -X DELETE "${H[@]}" "https://api.github.com/repos/$R/releases/assets/$id"
+  done
+  echo "delta upload $(date +%H:%M:%S)"
+  GH_TOKEN="$TOK" $PY "$(cygpath -w "$(dirname "$0")/ipa_delta.py")" push "$(cygpath -w "$B/iOS")" || { echo "DELTA PUSH FAILED - stopping"; exit 1; }
+fi
+
+BODY='{"ref":"main","inputs":{"tag":"ios-build"}}'
+[ "$MODE" = delta ] && BODY='{"ref":"main","inputs":{"tag":"ios-build","mode":"delta"}}'
 T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 curl -s -o /dev/null -w "workflow dispatched: %{http_code}\n" -X POST "${H[@]}" \
-  "https://api.github.com/repos/$R/actions/workflows/ios-ipa.yml/dispatches" -d '{"ref":"main","inputs":{"tag":"ios-build"}}'
+  "https://api.github.com/repos/$R/actions/workflows/ios-ipa.yml/dispatches" -d "$BODY"
 
 RUN=""
 for i in $(seq 1 20); do

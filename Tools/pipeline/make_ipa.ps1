@@ -1,5 +1,7 @@
 # Full iPhone build, unattended: Unity batch iOS Xcode project -> zip -> GitHub release upload, macOS workflow, .ipa
 # download (Tools\pipeline\ios_ipa_chain.sh). Everything at BelowNormal. Progress lines go to Logs\make_ipa.log.
+# -Mode delta (24 Nov 2026): no zip; ipa_delta.py uploads only the chunks of Builds\iOS the release does not hold yet.
+param([ValidateSet('zip', 'delta')][string]$Mode = 'zip')
 $ErrorActionPreference = 'Continue'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path   # the project folder (this file is in Tools\pipeline)
 New-Item -ItemType Directory -Force (Join-Path $root 'Logs') | Out-Null
@@ -25,6 +27,7 @@ $res = Select-String -Path $ulog -Pattern '\[Nainital\] iOS build' | Select-Obje
 Say ("iOS build: " + $(if ($res) { $res.Line } else { 'NO RESULT LINE' }))
 if (-not $res -or $res.Line -notmatch 'Succeeded') { Say "STOP: iOS build failed (see Logs\ios_build.log)"; exit 1 }
 
+if ($Mode -eq 'zip') {
 # 2. the zip (the project's files at the zip's root, as the workflow expects)
 $zip = "$root\Builds\NainitalGame-iOS-Xcode.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
@@ -33,10 +36,12 @@ $z = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{C
 Start-Sleep 3; try { (Get-Process -Id $z.ProcessId).PriorityClass = 'BelowNormal' } catch {}
 while (Get-Process -Id $z.ProcessId -ErrorAction SilentlyContinue) { Start-Sleep 10 }
 Say ("zip done: {0:N0} MB" -f ((Get-Item $zip).Length / 1MB))
+}
 
 # 3. upload, workflow on GitHub's Mac, download (the chain waits on a pid; the zip is finished, so any dead pid)
-Say "upload + workflow + download"
+Say "upload + workflow + download ($Mode)"
 $bash = 'C:\Program Files\Git\bin\bash.exe'
-if (Test-Path $bash) { & $bash (Join-Path $PSScriptRoot 'ios_ipa_chain.sh') 1 2>&1 | ForEach-Object { Say $_ } }
-else { & (Join-Path $PSScriptRoot 'ios_ipa_chain.ps1') -Log $log }   # no Git Bash here: the PowerShell + gh version
+if (Test-Path $bash) { & $bash (Join-Path $PSScriptRoot 'ios_ipa_chain.sh') 1 $Mode 2>&1 | ForEach-Object { Say $_ } }
+elseif ($Mode -eq 'zip') { & (Join-Path $PSScriptRoot 'ios_ipa_chain.ps1') -Log $log }
+else { Say "STOP: delta mode needs Git Bash" }   # no Git Bash here: the PowerShell + gh version
 Say "FINISHED"
