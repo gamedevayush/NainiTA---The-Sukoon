@@ -66,6 +66,30 @@ jobs:
           printf '#!/bin/sh\nexec ccache "%s" "$@"\n' "$(xcrun -f clang)" > "$HOME/ccbin/clang"
           printf '#!/bin/sh\nexec ccache "%s" "$@"\n' "$(xcrun -f clang++)" > "$HOME/ccbin/clang++"
           chmod +x "$HOME/ccbin/clang" "$HOME/ccbin/clang++"
+          # IL2CPP compiles the game's C++ itself (bee, inside a script phase) with the toolchain Xcode hands it, so
+          # CC= never reaches it: a copy of the toolchain made of links, whose clang / clang++ go through ccache
+          TC="$(cd "$(dirname "$(xcrun -f clang++)")/../.." && pwd)"
+          SH="$HOME/cctool"
+          mkdir -p "$SH/usr/bin"
+          for x in "$TC"/*; do [ "$(basename "$x")" = usr ] || ln -s "$x" "$SH/"; done
+          for x in "$TC"/usr/*; do [ "$(basename "$x")" = bin ] || ln -s "$x" "$SH/usr/"; done
+          for x in "$TC"/usr/bin/*; do ln -s "$x" "$SH/usr/bin/"; done
+          for c in clang clang++; do
+            rm "$SH/usr/bin/$c"
+            printf '#!/bin/sh\nexec ccache "%s" "$@"\n' "$TC/usr/bin/$c" > "$SH/usr/bin/$c"
+            chmod +x "$SH/usr/bin/$c"
+          done
+          echo "CCACHE_TOOLCHAIN=$SH" >> "$GITHUB_ENV"
+          ls -la "$SH/usr/bin" | head -5
+          # the IL2CPP script phase takes the toolchain from CCACHE_TOOLCHAIN when it is set
+          python3 - <<'PY'
+          p = 'xc/Unity-iPhone.xcodeproj/project.pbxproj'
+          s = open(p, encoding='utf-8').read()
+          a = 'tool-chain-path=\\"$UNITY_TOOLCHAIN_DIR\\"'
+          b = 'tool-chain-path=\\"${CCACHE_TOOLCHAIN:-$UNITY_TOOLCHAIN_DIR}\\"'
+          print('IL2CPP toolchain patched:', s.count(a))
+          open(p, 'w', encoding='utf-8').write(s.replace(a, b))
+          PY
 
       - name: Restore the compile cache
         uses: actions/cache/restore@v4
@@ -88,7 +112,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
             CC="$HOME/ccbin/clang" CPLUSPLUS="$HOME/ccbin/clang++" \
             LD="$(xcrun -f clang)" LDPLUSPLUS="$(xcrun -f clang++)" \
-            COMPILER_INDEX_STORE_ENABLE=NO CLANG_ENABLE_EXPLICIT_MODULES=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO CLANG_ENABLE_EXPLICIT_MODULES=NO ENABLE_USER_SCRIPT_SANDBOXING=NO \
             -quiet
 
       - name: Compile cache stats
