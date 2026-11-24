@@ -24,6 +24,14 @@ float _NtWetness;
 float _NtRoadsOn;
 float _NtRoadSdf;   // > 0: the mask is signed distances, +- this many metres over 0..1
 
+// a stable 0..1 hash of a world cell (road wear: patches, potholes, manhole covers)
+float NtHash(float2 p)
+{
+    p = frac(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return frac(p.x * p.y);
+}
+
 void NtGround(float3 positionWS, inout half3 albedo, inout half smoothness, inout half3 normalTS, inout half occlusion)
 {
     if (_NtRoadsOn < 0.5)
@@ -88,6 +96,63 @@ void NtGround(float3 positionWS, inout half3 albedo, inout half smoothness, inou
         // dust along the rims, where the tarmac or the tiles meet the earth
         half rim = saturate(total * (1.0h - total) * 4.0h);
         albedo = lerp(albedo, albedo * half3(1.04h, 0.97h, 0.86h) * 0.92h, rim * 0.6h);
+
+        // wear on the tarmac (owner, 25 Nov 2026: "game ko or realistic but not heavy"): patches of newer, blacker asphalt,
+        // potholes and round iron manhole covers, scattered by a hash of world cells. Arithmetic only (no new textures),
+        // on road pixels only; holes hold water in the rain.
+        half tar = saturate((w.r + w.g) * inv) * total;
+        [branch] if (tar > 0.01h)
+        {
+            // repair patches: one in ~16% of 7 m cells, a rotated rectangle 1.5-3.5 m by 1-2.4 m
+            float2 pc = floor(xz / 7.0);
+            float hp = NtHash(pc);
+            if (hp < 0.16)
+            {
+                float a = NtHash(pc + 3.1) * 3.14159;
+                float2 o = (float2(NtHash(pc + 1.7), NtHash(pc + 2.3)) - 0.5) * 3.0;
+                float2 q = xz - (pc + 0.5) * 7.0 - o;
+                float2 r = float2(q.x * cos(a) + q.y * sin(a), -q.x * sin(a) + q.y * cos(a));
+                float2 hs = float2(0.75 + NtHash(pc + 4.9) * 1.0, 0.5 + NtHash(pc + 6.2) * 0.7);
+                float2 e = abs(r) - hs;
+                float edge = max(e.x, e.y) + (fine.g - 0.5) * 0.08;
+                half patch = (half)saturate(-edge / 0.04) * tar;
+                albedo = lerp(albedo, albedo * 0.7h + 0.03h, patch * 0.85h);   // a different shade: greyer on black tarmac
+                smoothness = lerp(smoothness, smoothness + 0.08h, patch);
+                albedo *= 1.0h - (half)saturate(1.0 - abs(edge) / 0.05) * 0.25h * tar;   // the cut line round it
+            }
+            // potholes: one in ~7% of 9 m cells, 0.3-0.7 m across, ragged
+            float2 kc = floor(xz / 9.0);
+            if (NtHash(kc + 7.7) < 0.07)
+            {
+                float2 c0 = (kc + 0.2 + float2(NtHash(kc + 8.1), NtHash(kc + 9.3)) * 0.6) * 9.0;
+                float rad = 0.3 + NtHash(kc + 5.5) * 0.4;
+                float dd = length(xz - c0) / rad + (fine.g - 0.5) * 0.5 + (dirt.g - 0.5) * 0.3;
+                half hole = (half)saturate((1.0 - dd) / 0.15) * tar;
+                half lip = (half)saturate(1.0 - abs(dd - 1.0) / 0.2) * tar;
+                albedo = lerp(albedo, albedo * half3(0.55h, 0.52h, 0.48h), hole);
+                albedo = lerp(albedo, albedo * half3(1.08h, 1.02h, 0.92h), lip * 0.5h);   // broken, dusty edge
+                float2 g = xz - c0;
+                normalTS = normalize(lerp(normalTS, normalize(half3((half2)(-g / max(length(g), 1e-3)) * 0.8h, 1.0h)), lip * 0.7h));
+                smoothness = lerp(smoothness, 0.92h, hole * saturate(_NtWetness * 2.5h));   // water standing in it
+                albedo *= 1.0h - hole * saturate(_NtWetness * 2.5h) * 0.3h;
+            }
+            // manhole covers: one in ~10% of 23 m cells, 0.6 m across, a ring and a cross-hatched iron lid
+            float2 mc = floor(xz / 23.0);
+            if (NtHash(mc + 11.3) < 0.1)
+            {
+                float2 c1 = (mc + 0.3 + float2(NtHash(mc + 12.9), NtHash(mc + 13.7)) * 0.4) * 23.0;
+                float2 g = xz - c1;
+                float dm = length(g);
+                half lid = (half)saturate((0.3 - dm) / 0.012) * tar;
+                half ring = (half)saturate(1.0 - abs(dm - 0.31) / 0.02) * tar;
+                half hatch = (half)step(0.5, frac((g.x + g.y) * 9.0)) * (half)step(0.5, frac((g.x - g.y) * 9.0));
+                half3 iron = half3(0.16h, 0.155h, 0.15h) * (0.85h + 0.3h * hatch) * (0.8h + 0.4h * fine.g);
+                albedo = lerp(albedo, iron, lid);
+                albedo = lerp(albedo, albedo * 0.35h, ring);
+                smoothness = lerp(smoothness, 0.45h, lid);
+                normalTS = normalize(lerp(normalTS, half3(0, 0, 1), lid * 0.8h));
+            }
+        }
     }
 
     // dirt over everything: blotches of grime, a little more on the roads (oil, soot, mud carried on tyres)

@@ -34,6 +34,7 @@ namespace Nainital
             Instance = this;
             cam = GetComponent<Camera>();
             if (cam) near = cam.nearClipPlane;
+            GameSettings.ApplyCull(cam);   // far vehicles / people not drawn (25 Nov)
         }
 
         // ---- through his own eyes in a vehicle (owner, 23 Nov 2026: "bus me ek camera option jisse fpv me rotate krskte"):

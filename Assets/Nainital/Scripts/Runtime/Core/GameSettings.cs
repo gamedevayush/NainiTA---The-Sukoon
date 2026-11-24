@@ -91,6 +91,34 @@ namespace Nainital
             foreach (var v in Object.FindObjectsByType<Volume>(FindObjectsSortMode.None))
                 if (v.sharedProfile && v.sharedProfile.TryGet<DepthOfField>(out var dof)) dof.active = q == 2;
             HighGrade(q == 2);
+            ApplyCull(Camera.main);
+            ApplyPhoneShadows(q);
+        }
+
+        /// <summary>Things too small to matter far away are not drawn there (owner, 25 Nov 2026: "game ko or realistic but
+        /// not heavy"): vehicles (layer Vehicle) and people / animals (layer Character) past these distances cost no draw
+        /// calls, skinning or shadows. The player (layer Player) and the world are never culled this way.</summary>
+        public static void ApplyCull(Camera cam)
+        {
+            if (!cam) return;
+            int q = Quality;
+            var d = new float[32];
+            d[10] = new[] { 140f, 200f, 280f }[q];   // VehicleFactory.VehicleLayer
+            d[9] = new[] { 70f, 100f, 140f }[q];     // Character: townsfolk, animals
+            cam.layerCullDistances = d;
+            cam.layerCullSpherical = true;
+        }
+
+        /// <summary>On the phone the shadow map covers less ground (a 2048 map over 100 m draws soft, costly shadows): 40 /
+        /// 60 / 90 m, and the low setting's map is 1024 (a quarter of the memory).</summary>
+        static void ApplyPhoneShadows(int q)
+        {
+            if (!Application.isMobilePlatform) return;
+            if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urp)
+            {
+                urp.shadowDistance = new[] { 40f, 60f, 90f }[q];
+                urp.mainLightShadowmapResolution = q == 0 ? 1024 : 2048;
+            }
         }
 
         static Volume highVol;

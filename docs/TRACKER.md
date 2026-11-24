@@ -1072,3 +1072,14 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   water; Ambedkar Park; Army Rest gate on its road (#81 crosses the wall at 855.0, -1087.8); yellow building on the Bhowali
   road (he: "there is no house sticked with road from rest gate to bustand"); Lower Mall bend widened lake side; Mall Road
   balconies on built houses only (99). Shots: Shots/o24*_*.png.
+
+## 25 Nov 2026 (00:30-02:30, main PC) - 25 Nov list, realism without load
+
+- His 25 Nov list: bus stand fitted between the roads (BusStrip: 23.4 m clear, canopy 21 m, yard half 8.9 m); traffic
+  lights in the scene under "Traffic Lights (placed)", places saved on Ctrl+S to Resources/TrafficLightPlaces.json (36
+  posts, 10 junctions); his own moves kept (Data/hand_moves.json). First build failed: RoadNetwork is a ScriptableObject
+  (TrafficManager.network), not a component; the step is now try/caught. Pushed baedfcb.
+- Enhancements (he: "jitna tumhe lgta hai vo sab krdo"): road wear in the terrain shader, far culling, phone shadows (see
+  README). Shots Shots/o25w_* (manholes at 818.6,-1924.6 and 128.7,-2445.2; potholes at 21.7,-2471.5 and -22.6,146.8;
+  patch at 891.9,-1187.1 - positions from a float32 copy of NtHash in Python).
+- Next: sounds in 3D at places (README PENDING) - not started.

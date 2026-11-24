@@ -108,6 +108,29 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 ## Work in progress (last updated 21 Nov 2026, afternoon)
 
+### PENDING - next session starts here (25 Nov 2026, ~02:30)
+
+- **Sounds in 3D at places** (owner, 25 Nov: "chidiya ka sound 3d space pe ho... morning ke time har jagah murga, chidiya
+  sunaai dera..kuch places pe set rkdo"). Not started in code. Plan: `AudioManager.Zone` + `Birds = 6, Rooster = 7`
+  (zoneNear / a best-position array to 8); `WorldBuilder.Sound.cs` adds bird zones from tree clusters (`world.trees`,
+  stride 4, 80 m cells with 12+ trees, not in town), `areas` wood/forest/park, the lakeside, and rooster zones from
+  outlying house clusters (`world.houses`, 120 m cells, 150 m+ from Mall Road / bazaars / bus stand). Then
+  `AudioManager.Occasional`: bird chirps 3D from the nearest bird zone's trees only, rooster only from the nearest rooster
+  zone, barks from a real dog (`Animal.Live`) when one is near; beds `amb_birds_morning` / `amb_birds_day` scaled by the
+  bird zone nearness (not 2D everywhere). Needs Build World (zones) + an IPA.
+- The barricades of the Mallital one-way are still OFF (24 Nov) - put back later.
+
+### 25 Nov 2026 (02:30) - realism without load: road wear, far culling, phone shadows
+
+- Road wear in the terrain shader (`Shaders/NainitalTerrainRoads.hlsl`, tarmac pixels only, no textures): repair patches
+  (16 % of 7 m cells), potholes (7 % of 9 m cells, water in them in the rain), round iron manhole covers (10 % of 23 m
+  cells). Trap: editing only the .hlsl does not recompile the terrain shader in batch - touch `NainitalTerrain.shader`.
+- `GameSettings.ApplyCull`: vehicles not drawn beyond 140/200/280 m, people and animals beyond 70/100/140 m (Low/Medium/
+  High; layers Vehicle 10, Character 9; the player's layer never). `ApplyPhoneShadows`: on phones 40/60/90 m, Low 1024 map.
+- Already in the game, not redone: sound zones, lake sounds, birds, chimney smoke / tea steam (AmbientLife), crowd by the
+  hour (TownClock), colour grades, reflection probes. Skipped: vertex AO (AtlasLit has no vertex colour; meshes without a
+  colour channel risk black on Metal) and occlusion baking (big chunk meshes, memory on the phone).
+
 ### 25 Nov 2026 (01:45) - bus stand between the roads, traffic lights movable in the editor, his moves kept (docs/owner_issues_25nov/LIST.md)
 
 - Tallital bus stand: canopy + yard fitted in the strip between the Haldwani highway and the Bhowali road (`BusStrip`,
