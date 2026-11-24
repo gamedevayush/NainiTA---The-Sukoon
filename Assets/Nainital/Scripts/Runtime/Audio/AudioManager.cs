@@ -28,7 +28,9 @@ namespace Nainital
         /// <summary>One-shots and engines: the base level times the Effects setting (GameSettings).</summary>
         public float masterVolume => baseVolume * GameSettings.Effects;
 
-        public enum Zone { Market = 0, Street = 1, Cafe = 2, Kids = 3, BusStand = 4, Traffic = 5 }
+        /// <summary>Birds (tree clusters, the lakeside) and Rooster (houses away from the bazaars): 25 Nov 2026, owner: birds
+        /// and roosters only at places, heard from there in 3D, not everywhere.</summary>
+        public enum Zone { Market = 0, Street = 1, Cafe = 2, Kids = 3, BusStand = 4, Traffic = 5, Birds = 6, Rooster = 7 }
         public int[] zoneKinds = new int[0];
         public Vector3[] zonePositions = new Vector3[0];
         public float[] zoneRadii = new float[0];
@@ -48,7 +50,13 @@ namespace Nainital
         AudioSource sTin;
         int lastAzaan = -1;
         static readonly float[] AzaanHours = { 5.2f, 12.6f, 16.3f, 18.1f, 19.5f };
-        readonly float[] zoneNear = new float[6];
+        readonly float[] zoneNear = new float[8];
+        // the nearest zone of each kind (its centre and radius), for sounds that come FROM a place (birds, roosters)
+        readonly Vector3[] zoneBest = new Vector3[8];
+        readonly float[] zoneBestR = new float[8];
+        readonly float[] zoneBestD = new float[8];
+        /// <summary>How near the listener is to trees with birds, 0..1 (tests: <c>Birds</c> / <c>Rooster</c> nearness).</summary>
+        public float NearOf(Zone z) => zoneNear[(int)z];
         bool wasFlying, wasGrounded = true;
         int lastStep = -1;
 
@@ -213,7 +221,7 @@ namespace Nainital
 
         void UpdateZones(Vector3 listener)
         {
-            for (int k = 0; k < zoneNear.Length; k++) zoneNear[k] = 0f;
+            for (int k = 0; k < zoneNear.Length; k++) { zoneNear[k] = 0f; zoneBestD[k] = float.MaxValue; }
             if (zonePositions == null) return;
             int n = Mathf.Min(zonePositions.Length, Mathf.Min(zoneKinds.Length, zoneRadii.Length));
             for (int i = 0; i < n; i++)
@@ -224,6 +232,7 @@ namespace Nainital
                 Vector3 d = zonePositions[i] - listener;
                 d.y *= 0.5f;   // a street just below the hillside still sounds near
                 float m = d.sqrMagnitude;
+                if (m < zoneBestD[k]) { zoneBestD[k] = m; zoneBest[k] = zonePositions[i]; zoneBestR[k] = r; }
                 if (m > r * r) continue;
                 float near = 1f - Mathf.Sqrt(m) / r;
                 near = near * near * (3f - 2f * near);
@@ -262,9 +271,11 @@ namespace Nainital
             float evening = hour >= 17f && hour < 22.5f ? 1f : (hour >= 9f && hour < 17f ? 0.7f : 0.15f);   // the Mall fills up after dark
             float open = hour >= 8.5f && hour < 22f ? 1f : 0.2f;
 
-            SetBed("amb_birds_day", 0.5f * day * dry * (morning ? 0.3f : 1f) * (1f - 0.65f * town));
-            SetBed("amb_birds_morning", 0.55f * day * dry * (morning ? 1f : 0f) * (1f - 0.5f * town));
-            SetBed("amb_forest", 0.45f * day * dry * (1f - town));
+            // birds only near trees (zones from the tree clusters and the lakeside), not a 2D bed everywhere
+            float birds = zoneNear[(int)Zone.Birds];
+            SetBed("amb_birds_day", 0.5f * day * dry * (morning ? 0.3f : 1f) * (1f - 0.65f * town) * birds);
+            SetBed("amb_birds_morning", 0.55f * day * dry * (morning ? 1f : 0f) * (1f - 0.5f * town) * birds);
+            SetBed("amb_forest", 0.45f * day * dry * (1f - town) * Mathf.Max(birds, 0.15f));
             SetBed("amb_wind", 0.18f + elevation * 0.3f + rain * 0.12f);
             SetBed("amb_wind_high", Mathf.Clamp01(elevation * 2f - 0.6f) * 0.45f);
             SetBed("amb_night", 0.42f * night * dry * (1f - 0.6f * town));
@@ -302,11 +313,20 @@ namespace Nainital
                 Vector2 c = Random.insideUnitCircle.normalized * Random.Range(near, far);
                 return listener + new Vector3(c.x, Random.Range(-6f, 4f), c.y);
             }
+            // a bird chirps IN the nearest trees with birds (3D, from there), more often the nearer they are
             birdTimer -= dt;
+            float birds = zoneNear[(int)Zone.Birds];
             if (birdTimer <= 0f)
             {
-                birdTimer = Random.Range(3f, 9f);
-                if (night < 0.4f && rain < 0.5f) PlayAt(One("bird"), listener + Random.insideUnitSphere * 25f + Vector3.up * 8f, 0.22f * (1f - 0.6f * town), Random.Range(0.92f, 1.1f));
+                birdTimer = Random.Range(3f, 9f) / Mathf.Lerp(0.6f, 1.6f, birds) * (hour > 5f && hour < 9.5f ? 0.6f : 1f);
+                if (night < 0.4f && rain < 0.5f && zoneBestD[(int)Zone.Birds] < float.MaxValue)
+                {
+                    Vector3 c = zoneBest[(int)Zone.Birds];
+                    Vector2 o = Random.insideUnitCircle * zoneBestR[(int)Zone.Birds] * 0.5f;
+                    Vector3 at = c + new Vector3(o.x, Random.Range(1f, 9f), o.y);
+                    if ((at - listener).sqrMagnitude < 110f * 110f)
+                        PlayAt(One("bird"), at, 0.3f * (1f - 0.6f * town), Random.Range(0.92f, 1.1f), 110f);
+                }
             }
             bellTimer -= dt;
             if (bellTimer <= 0f)
@@ -319,20 +339,46 @@ namespace Nainital
             {
                 dogTimer = night > 0.5f ? Random.Range(14f, 40f) : Random.Range(35f, 90f);
                 bool pack = night > 0.5f && Random.value < 0.15f;
-                PlayAt(One(pack ? "dogPack" : "dog"), Around(30f, 80f), pack ? 0.45f : 0.5f, Random.Range(0.9f, 1.1f), 150f);
+                // a real dog nearby barks from where it stands; otherwise a far one somewhere in the dark (night only)
+                var dog = NearestAnimal(AnimalKind.Dog, listener, 70f);
+                if (dog) PlayAt(One("dog"), dog.transform.position + Vector3.up * 0.6f, 0.6f, Random.Range(0.9f, 1.1f), 120f);
+                else if (night > 0.5f) PlayAt(One(pack ? "dogPack" : "dog"), Around(80f, 150f), pack ? 0.35f : 0.3f, Random.Range(0.9f, 1.1f), 200f);
             }
+            // roosters at dawn: only from the nearest houses that keep hens (Zone.Rooster), from there
             roosterTimer -= dt;
             if (roosterTimer <= 0f)
             {
-                roosterTimer = Random.Range(35f, 80f);
-                if (hour > 5f && hour < 7.8f) PlayAt(One("rooster"), Around(50f, 110f), 0.45f, Random.Range(0.95f, 1.05f), 200f);
+                roosterTimer = Random.Range(25f, 60f);
+                int rk = (int)Zone.Rooster;
+                if (hour > 5f && hour < 7.8f && zoneBestD[rk] < float.MaxValue)
+                {
+                    Vector2 o = Random.insideUnitCircle * 35f;
+                    Vector3 at = zoneBest[rk] + new Vector3(o.x, 0f, o.y);
+                    float r = 200f;   // the Mall is 230 m+ from the nearest hens (median): no rooster there
+                    if ((at - listener).sqrMagnitude < r * r) PlayAt(One("rooster"), at, 0.55f, Random.Range(0.95f, 1.05f), r);
+                }
             }
+            // a cow moos only where a real cow is
             cowTimer -= dt;
             if (cowTimer <= 0f)
             {
-                cowTimer = Random.Range(90f, 220f);
-                if (night < 0.3f && town < 0.5f) PlayAt(One("cow"), Around(40f, 90f), 0.4f, Random.Range(0.95f, 1.05f), 150f);
+                cowTimer = Random.Range(60f, 160f);
+                var cow = NearestAnimal(AnimalKind.Cow, listener, 90f);
+                if (cow && night < 0.3f) PlayAt(One("cow"), cow.transform.position + Vector3.up * 1.2f, 0.5f, Random.Range(0.95f, 1.05f), 150f);
             }
+        }
+
+        static Animal NearestAnimal(AnimalKind kind, Vector3 p, float within)
+        {
+            Animal best = null;
+            float bd = within * within;
+            foreach (var a in Animal.Live)
+            {
+                if (!a || a.Dead || a.kind != kind) continue;
+                float d = (a.transform.position - p).sqrMagnitude;
+                if (d < bd) { bd = d; best = a; }
+            }
+            return best;
         }
 
         void Alive(float dt, Vector3 listener, float night, float hour, float rain, float market, float street, float traffic, float bus, float open)

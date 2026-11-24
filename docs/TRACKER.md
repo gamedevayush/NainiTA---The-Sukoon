@@ -1083,3 +1083,15 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   README). Shots Shots/o25w_* (manholes at 818.6,-1924.6 and 128.7,-2445.2; potholes at 21.7,-2471.5 and -22.6,146.8;
   patch at 891.9,-1187.1 - positions from a float32 copy of NtHash in Python).
 - Next: sounds in 3D at places (README PENDING) - not started.
+
+## 25 Nov 2026 (day, main PC) - birds and roosters at places, 3D
+
+- Owner: the 24 Nov memory-fix IPA runs on the iPhone, no crash.
+- Before: `amb_birds_*` were 2D beds everywhere (only lowered in town), chirps spawned around the listener, the rooster
+  spawned 50-110 m from the listener at any spot = "har jagah murga, chidiya".
+- Now zones: birds = tree clusters (80 m cells, 12+ trees, 60 m+ from Mall/bazaars/bus stand) + lakeside every 60 m;
+  roosters = house clusters (120 m cells, 6+, 150 m+ from town, half by hash). Python estimate on world.json: 5114 bird
+  zones, 138 rooster zones; Mall Road points -> nearest bird zone 62/89/160 m (min/median/max, radius 60-75), nearest
+  rooster zone 156/234/444 m (reach 200 m). Zone loop ~5.5k entries every 0.25 s.
+- Dogs bark from real dogs (`Animal.Live`, 70 m) or far at night only; cows only from real cows.
+- compile_check: runtime + editor OK. Build World run in batch (zones count in the `[Nainital] sound zones` line).

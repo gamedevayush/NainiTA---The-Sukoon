@@ -108,17 +108,24 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 ## Work in progress (last updated 21 Nov 2026, afternoon)
 
-### PENDING - next session starts here (25 Nov 2026, ~02:30)
+### PENDING - next session starts here (25 Nov 2026, day)
 
-- **Sounds in 3D at places** (owner, 25 Nov: "chidiya ka sound 3d space pe ho... morning ke time har jagah murga, chidiya
-  sunaai dera..kuch places pe set rkdo"). Not started in code. Plan: `AudioManager.Zone` + `Birds = 6, Rooster = 7`
-  (zoneNear / a best-position array to 8); `WorldBuilder.Sound.cs` adds bird zones from tree clusters (`world.trees`,
-  stride 4, 80 m cells with 12+ trees, not in town), `areas` wood/forest/park, the lakeside, and rooster zones from
-  outlying house clusters (`world.houses`, 120 m cells, 150 m+ from Mall Road / bazaars / bus stand). Then
-  `AudioManager.Occasional`: bird chirps 3D from the nearest bird zone's trees only, rooster only from the nearest rooster
-  zone, barks from a real dog (`Animal.Live`) when one is near; beds `amb_birds_morning` / `amb_birds_day` scaled by the
-  bird zone nearness (not 2D everywhere). Needs Build World (zones) + an IPA.
+- The 24 Nov memory-fix IPA works on his iPhone (no crash, 25 Nov).
+- Sounds in 3D at places: done in code + Build World (below); not yet heard in Play / on the phone. Check: Play at dawn
+  (hour 6) in the woods (birds + rooster near) and on Mall Road (no rooster, birds faint).
+
 - The barricades of the Mallital one-way are still OFF (24 Nov) - put back later.
+
+### 25 Nov 2026 (day) - birds and roosters only at places, heard from there (owner: "chidiya ka sound 3d space pe ho... har jagah murga, chidiya sunaai dera.. kuch places pe set rkdo")
+
+- New sound zones (`WorldBuilder.Sound.cs`, `AudioManager.Zone.Birds = 6, Rooster = 7`): birds from tree clusters (80 m
+  cells with 12+ trees, 60 m+ from the Mall / bazaars / bus stand; ~5100) and every 60 m round the lake outside the Mall;
+  roosters from house clusters (120 m cells, 6+ houses, 150 m+ from town, every other one by a fixed hash; ~138).
+- `AudioManager`: the bird beds (`amb_birds_day/morning`) scale with the birds-zone nearness (no 2D birds everywhere;
+  `amb_forest` keeps 15 %); chirps play IN the nearest bird zone's trees (3D, 110 m), more often near them and at dawn;
+  the rooster crows from the nearest hen houses only (200 m reach: the Mall's nearest is ~234 m away); a dog barks from
+  a real dog within 70 m (`Animal.Live`), else only a far bark at night; a cow moos only where a real cow is.
+  `AudioManager.NearOf(Zone)` for tests.
 
 ### 25 Nov 2026 (02:30) - realism without load: road wear, far culling, phone shadows
 
