@@ -140,7 +140,7 @@ class GH:
     def __init__(self):
         self.tok = token()
 
-    def req(self, url, data=None, method=None, accept='application/vnd.github+json', ctype=None, tries=4):
+    def req(self, url, data=None, method=None, accept='application/vnd.github+json', ctype=None, tries=9):   # 9 tries over ~5 min: a dropped line (24 Nov: DNS gone 20 s) does not end the push
         for k in range(tries):
             rq = urllib.request.Request(url, data=data, method=method)
             rq.add_header('Authorization', 'token ' + self.tok)
@@ -158,7 +158,7 @@ class GH:
                 if k == tries - 1:
                     raise
                 log('  retry', url.split('?')[0][-60:], type(e).__name__)
-            time.sleep(3 * (k + 1))
+            time.sleep(min(60, 5 * 2 ** k))
 
     def json(self, url, **kw):
         st, b = self.req(url, **kw)
@@ -184,7 +184,7 @@ class GH:
             def redirect_request(self, *a, **k):
                 return None
         op = urllib.request.build_opener(NoRedirect)
-        for k in range(4):
+        for k in range(9):
             try:
                 rq = urllib.request.Request(f'https://api.github.com/repos/{REPO}/releases/assets/{asset_id}')
                 rq.add_header('Authorization', 'token ' + self.tok)
@@ -201,10 +201,10 @@ class GH:
                 with urllib.request.urlopen(rq2, timeout=600) as r:
                     return r.read()
             except Exception as e:
-                if k == 3:
+                if k == 8:
                     raise RuntimeError(f'download {asset_id}: {e}')
                 log('  retry download', asset_id, type(e).__name__)
-                time.sleep(3 * (k + 1))
+                time.sleep(min(60, 5 * 2 ** k))
 
     def upload(self, rel_id, name, data, ctype='application/octet-stream'):
         st, b = self.req(f'https://uploads.github.com/repos/{REPO}/releases/{rel_id}/assets?name={name}', data=data,
@@ -236,7 +236,8 @@ def push(tree, dry=False):
     rel = gh.release()
     assets = gh.assets(rel['id'])
     old = remote_manifest(gh, assets) or {'chunks': {}}
-    have = {h: v for h, v in old['chunks'].items() if v[0] in assets}     # only chunks whose pack is still there
+    have = {h: v for h, v in old['chunks'].items()   # only chunks whose pack is there, whole
+            if v[0] in assets and assets[v[0]].get('state') == 'uploaded'}
     new = [h for h in where if h not in have]
     new_raw = sum(where[h][2] for h in new)
     log(f'delta: {len(new)} new chunks, {new_raw / 2**20:,.0f} MB raw (of {total / 2**20:,.0f} MB); '
@@ -265,7 +266,13 @@ def push(tree, dry=False):
         with open(path, 'rb') as f:
             blob = f.read()
         name = 'pack-' + chash(blob) + '.bin'
-        if name not in assets:
+        a = assets.get(name)
+        # an upload cut by a dropped line leaves a named asset that is not 'uploaded' (24 Nov: the Mac got a 404 on it
+        # and the resumed push had skipped it); only a whole one of the right size counts
+        if a and (a.get('state') != 'uploaded' or a.get('size') != len(blob)):
+            gh.delete(a['id'])
+            a = None
+        if not a:
             gh.upload(rel['id'], name, blob)
         os.remove(path)
         return name, len(blob), ent
