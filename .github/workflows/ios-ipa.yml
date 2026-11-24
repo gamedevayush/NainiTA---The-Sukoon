@@ -117,7 +117,7 @@ jobs:
 
       - name: Compile cache stats
         if: always()
-        run: ccache -s || true
+        run: ccache -sv || true
 
       - name: Save the compile cache
         if: always()
