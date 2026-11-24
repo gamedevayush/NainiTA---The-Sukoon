@@ -108,6 +108,35 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 
 ## Work in progress (last updated 21 Nov 2026, afternoon)
 
+### 25 Nov 2026 (01:45) - bus stand between the roads, traffic lights movable in the editor, his moves kept (docs/owner_issues_25nov/LIST.md)
+
+- Tallital bus stand: canopy + yard fitted in the strip between the Haldwani highway and the Bhowali road (`BusStrip`,
+  `WorldBuilder.BusStandRow.cs`; buses centred, taxis only where there is room - `WorldBuilder.Living.cs`).
+- Traffic lights: Build World shows them under **"Traffic Lights (placed)"**; move a post and save the scene ->
+  `Assets/Resources/TrafficLightPlaces.json`, the game stands it there (`Editor/TrafficLightPlaces.cs`, `TrafficSignals`).
+  Reset: Nainital > Traffic Lights > Back to automatic places.
+- **Your own moves survive Build World**: select what you moved, Nainital > Keep my move (selected) ->
+  `Data/hand_moves.json` (`Editor/HandMoves.cs`); the Snow View ropeway bench and the Tallital traffic post are in it.
+
+### 24-25 Nov 2026 (night) - iPhone crash + memory, fast IPA, the owner's Tallital list (docs/owner_issues_24nov/LIST.md)
+
+- iPhone stopped after the Unity logo ("level1 is corrupted"): `ArcadeCabinet` lived in `ArcadeScreen.cs`; a component the
+  builders put in the scene must be in its own file named like the class. Then iOS killed it at 3072 MB: world meshes now
+  render-only (`WorldBuilder.MeshMemory.cs`, ~354 MB), `MemoryLog` prints the footprint to the device log.
+- Fast IPA: `Tools/pipeline/make_ipa.ps1 -Mode delta` (`ipa_delta.py` + ccache on the Mac), see the helper-scripts table.
+- Owner's list (from the editor, 24 Nov night):
+  1. Box motorbikes gone (`WorldBuilder.Town.cs` shop steps, `WorldBuilder.Tallital.cs` terrace).
+  2. Tallital lakeside (`WorldBuilder.AmbedkarPark.cs`): the boat stand moved to the real boats (836, -1075, satellite) -
+     `BuildJettyAt` lengthens the deck until the boats float; the moored row moved there too (`WorldBuilder.Details.cs`,
+     never on ground or across a jetty); green grill along the water from the chowk's terrace to the fork; Dr. Bhimrao
+     Ambedkar Park between the road and the water up to the fork (red pavers, grill, red gate pillars + board, statue,
+     benches, lamps).
+  3. Army Rest gate where the compound's road crosses the wall (`LandmarkBuilder.ArmyRest.cs`); the long yellow building
+     (teal tin) on the Bhowali road from the junction towards the bus stand (`WorldBuilder.BusStandRow.cs`).
+  4. Lower Mall bend: extra asphalt on the lake side, 2.6 m at the fork easing out over 24 m (`WorldBuilder.LowerMallBend.cs`);
+     Ambedkar Park's grill is its boundary. Road data / traffic unchanged.
+  5. Floating balconies: Mall Road balconies hang only on houses really built, at their own height (`BuiltHouses`).
+
 ### 24 Nov 2026 (01:30) - animals, fire truck, story characters (details: docs/TRACKER.md "24 Nov")
 
 - Cow, dog, cat, monkey: Tripo models rigged by `Tools/animals/rig_animal.py`, in `Assets/Nainital/Animals/Resources/Animals`;

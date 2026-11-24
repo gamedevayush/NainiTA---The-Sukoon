@@ -44,6 +44,26 @@ namespace Nainital
         RoadNetwork net;
         float scanT;
         static Material matPole, matBand, matHead, matPlate, matLine;
+
+        // ------------------------------------------------------------------ places set by hand in the editor
+        // (owner, 25 Nov 2026: "what if i want to edit their place in editor?"): Build World shows the posts in the scene under
+        // PlacedRoot; moving one and saving the scene writes Resources/TrafficLightPlaces.json (Editor/TrafficLightPlaces.cs),
+        // and a post with a place there stands there; the others are placed as before.
+        public const string PlacedRoot = "Traffic Lights (placed)";
+        [System.Serializable] public class Place { public string key; public Vector3 pos; public Quaternion rot; }
+        [System.Serializable] public class PlaceList { public List<Place> posts = new List<Place>(); }
+        Dictionary<string, Place> places;
+
+        public static string PostKey(string junction, int arm) => junction + "|" + arm;
+
+        void LoadPlaces()
+        {
+            places = new Dictionary<string, Place>();
+            var ta = Resources.Load<TextAsset>("TrafficLightPlaces");
+            if (!ta) return;
+            var l = JsonUtility.FromJson<PlaceList>(ta.text);
+            if (l?.posts != null) foreach (var p in l.posts) places[p.key] = p;
+        }
         static readonly Material[] lampOff = new Material[3], lampOn = new Material[3];
 
         // ------------------------------------------------------------------ finding the junctions
@@ -52,6 +72,12 @@ namespace Nainital
         public void Build(RoadNetwork network)
         {
             Instance = this;
+            LoadPlaces();
+            if (Application.isPlaying)   // the editor's copy is only for moving them: the game builds its own
+            {
+                var shown = GameObject.Find(PlacedRoot);
+                if (shown) shown.SetActive(false);
+            }
             net = network;
             junctions.Clear();
             if (!net || net.meetings == null) return;
@@ -312,7 +338,11 @@ namespace Nainital
         static GameObject Part(PrimitiveType t, Transform parent, Vector3 local, Vector3 scale, Material m, bool keepCollider = false)
         {
             var g = GameObject.CreatePrimitive(t);
-            if (!keepCollider) Destroy(g.GetComponent<Collider>());
+            if (!keepCollider)
+            {
+                if (Application.isPlaying) Destroy(g.GetComponent<Collider>());
+                else DestroyImmediate(g.GetComponent<Collider>());   // built in the editor to be moved (TrafficLightPlaces)
+            }
             g.transform.SetParent(parent, false);
             g.transform.localPosition = local;
             g.transform.localScale = scale;
@@ -365,17 +395,26 @@ namespace Nainital
         void Dress(Junction j)
         {
             Materials();
-            var root = new GameObject("Signal " + Mathf.RoundToInt(j.centre.x) + "," + Mathf.RoundToInt(j.centre.z)).transform;
+            string jName = "Signal " + Mathf.RoundToInt(j.centre.x) + "," + Mathf.RoundToInt(j.centre.z);
+            var root = new GameObject(jName).transform;
             root.SetParent(transform, false);
-            foreach (var a in j.arms)
+            for (int ai = 0; ai < j.arms.Count; ai++)
             {
+                var a = j.arms[ai];
                 Vector3 left = Vector3.Cross(a.inDir, Vector3.up);   // forward x up = left
                 Vector3 spot = Vector3.zero;
                 bool ok = false;
                 // the kerb on the left, a little back if something stands there; else the right-hand kerb
                 // (owner, 23 Nov 2026: "why traffic signals are on road? vehicles are hitting with it"): never on any road's
                 // carriageway - the other arms meet here too - so a little further back / out until clear of all of them
-                foreach (float side in new[] { 1f, -1f })
+                Quaternion facing = Quaternion.LookRotation(-a.inDir);   // the lamps face the drivers coming in
+                if (places != null && places.TryGetValue(PostKey(jName, ai), out var placed))
+                {
+                    spot = placed.pos;
+                    facing = placed.rot;
+                    ok = true;
+                }
+                if (!ok) foreach (float side in new[] { 1f, -1f })
                 {
                     for (int k = 0; k < 8 && !ok; k++)
                         foreach (float extra in new[] { 0.8f, 1.6f, 2.6f })
@@ -386,9 +425,9 @@ namespace Nainital
                     if (ok) break;
                 }
                 if (!ok) continue;
-                var post = new GameObject("Post " + (string.IsNullOrEmpty(a.name) ? "#" + a.road : a.name)).transform;
+                var post = new GameObject("Post " + (ai + 1) + " " + (string.IsNullOrEmpty(a.name) ? "#" + a.road : a.name)).transform;
                 post.SetParent(root, false);
-                post.SetPositionAndRotation(spot, Quaternion.LookRotation(-a.inDir));   // the lamps face the drivers coming in
+                post.SetPositionAndRotation(spot, facing);
                 post.gameObject.layer = 0;
                 var pole = Part(PrimitiveType.Cylinder, post, new Vector3(0f, 1.75f, 0f), new Vector3(0.14f, 1.75f, 0.14f), matPole, true);
                 Part(PrimitiveType.Cylinder, post, new Vector3(0f, 0.45f, 0f), new Vector3(0.16f, 0.45f, 0.16f), matBand);

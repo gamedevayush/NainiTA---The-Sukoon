@@ -101,15 +101,18 @@ namespace Nainital.EditorTools
             var moored = new MeshBuilder();
             // mostly yellow (2025 videos of the Mallital boat stand: rows of yellow wooden boats at the steps), a few others
             int[] colors = { Pal.BoatYellow, Pal.BoatYellow, Pal.BoatYellow, Pal.BoatRed, Pal.BoatYellow, Pal.BoatBlue, Pal.BoatYellow, Pal.BoatGreen };
-            foreach (var shore in new[] { ctx.mallitalShore, ctx.tallitalShore })
+            // Tallital's row is at the boat stand by the fork, not at the chowk: the chowk's terrace covers the lake outline
+            // there and the boats stood on it (owner, 24 Nov 2026: "boats terrain me ghusi hui hain"; WorldBuilder.AmbedkarPark.cs)
+            Vector2 tallitalBoats = ShorePoint(ctx, TallitalBoatsAt, out var tbp, out _) ? tbp : ctx.tallitalShore;
+            foreach (var (shore, count) in new[] { (ctx.mallitalShore, 16), (tallitalBoats, 10) })
             {
                 // REFERENCE_REPORT (v02 3:14): the boats are tied straight out from the ghat, shoulder to shoulder, so each
                 // one points along the real shore's normal where it lies, not at the lake's centre, and barely swings
                 Vector2 o0 = (shore - ctx.lakeCenter).normalized;
                 Vector2 along0 = new Vector2(-o0.y, o0.x);
-                for (int i = 0; i < 16; i++)   // shoulder to shoulder, more of them (was 12)
+                for (int i = 0; i < count; i++)   // shoulder to shoulder, more of them (was 12)
                 {
-                    Vector2 edge = shore + along0 * (i - 7.5f) * 1.9f;
+                    Vector2 edge = shore + along0 * (i - (count - 1) * 0.5f) * 1.9f;
                     Vector2 near = NearestOnLakeEdge(ctx, edge);
                     Vector2 toLake = ctx.InLake(near + (ctx.lakeCenter - near).normalized * 2f) ? (ctx.lakeCenter - near).normalized : -o0;
                     // the shore's own direction here, from its points a little either side; the normal is the side that is water
@@ -119,7 +122,9 @@ namespace Nainital.EditorTools
                     if (!ctx.InLake(near + nrm * 2f)) nrm = -nrm;
                     if (tan.sqrMagnitude < 0.5f) nrm = toLake;
                     Vector2 p = near + nrm * 3.4f;
+                    for (float out2 = 3.4f; out2 <= 8.5f && ctx.H(p) > ctx.lakeY - 0.3f; out2 += 1.7f) p = near + nrm * out2;   // shallow: tied a bit further out
                     if (!ctx.InLake(p) || ctx.LakeDistance(p) < 2.5f) continue;
+                    if (ctx.H(p) > ctx.lakeY - 0.3f || NearJetty(ctx, near, 5f)) continue;   // never on the ground, never across a jetty
                     using (PropKit.At(moored, new Vector3(p.x, ctx.lakeY + 0.03f, p.y), Quaternion.LookRotation(new Vector3(nrm.x, 0, nrm.y)) * Quaternion.Euler(0, (float)(rnd.NextDouble() - 0.5) * 4f, 0)))
                         PropKit.RowBoat(moored, colors[rnd.Next(colors.Length)], rnd.NextDouble() < 0.6);
                 }

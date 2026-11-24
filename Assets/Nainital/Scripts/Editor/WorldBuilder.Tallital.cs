@@ -16,6 +16,7 @@ namespace Nainital.EditorTools
             public Vector2 A, N;   // A: along the fork, away from the lake; N: across it, towards the Bhowali road
             public List<Vector2> shore;
             public int c0, dir, kEnd;
+            public float L = 24f, apronHalf = 20f;   // canopy length and the yard's half width, both across the strip
         }
 
         static WorldCtx tallitalFor;
@@ -41,6 +42,24 @@ namespace Nainital.EditorTools
                 B -= t.A * (Vector2.Dot(hw - B, t.A) > 0f ? 3f : -3f);   // keep the canopy off the highway beside it
             t.station = B;
             t.apron = B + t.N * 9.75f;
+            // between the two roads, squared to them (owner, 25 Nov 2026: "bus stand with vehicles is occupying half road..
+            // fit it between both roads"): the strip between the Haldwani highway and the Bhowali road is ~25 m clear here,
+            // and the 24 m canopy and 40 m yard laid across it stood on the Bhowali road
+            if (BusStrip(ctx, new Vector2(881f, -1197f), out var mid, out var across, out var clear))
+            {
+                t.station = mid;
+                t.A = across;
+                t.N = new Vector2(across.y, -across.x);
+                if (Vector2.Dot(t.N, t.corner - mid) < 0f) t.N = -t.N;   // the front still looks towards the lake corner
+                t.L = Mathf.Clamp(clear - 2.4f, 14f, 24f);
+                t.apron = mid + t.N * 9.75f;
+                if (BusStrip(ctx, t.apron, out var amid, out _, out var aclear))
+                {
+                    t.apron = amid;
+                    t.apronHalf = Mathf.Clamp(aclear * 0.5f - 1.2f, 7f, 20f);
+                }
+                Debug.Log($"[Nainital] Tallital bus stand between the roads: clear {clear:F1} m, canopy {t.L:F1} m, yard half {t.apronHalf:F1} m");
+            }
             var school = ctx.Poi("Bishop Shaw School");
             if (school.HasValue)
             {
@@ -100,9 +119,11 @@ namespace Nainital.EditorTools
             ctx.keepClear.Add((t.school - side * 16f, 10f));
             ctx.keepClear.Add((t.statue, 4f));
             ctx.keepClear.Add((t.letters, 7f));
+            PlanBusRoadRow(ctx);   // the long yellow building on the Bhowali road (WorldBuilder.BusStandRow.cs, 25 Nov)
             float y = ctx.H(t.apron);
             ctx.busStand = new Vector3(t.apron.x, y, t.apron.y);
             ctx.busStandRot = Quaternion.LookRotation(Flat(-t.N));   // buses park nose-in towards the canopy
+            ctx.busStandHalf = t.apronHalf;
             ctx.hasBusStand = true;
             ctx.landmarkSites["Tallital Bus Stand"] = new Vector3(t.station.x, ctx.H(t.station), t.station.y);
             ctx.Zone("Tallital Bus Stand", new Vector3(t.station.x, y, t.station.y), 45f);
@@ -127,6 +148,9 @@ namespace Nainital.EditorTools
             Apron(ctx, parent, t);
             ChowkPaving(ctx, parent, t);
             TerraceEdge(ctx, parent, t);
+            PaintLowerMallBend(ctx);            // the fork's lake side widened (WorldBuilder.LowerMallBend.cs, 24 Nov)
+            BuildAmbedkarPark(ctx, parent, t);  // the grill on the water, the park beside the boats (WorldBuilder.AmbedkarPark.cs, 24 Nov)
+            BuildBusRoadRow(ctx, parent);       // the long yellow building from the junction towards the bus stand (25 Nov)
             TallitalWires(ctx, parent, t);
             TrafficPost(ctx, parent);
 
@@ -173,7 +197,8 @@ namespace Nainital.EditorTools
             Vector3 c = V(t.station, y), along = Flat(t.A), front = Flat(t.N);
             Vector2 conc = Atlas.MaterialUV(Atlas.MatConcrete), green = Atlas.SolidUV(Pal.BoatGreen), white = Atlas.SolidUV(Pal.ShirtWhite);
             Vector2 orange = Atlas.SolidUV(Pal.Saffron), dark = Atlas.SolidUV(Pal.IronBlack), stain = Atlas.SolidUV(Pal.StoneGrey);
-            const float L = 24f, D = 9f, H = 4.3f;
+            float L = t.L;
+            const float D = 9f, H = 4.3f;
 
             mb.Box(c + Vector3.up * 0.1f, new Vector3(L, 0.4f, D), rot, conc);                 // floor slab, a step above the apron
             for (int i = 0; i <= 6; i++)
@@ -364,9 +389,11 @@ namespace Nainital.EditorTools
                 if (w < 5f) { havePrev = false; continue; }
                 Vector2 b = p + o * (w - 1.3f);
                 float y = ctx.H(b) + 0.07f;
-                if (rnd.NextDouble() < 0.82)
-                    using (PropKit.At(bikes, V(b, y), Quaternion.LookRotation(Flat(-o)) * Quaternion.Euler(0, (float)(rnd.NextDouble() - 0.5) * 16f, 0)))
-                        Motorbike(bikes, paints[rnd.Next(paints.Length)]);
+                if (rnd.NextDouble() < 0.82)   // no box motorbikes (owner, 24 Nov 2026); the draws stay for the bollards' rhythm
+                {
+                    rnd.NextDouble();
+                    rnd.Next(paints.Length);
+                }
                 if (count % 4 == 0)
                 {
                     Vector2 bp = p + o * (w - 2.6f);
@@ -520,7 +547,8 @@ namespace Nainital.EditorTools
         static void Apron(WorldCtx ctx, Transform parent, TallitalPlan t)
         {
             var mb = new MeshBuilder();
-            const float step = 2f, halfL = 20f, n0 = -5.4f, n1 = 5.2f;
+            const float step = 2f, n0 = -5.4f, n1 = 5.2f;
+            float halfL = Mathf.Floor(t.apronHalf / step) * step;
             for (float a = -halfL; a < halfL - 0.01f; a += step)
                 for (float s = n0; s < n1 - 0.01f; s += step)
                 {
@@ -532,7 +560,7 @@ namespace Nainital.EditorTools
                 }
             PaintRoadSurface(mb, ChAsphalt);   // the yard is part of the ground (2026-11-16)
             noGrassExtra.Add((new[] { t.apron - t.A * halfL, t.apron + t.A * halfL }, 5.5f));
-            noGrassExtra.Add((new[] { t.station - t.A * 18f, t.station + t.A * 18f }, 6f));
+            noGrassExtra.Add((new[] { t.station - t.A * (t.L * 0.5f + 4f), t.station + t.A * (t.L * 0.5f + 4f) }, 6f));
         }
 
         // ------------------------------------------------------------------ the stone school with the spired tower

@@ -36,6 +36,7 @@ namespace Nainital.EditorTools
         public Vector3 busStand;
         public Quaternion busStandRot;
         public bool hasBusStand;
+        public float busStandHalf = 20f;   // the bus yard's half width across the strip (WorldBuilder.Tallital.cs)
         public readonly List<(Vector3 pos, Vector3 normal, float width)> shopFronts = new List<(Vector3, Vector3, float)>();
         public List<Vector3> promenadePath;
         public AssetBank bank;
@@ -268,6 +269,8 @@ namespace Nainital.EditorTools
             Step("Living town (traffic, crowds, grass, parked cars)", () => BuildLivingTown(ctx));
             Step("Placed by hand (Shaktipeeth gate ...)", () => RestorePlacedByHand(ctx));
             Step("Traffic lanes clear", () => ClearLanes(ctx));   // last: everything stands, the hand-placed things too
+            Step("Traffic lights in the scene, to move (TrafficLightPlaces.cs)", () => { try { TrafficLightPlaces.Show(scene); } catch (Exception e) { Debug.LogError("[Nainital] traffic lights to move: " + e); } });   // 25 Nov
+            Step("The owner's own moves (Data/hand_moves.json)", () => HandMoves.Apply(scene));   // HandMoves.cs (25 Nov)
             BuildingKit.Ground = null;
 
             MeshMemory.MarkRenderOnly(bank);   // WorldBuilder.MeshMemory.cs (24 Nov): no CPU copy of what only draws
@@ -496,7 +499,10 @@ namespace Nainital.EditorTools
             ctx.Zone("Tallital", new Vector3(ctx.tallitalShore.x, y, ctx.tallitalShore.y), 220f);
 
             BuildJetty(ctx, parent, north, "Mallital Boat Stand");
-            BuildJetty(ctx, parent, south, "Tallital Boat Stand");
+            // the Tallital boats are where the satellite shows them, just short of Mall Road's fork, not at the chowk
+            // (owner, 24 Nov 2026; WorldBuilder.AmbedkarPark.cs)
+            if (ShorePoint(ctx, TallitalBoatsAt, out var tbP, out var tbIn)) BuildJettyAt(ctx, parent, tbP, tbIn, south, "Tallital Boat Stand");
+            else BuildJetty(ctx, parent, south, "Tallital Boat Stand");
 
             // sailing yachts
             var inner = Offset(ctx.lake, -25f);
@@ -524,24 +530,41 @@ namespace Nainital.EditorTools
         }
 
         static void BuildJetty(WorldCtx ctx, Transform parent, int vertex, string name)
+            => BuildJettyAt(ctx, parent, ctx.lake[vertex], Outward(ctx.lake, vertex), vertex, name);
+
+        /// <summary>A jetty from any shore point (outward = inland). The deck runs on until the boats beside it float
+        /// (24 Nov 2026: the Tallital boats stood on the terrace, "boats terrain me ghusi hui hain").</summary>
+        static void BuildJettyAt(WorldCtx ctx, Transform parent, Vector2 shoreP, Vector2 outward, int vertex, string name)
         {
             float y = ctx.lakeY;
-            Vector2 shoreP = ctx.lake[vertex];
-            Vector2 outward = Outward(ctx.lake, vertex);
             Vector2 dir = -outward;
             Vector2 root = shoreP + outward * 3f;
             ctx.jettyRoots.Add(root);
             float deck = y + 0.5f;
             float bankRise = Mathf.Max(0.2f, ctx.H(root) - deck + 0.05f);
+            // how much further out the boats go: every boat's spot (both sides, both rows) over water, the bed under it
+            float push = 0f;
+            for (; push < 14f; push += 1f)
+            {
+                bool wet = true;
+                foreach (float bz in new[] { 6f, 8f + 5.5f + 2.5f })
+                    foreach (float bx in new[] { -2.9f, 2.9f })
+                    {
+                        Vector2 q = root + dir * (bz + push) + new Vector2(dir.y, -dir.x) * bx;
+                        if (!ctx.InLake(q) || ctx.H(q) > y - 0.4f) wet = false;
+                    }
+                if (wet) break;
+            }
+            if (push > 0f) Debug.Log($"[Nainital] {name}: deck {push:F0} m longer so the boats float");
             var mb = new MeshBuilder();
             var col = new MeshBuilder();
-            PropKit.Jetty(mb, col, 18f, bankRise);
+            PropKit.Jetty(mb, col, 18f + push, bankRise);
             var go = ctx.MeshObject(name, parent, mb, ctx.mats.atlas, col);
             Quaternion rot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.y), Vector3.up);
             go.transform.SetPositionAndRotation(new Vector3(root.x, deck, root.y), rot);
 
             // dock point (where boat riders step off)
-            Vector3 dockPos = go.transform.TransformPoint(new Vector3(0, 0.1f, 9f));
+            Vector3 dockPos = go.transform.TransformPoint(new Vector3(0, 0.1f, 9f + push));
             var dock = new GameObject(name + " Dock").transform;
             dock.SetParent(parent, false);
             dock.position = dockPos;
@@ -551,7 +574,7 @@ namespace Nainital.EditorTools
             for (int b = 0; b < 4; b++)
             {
                 float side = b % 2 == 0 ? 1f : -1f;
-                Vector3 local = new Vector3(side * 2.9f, 0, 8f + (b / 2) * 5.5f);
+                Vector3 local = new Vector3(side * 2.9f, 0, 8f + push + (b / 2) * 5.5f);
                 Vector3 pos = go.transform.TransformPoint(local);
                 pos.y = y + 0.05f;
                 var bmb = new MeshBuilder();
@@ -756,6 +779,11 @@ namespace Nainital.EditorTools
         }
 
         static int housesOnRoads;
+        /// <summary>world.json house index -> the street level and floor count of the house BuildingKit really built there
+        /// (skipped houses, G.O.A.N. boxes and houses whose floors were changed are not / are as built). 24 Nov 2026:
+        /// Mall Road's balconies took the data's floors from the deck's height and floated over shorter houses.</summary>
+        internal static readonly Dictionary<int, (float street, int levels)> BuiltHouses = new Dictionary<int, (float street, int levels)>();
+
         static void BuildBuildings(WorldCtx ctx)
         {
             housesOnRoads = 0;
@@ -773,6 +801,7 @@ namespace Nainital.EditorTools
             var mallitalC = ctx.Poi("Nainital Stadium");
             var h = ctx.world.houses;
             int count = 0, highCount = 0, colonialCount = 0, rooftopCount = 0;
+            BuiltHouses.Clear();
             PrepareHighStreet(ctx);
             for (int i = 0; i + 8 < h.Length; i += 9)
             {
@@ -837,6 +866,7 @@ namespace Nainital.EditorTools
                 };
                 var ch = Chunk(c);
                 BuildingKit.House(ch[0], ch[1], c, w, d, yaw, levels, gMin, gMax, st, ctx.rng);
+                BuiltHouses[i / 9] = (gMax - 0.25f, levels);   // what really stands (Mall Road's balconies hang on it)
                 count++;
             }
             foreach (var b in ctx.world.osmBuildings)

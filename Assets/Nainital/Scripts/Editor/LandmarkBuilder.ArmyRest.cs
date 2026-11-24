@@ -38,17 +38,48 @@ namespace Nainital.EditorTools
                 line.Add(p);
             }
             const float wallH = 2.3f, wallT = 0.3f, gateW = 5.2f;
-            Vector2 g = line[ArmyGateAt];
-            Vector2 gt = (line[ArmyGateAt + 1] - line[ArmyGateAt - 1]).normalized;
+            // the gate stands where the compound's own road comes through the wall (owner, 24 Nov 2026: "army rest centre
+            // ki road gate se align nhi hai" - it stood 4 m up the wall from the service road into the compound)
+            int gi = ArmyGateAt;
+            {
+                Vector2 want = line[ArmyGateAt];
+                float best = 25f;
+                int bestSeg = -1;
+                Vector2 bestX = want;
+                foreach (var r in ctx.world.roads)
+                {
+                    if (r.pts == null || r.pts.Length < 4 || (r.name ?? "").Contains("Mall")) continue;
+                    for (int k = 0; k + 3 < r.pts.Length; k += 2)
+                    {
+                        Vector2 a0 = new Vector2(r.pts[k], r.pts[k + 1]), a1 = new Vector2(r.pts[k + 2], r.pts[k + 3]);
+                        for (int s = 0; s + 1 < line.Count; s++)
+                            if (SegCross(a0, a1, line[s], line[s + 1], out var x) && (x - want).magnitude < best)
+                            { best = (x - want).magnitude; bestSeg = s; bestX = x; }
+                    }
+                }
+                if (bestSeg >= 0)
+                {
+                    // keep a whole wall span either side of the opening
+                    float room = gateW * 0.5f + 1.2f;
+                    if ((bestX - line[bestSeg]).magnitude < room) line.RemoveAt(bestSeg--);
+                    if (bestSeg + 1 < line.Count && (line[bestSeg + 1] - bestX).magnitude < room) line.RemoveAt(bestSeg + 1);
+                    line.Insert(bestSeg + 1, bestX);
+                    gi = bestSeg + 1;
+                }
+                else Debug.LogWarning("[Nainital] Army Rest: no compound road through the wall; the gate stays at the track's point");
+            }
+            gi = Mathf.Clamp(gi, 1, line.Count - 2);
+            Vector2 g = line[gi];
+            Vector2 gt = (line[gi + 1] - line[gi - 1]).normalized;
             Vector2 gn = new Vector2(gt.y, -gt.x);   // from the wall towards the road
-            if (Vector2.Dot(gn, ArmyTrack[ArmyGateAt] - g) < 0f) gn = -gn;
+            if (Vector2.Dot(gn, ArmyTrack[Mathf.Min(ArmyGateAt, ArmyTrack.Length - 1)] - g) < 0f) gn = -gn;
 
             // the wall, broken for the gate
             for (int i = 0; i + 1 < line.Count; i++)
             {
                 Vector2 a = line[i], b = line[i + 1];
-                if (i == ArmyGateAt - 1) b = g - gt * (gateW * 0.5f + 0.6f);
-                if (i == ArmyGateAt) a = g + gt * (gateW * 0.5f + 0.6f);
+                if (i == gi - 1) b = g - gt * (gateW * 0.5f + 0.6f);
+                if (i == gi) a = g + gt * (gateW * 0.5f + 0.6f);
                 float ya = ctx.H(a), yb = ctx.H(b), lo = Mathf.Min(ya, yb) - 0.8f;
                 Slab(plinth, plinth, a, b, wallT + 0.08f, ya + 0.45f, yb + 0.45f, lo, 1.2f);
                 Slab(plaster, plaster, a, b, wallT, ya + wallH, yb + wallH, ya + 0.45f, 1.6f);
@@ -91,6 +122,20 @@ namespace Nainital.EditorTools
 
             sm.Emit(ctx, "Army Rest & Recoup Centre", parent);
             Debug.Log($"[Nainital] Army Rest & Recoup Centre: wall {line.Count - 1} spans, gate at ({g.x:F1}, {g.y:F1})");
+        }
+
+        /// <summary>Where segment a0-a1 crosses segment b0-b1.</summary>
+        static bool SegCross(Vector2 a0, Vector2 a1, Vector2 b0, Vector2 b1, out Vector2 x)
+        {
+            x = default;
+            Vector2 r = a1 - a0, s = b1 - b0;
+            float den = r.x * s.y - r.y * s.x;
+            if (Mathf.Abs(den) < 1e-6f) return false;
+            Vector2 d = b0 - a0;
+            float t = (d.x * s.y - d.y * s.x) / den, u = (d.x * r.y - d.y * r.x) / den;
+            if (t < 0f || t > 1f || u < 0f || u > 1f) return false;
+            x = a0 + r * t;
+            return true;
         }
     }
 }

@@ -601,15 +601,20 @@ namespace Nainital.EditorTools
             // Tallital bus stand: buses + taxi rank
             if (ctx.hasBusStand)
             {
-                for (int b = 0; b < 4; b++)   // nose-in under the canopy, side by side
+                for (int b = 0; b < 4; b++)   // nose-in under the canopy, side by side, centred in the yard (25 Nov)
                 {
-                    Vector3 p = ctx.busStand + ctx.busStandRot * new Vector3(-9f + b * 4.6f, 0, 0.5f);
+                    Vector3 p = ctx.busStand + ctx.busStandRot * new Vector3((b - 1.5f) * 4.6f, 0, 0.5f);
                     p.y = ctx.H(new Vector2(p.x, p.z));
                     Add(p, ctx.busStandRot, CarType.Bus, b % 2 == 0 ? Px.BusWhite : Px.BusBlue, lib ? Named(b % 2 == 0 ? "bus_roadways" : "bus_tourist") : -1);
                 }
-                for (int t = 0; t < 3; t++)
+                // the taxi rank either side of the buses, only where the yard has room (they stood on the road, 25 Nov)
+                float[] rank = { 9.7f, -9.7f, 12.5f, -12.5f, 15.3f, -15.3f };
+                int taxis = 0;
+                foreach (float x in rank)
                 {
-                    Vector3 p = ctx.busStand + ctx.busStandRot * new Vector3(11f + t * 3f, 0, 0.5f);
+                    if (taxis >= 3 || Mathf.Abs(x) + 1.2f > ctx.busStandHalf) continue;
+                    taxis++;
+                    Vector3 p = ctx.busStand + ctx.busStandRot * new Vector3(x, 0, 0.5f);
                     p.y = ctx.H(new Vector2(p.x, p.z));
                     Add(p, ctx.busStandRot, CarType.Taxi, Px.CarWhite);
                 }

@@ -1353,13 +1353,16 @@ namespace Nainital.EditorTools
             for (int i = 0; i + 8 < h3.Length; i += 9)
             {
                 var c = new Vector2(h3[i], h3[i + 1]);
-                int levels = (int)h3[i + 5];
+                // only on a house BuildingKit really built, at its own street level and floor count (24 Nov 2026, owner:
+                // "why floating balcony near zoo road at mall road": the data's floors from the deck's height stood over
+                // shorter / skipped / G.O.A.N. houses)
+                if (!BuiltHouses.TryGetValue(i / 9, out var built)) continue;
+                int levels = built.levels;
                 if (levels < 3 || Geo.DistanceToPolyline(U.arr, c, false) > 16f) continue;
-                if (ctx.InKeepClear(c, Mathf.Max(h3[i + 2], h3[i + 3]) * 0.5f)) continue;   // no house was built here (the church stood under floating balconies)
                 float w = h3[i + 2], d = h3[i + 3];
                 var q = Quaternion.Euler(0, h3[i + 4], 0);
                 Vector3 f = q * Vector3.forward, r = q * Vector3.right;
-                float street = U.y[NearestIndex(U.p, c)] - 0.25f;
+                float street = built.street;
                 Vector2 rail = railCols[rnd.Next(railCols.Length)];
                 var mb = chunks.At(c)[0];
                 Vector3 front = new Vector3(c.x, 0f, c.y) + f * (d * 0.5f);

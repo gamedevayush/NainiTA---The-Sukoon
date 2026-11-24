@@ -291,8 +291,10 @@ namespace Nainital.EditorTools
                         Vector3 bp = floor + nrm * (reach + 1.4f) + along * ((k - (bikes - 1) * 0.5f) * 0.95f);
                         float by = ctx.H(new Vector2(bp.x, bp.z));
                         if (Mathf.Abs(by - floor.y) > 1.5f) continue;
-                        using (PropKit.At(mb, new Vector3(bp.x, by, bp.z), Quaternion.LookRotation(-nrm) * Quaternion.Euler(0, (float)(rnd.NextDouble() - 0.5) * 18f, 0)))
-                            Motorbike(mb, paints[rnd.Next(paints.Length)]);
+                        // no box motorbikes any more (owner, 24 Nov 2026: "poore me aisi jitni lowpoly old bikes/scooty khadi
+                        // hain unhe htaao"); the draws stay so every other shop step keeps its look
+                        rnd.NextDouble();
+                        rnd.Next(paints.Length);
                     }
                 }
 

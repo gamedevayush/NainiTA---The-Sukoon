@@ -1053,3 +1053,22 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   - Animals: AnimalManager.density = 0.1 (owner: "animals count divide by 10") -> 1 at a time (PC and phone).
   - A bus with its driver in it (AI or the player) never takes damage: VehicleDamage.Immune - no dents, smoke or fire.
 
+
+## 24-25 Nov 2026 (night, main PC) - iPhone level1 crash, memory kill, fast IPA, the owner's Tallital list
+
+- iPhone: crash after the logo = "Data/level1 is corrupted" (idevicesyslog). ArcadeCabinet (23 Nov) sat inside
+  ArcadeScreen.cs, 31 of them in the scene, so the build inlined a MonoScript into level1 (UnityPy found it). Own file ->
+  0 inline MonoScripts. Next run: killed 40 s into play, "exceeded mem limit: ActiveHard 3072 MB" (no .ips, only syslog).
+  Breakdown (UnityPy): meshes ~930 MB on disk, 412 MB of world meshes Read/Write (held twice), static-batch Combined Mesh
+  461 MB. MeshMemory marks 1211 bank meshes render-only (601 collider meshes stay readable). MemoryLog + NainitalMemory.mm
+  log the phys footprint every 2 s ("[Nainital] mem ..."). Not yet tested on the phone. If still killed: static batching
+  (461 MB) is the next lever.
+- Fast IPA: ipa_delta.py (content-defined chunks, packs on the release, resumes after a dropped line; a half-uploaded
+  pack is state 'starter' -> re-upload) + workflow mode delta + ccache through a linked toolchain copy (IL2CPP's bee
+  compile). Measured: 989 MB first upload in 116 s; Mac job 7 min warm (92 % hits) vs 15 cold. GitHub's Mac runners can
+  be busy ("job was not acquired") - just dispatch again.
+- Owner's list from the editor (docs/owner_issues_24nov/LIST.md + his screenshots): box bikes removed; Tallital boat
+  stand to the satellite's boats (836, -1075) with a longer deck; moored Tallital row moved there; green grill on the
+  water; Ambedkar Park; Army Rest gate on its road (#81 crosses the wall at 855.0, -1087.8); yellow building on the Bhowali
+  road (he: "there is no house sticked with road from rest gate to bustand"); Lower Mall bend widened lake side; Mall Road
+  balconies on built houses only (99). Shots: Shots/o24*_*.png.
