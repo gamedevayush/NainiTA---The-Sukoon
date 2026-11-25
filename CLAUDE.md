@@ -10,6 +10,15 @@ Unity 6000.4.1f1 open-world Nainital. Public repo, Git LFS. The owner talks Hing
 2. Unity Hub must be running and signed in, or batch mode fails with "No valid Unity Editor license".
 3. The built world (`Assets/Nainital/Generated/`) is not in git: **Nainital > 2. Build World** after `world.json` changes.
 
+## 26 Nov 2026 - Windows crashed, reinstalled (owner)
+The main PC's Windows crashed and was reinstalled; C: is fresh, this repo on D: survived (clean, in sync with origin/main).
+- Windows user folder is now `C:\Users\Ayush Singh` (the old `Ayush Singth` path below is gone).
+- Git 2.56.1 reinstalled (`C:\Program Files\Git`), GitHub login via Git Credential Manager (`gamedevayush`). D: files
+  belong to the old Windows user, so git said "dubious ownership"; fixed with
+  `git config --global --add safe.directory D:/NainiTA---The-Sukoon`.
+- **Still to reinstall:** Unity Hub + Unity 6000.4.1f1 (sign in), Python 3.10 + numpy, `pip install --user fonttools
+  uharfbuzz`. Only the Microsoft Store `python` stub is on PATH. Tell the owner if any of these are missing.
+
 ## Where to start
 - **New chat on the free-roam batch: read `docs/FREEROAM.md` section "HANDOFF - 22 Nov 2026" first** (state, what
   was running, what is left, how to resume).
@@ -44,7 +53,8 @@ Unity 6000.4.1f1 open-world Nainital. Public repo, Git LFS. The owner talks Hing
   (originals in Tools/loc/fonts_src) and writes Resources/Loc/strings.json. Never type Devanagari straight into code: it
   shows unshaped. Gaps: in the editor every shown text without an entry lands in Bridge/loc_missing.txt; scene texts:
   `call LocDump.Run` -> Bridge/loc_scene.tsv. World signs (3D letters) stay as built.
-- Tools' Python with numpy on the main PC: `C:\Users\Ayush Singth\AppData\Local\Programs\Python\Python310\python.exe -I`.
+- Tools' Python with numpy on the main PC: `C:\Users\Ayush Singth\AppData\Local\Programs\Python\Python310\python.exe -I`
+  (before the 26 Nov 2026 reinstall; after reinstalling Python it will be under `C:\Users\Ayush Singh\...`).
 - **A component the world builder adds (AddComponent in Editor code) must live in its own file with the class's name**
   (`RestaurantSeat.cs`, `HouseBed.cs`): Unity saves a MonoBehaviour from a shared file as a MISSING script, so it works
   right after the build and is gone after the scene reloads (22 Nov: every restaurant chair and the house bed).
