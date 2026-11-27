@@ -215,7 +215,7 @@ namespace Nainital
         }
 
         // ------------------------------------------------------------------ vehicles
-        static int ModelIndex(string name)
+        public static int ModelIndex(string name)
         {
             var lib = VehicleLibrary.Instance;
             if (!lib) return -1;
@@ -223,7 +223,7 @@ namespace Nainital
             return -1;
         }
 
-        static void Letters(GameObject car, Mesh mesh)
+        public static void Letters(GameObject car, Mesh mesh)
         {
             if (!mesh) return;
             var go = new GameObject("Letters") { layer = car.layer };

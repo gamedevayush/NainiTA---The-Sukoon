@@ -14,6 +14,10 @@ namespace Nainital
         public virtual void End() { }
         public abstract bool Done();
         public virtual string Progress => "";
+        /// <summary>A reason when this step has failed the mission (left the uncle behind, damaged the car ...), else null.</summary>
+        public virtual string Failed => null;
+        /// <summary>A failed mission starts again from the last checkpoint step at or before the one that failed.</summary>
+        public bool checkpoint;
 
         protected static PlayerController P => PlayerController.Instance;
 
@@ -136,7 +140,13 @@ namespace Nainital
         public string id, title, intro;
         public int reward;
         public bool nightOnly;
-        public Vector3 giver;
+        public Vector3 giver;   // Vector3.zero: no marker (it starts by itself)
         public List<MissionStep> steps = new List<MissionStep>();
+        /// <summary>A story mission (StoryMissions): retried from its checkpoint when it fails; quiet = no banners (a
+        /// scene that flows straight into the next); autoStart = begins as soon as the one before it passes.</summary>
+        public bool story, quiet, autoStart;
+        public string passNote;   // a line under MISSION PASSED ("Ghar mil gaya")
+        public System.Action<int> onBegin;   // the step it begins at
+        public System.Action<bool> onEnd;    // passed?
     }
 }

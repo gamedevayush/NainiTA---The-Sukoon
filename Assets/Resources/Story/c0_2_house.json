@@ -1,0 +1,173 @@
+{
+  "id": "c0_2_house",
+  "title": "0.2 A Roof Over My Head (the house)",
+  "skippable": true,
+  "playerKey": "Nikhil",
+  "playerEn": "Nikhil",
+  "actors": [
+    {
+      "name": "uncle",
+      "nameKey": "Uncle",
+      "nameEn": "Uncle",
+      "look": "m_old_sweater",
+      "elder": true,
+      "color": "#f2b33d",
+      "hidden": true
+    },
+    {
+      "name": "landlord",
+      "nameKey": "Makaan-maalik",
+      "nameEn": "Landlord",
+      "look": "m_old_kurta",
+      "elder": true,
+      "color": "#c9a7ff",
+      "hidden": true
+    }
+  ],
+  "steps": [
+    {
+      "op": "fade",
+      "v": "1",
+      "t": 0.4
+    },
+    {
+      "op": "bars",
+      "v": "1"
+    },
+    {
+      "op": "call",
+      "name": "c0.house"
+    },
+    {
+      "op": "objective",
+      "key": "Thodi der baad, Zoo Road...",
+      "en": "A little later, Zoo Road...",
+      "t": 3.5
+    },
+    {
+      "op": "wait",
+      "t": 1.6
+    },
+    {
+      "op": "cam",
+      "of": "player",
+      "pos": [
+        0.65,
+        1.75,
+        -1.7
+      ],
+      "look": [
+        0,
+        1.5,
+        3.2
+      ],
+      "fov": 45
+    },
+    {
+      "op": "fade",
+      "v": "0",
+      "t": 0.8
+    },
+    {
+      "op": "say",
+      "who": "landlord",
+      "key": "Aa gaye beta? Aapki baat to pehle hi ho chuki thi.",
+      "en": "You're here, son? It was all arranged for you already.",
+      "anim": "Wave",
+      "voice": "Voices/Story/c0_2_house/01"
+    },
+    {
+      "op": "cam",
+      "of": "player",
+      "pos": [
+        0.5,
+        1.65,
+        1.9
+      ],
+      "fov": 40
+    },
+    {
+      "op": "say",
+      "who": "player",
+      "key": "Baat...? Kisse?",
+      "en": "Arranged...? By whom?",
+      "voice": "Voices/Story/c0_2_house/02"
+    },
+    {
+      "op": "cam",
+      "of": "landlord",
+      "pos": [
+        -0.5,
+        1.6,
+        1.7
+      ],
+      "fov": 38
+    },
+    {
+      "op": "say",
+      "who": "landlord",
+      "key": "Ye lijiye chaabi. Andar sab taiyaar hai.",
+      "en": "Here are the keys. Everything's ready inside.",
+      "voice": "Voices/Story/c0_2_house/03"
+    },
+    {
+      "op": "hide",
+      "who": "uncle"
+    },
+    {
+      "op": "face",
+      "who": "player",
+      "yaw": 0
+    },
+    {
+      "op": "cam",
+      "of": "player",
+      "pos": [
+        0,
+        1.65,
+        0.25
+      ],
+      "look": [
+        -1.0,
+        1.4,
+        5
+      ],
+      "fov": 50
+    },
+    {
+      "op": "wait",
+      "t": 1.4
+    },
+    {
+      "op": "say",
+      "who": "player",
+      "key": "Uncle...? Kahan chale gaye?",
+      "en": "Uncle...? Where did he go?",
+      "voice": "Voices/Story/c0_2_house/04"
+    },
+    {
+      "op": "cam",
+      "of": "player",
+      "pos": [
+        0.6,
+        1.7,
+        1.8
+      ],
+      "fov": 40
+    },
+    {
+      "op": "say",
+      "who": "player",
+      "key": "Ajeeb hain Uncle bhi...",
+      "en": "Strange man, that Uncle...",
+      "voice": "Voices/Story/c0_2_house/05"
+    },
+    {
+      "op": "bars",
+      "v": "0"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}

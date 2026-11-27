@@ -1,0 +1,28 @@
+{
+  "id": "c0_2_uncle",
+  "title": "0.2 A Roof Over My Head (the lake)",
+  "skippable": true,
+  "playerKey": "Nikhil", "playerEn": "Nikhil",
+  "actors": [
+    { "name": "uncle", "nameKey": "Uncle", "nameEn": "Uncle", "nameHi": "अंकल", "look": "m_old_sweater", "elder": true, "color": "#f2b33d", "hidden": true }
+  ],
+  "steps": [
+    { "op": "fade", "v": "1", "t": 0.5 },
+    { "op": "bars", "v": "1" },
+    { "op": "call", "name": "c0.meet" },
+    { "op": "wait", "t": 0.2 },
+    { "op": "cam", "of": "uncle", "pos": [3.4, 1.7, 0.8], "look": [-0.6, 1.4, -1.0], "fov": 45 },
+    { "op": "fade", "v": "0", "t": 1.2 },
+    { "op": "wait", "t": 1.0 },
+    { "op": "say", "who": "uncle", "key": "Kaafi der se dekh raha hoon... akele ghoom rahe ho.", "en": "I've been watching you a while... wandering about alone.", "hi": "काफ़ी देर से देख रहा हूँ... अकेले घूम रहे हो।" },
+    { "op": "face", "who": "uncle", "at": "player" },
+    { "op": "cam", "of": "player", "pos": [0.55, 1.65, 1.9], "fov": 40 },
+    { "op": "say", "who": "player", "key": "Uncle, mere saath... kuch din pehle... mere mummy-papa...", "en": "Uncle, a few days ago... my mum and dad...", "hi": "अंकल, मेरे साथ... कुछ दिन पहले... मेरे मम्मी-पापा..." },
+    { "op": "cam", "of": "uncle", "pos": [-0.45, 1.6, 1.7], "fov": 38 },
+    { "op": "say", "who": "uncle", "key": "Mujhe sab pata hai... koi baat nahi.", "en": "I know everything... it's alright.", "hi": "मुझे सब पता है... कोई बात नहीं।" },
+    { "op": "say", "who": "uncle", "key": "Tum mere ghar mein reh sakte ho. Main aksar ghar ke bahar rehta hoon.", "en": "You can stay at my house. I'm mostly away from home.", "hi": "तुम मेरे घर में रह सकते हो। मैं अक्सर घर के बाहर रहता हूँ।" },
+    { "op": "say", "who": "uncle", "key": "Aao, ghar chalo.", "en": "Come, let's go home.", "hi": "आओ, घर चलो।" },
+    { "op": "bars", "v": "0" },
+    { "op": "end" }
+  ]
+}

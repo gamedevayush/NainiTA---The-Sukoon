@@ -11,6 +11,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Nainital/Scenes/Nainital.unity
     guid: 872eb26dcdbebc64eb2120c8ecb9967f
+  - enabled: 1
+    path: Assets/Nainital/Scenes/Story_C0.unity
+    guid: 257f9d98d2396394693e853c42921963
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  m_UseUCBPForAssetBundles: 0

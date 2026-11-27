@@ -1,0 +1,38 @@
+{
+  "id": "c0_0c_hospital",
+  "title": "0.0c Waking Up",
+  "skippable": true,
+  "playerKey": "Nikhil", "playerEn": "Nikhil",
+  "actors": [
+    { "name": "nurse", "nameKey": "Nurse", "nameEn": "Nurse", "nameHi": "नर्स", "look": "f_young_denim", "female": true, "color": "#9be7c4", "hidden": true },
+    { "name": "doctor", "nameKey": "Doctor", "nameEn": "Doctor", "nameHi": "डॉक्टर", "look": "goan_sardar", "color": "#e8e8e8", "hidden": true },
+    { "name": "nikhil", "nameKey": "Nikhil", "nameEn": "Nikhil", "look": "m_player", "color": "#5fe0d0", "hidden": true }
+  ],
+  "steps": [
+    { "op": "fade", "v": "1" },
+    { "op": "bars", "v": "1" },
+    { "op": "blur", "v": "1" },
+    { "op": "call", "name": "c0.hospital" },
+    { "op": "cam", "of": "room", "pos": [0, 1.0, -2.3], "look": [0, 2.3, 0.4], "fov": 55 },
+    { "op": "mash", "key": "Aankhein kholo", "en": "Open your eyes", "hi": "आँखें खोलो", "per": 100, "decay": 0.1, "limit": 600 },
+    { "op": "fade", "v": "0", "t": 2.2 },
+    { "op": "blur", "v": "0.5", "t": 1 },
+    { "op": "wait", "t": 1.6 },
+    { "op": "cam", "of": "room", "pos": [0, 1.0, -2.3], "look": [-0.85, 1.5, -1.6], "fov": 50, "t": 1.4 },
+    { "op": "blur", "v": "0", "t": 1 },
+    { "op": "say", "who": "nurse", "key": "Utho mat... tum bilkul theek ho.", "en": "Don't get up... you're perfectly fine.", "hi": "उठो मत... तुम बिल्कुल ठीक हो।" },
+    { "op": "choice", "flag": "c0_ask", "opts": [
+      { "key": "Meri mummy-papa kahan hain?", "en": "Where are my mum and dad?", "hi": "मेरी मम्मी-पापा कहाँ हैं?", "v": "ask" }
+    ] },
+    { "op": "say", "who": "nikhil", "key": "Meri mummy-papa kahan hain?", "en": "Where are my mum and dad?", "hi": "मेरी मम्मी-पापा कहाँ हैं?" },
+    { "op": "cam", "of": "room", "pos": [0, 1.0, -2.3], "look": [0.8, 1.6, -0.35], "fov": 46, "t": 1.4 },
+    { "op": "say", "who": "doctor", "key": "Bete, hum unhe nahi bacha paaye...", "en": "Son, we couldn't save them...", "hi": "बेटे, हम उन्हें नहीं बचा पाए..." },
+    { "op": "say", "who": "doctor", "key": "Vo aag mein bahut buri tarah jhulas gaye the.", "en": "They were very badly burnt in the fire.", "hi": "वो आग में बहुत बुरी तरह झुलस गए थे।" },
+    { "op": "cam", "of": "room", "pos": [0, 1.0, -2.3], "look": [0, 2.7, -0.6], "fov": 55, "t": 2.2 },
+    { "op": "say", "who": "", "key": "(Nikhil ro padta hai)", "en": "(Nikhil breaks down in tears)", "hi": "(निखिल रो पड़ता है)", "t": 3.5 },
+    { "op": "blur", "v": "0.6", "t": 1 },
+    { "op": "fade", "v": "1", "t": 3 },
+    { "op": "call", "name": "c0.hospital_end" },
+    { "op": "end" }
+  ]
+}

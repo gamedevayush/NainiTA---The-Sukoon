@@ -90,3 +90,9 @@ Tools/characters/_after_click.png
 Tools/characters/*.log
 Tools/animals/out/*
 !Tools/animals/out/*_sheet.jpg
+# cinematic renders (4K video / stills, GBs: CinemaReel / CinemaRunner)
+/Cinematics/
+# the trailer edit's fonts (fetched by build.py), work files and renders
+Tools/trailer/fonts/
+Tools/trailer/work/
+Tools/trailer/out/

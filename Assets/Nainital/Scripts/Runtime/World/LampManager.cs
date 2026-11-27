@@ -58,6 +58,11 @@ namespace Nainital
 
         Vector2 AccentRange(int i) { int a = i - AccentStart; return accentRanges != null && a < accentRanges.Length ? accentRanges[a] : new Vector2(6f, 8f); }
 
+        /// <summary>The cinema camera (CinemaRunner): the nearest this many street lamps cast soft shadows (owner, 27 Nov
+        /// 2026: "pole light wgera sbki shadows on hai?"). 0 = none, as in the game (a point light's shadow is six maps).
+        /// Shop, porch and accent lights never: they sit inside the shop fronts and walls.</summary>
+        public static int ShadowLamps;
+
         void Start()
         {
             if (lampHeads == null) lampHeads = new Vector3[0];
@@ -109,12 +114,17 @@ namespace Nainital
                     best[k] = d;
                     nearest[k] = i;
                 }
+                int shadowed = 0;
                 for (int i = 0; i < pool.Length; i++)
                 {
                     int j = nearest[i];
-                    if (j < 0) continue;
                     var l = pool[i];
+                    if (j < 0) { if (l.shadows != LightShadows.None) l.shadows = LightShadows.None; continue; }
                     bool shop = IsShop(j), porch = IsPorch(j), accent = IsAccent(j);
+                    bool sh = ShadowLamps > 0 && !shop && !porch && !accent && shadowed < ShadowLamps;
+                    if (sh) shadowed++;
+                    var want = sh ? LightShadows.Soft : LightShadows.None;
+                    if (l.shadows != want) l.shadows = want;
                     l.transform.position = Pos(j) + (shop || accent ? Vector3.zero : porch ? Vector3.down * 0.1f : Vector3.down * 0.4f);
                     l.color = Col(j);
                     l.range = accent ? AccentRange(j).x : shop ? shopRange : porch ? porchRange : range;

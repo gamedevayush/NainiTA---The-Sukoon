@@ -22,6 +22,9 @@ namespace Nainital
         /// hai hlki..balki mausam grey hojaata hai"): DayNightCycle takes the sun's light and shadows away by it, the sky
         /// greys (Sky.shader _Overcast).</summary>
         public float Overcast { get; private set; }
+        /// <summary>The cinema camera (CinemaRunner): cloud in the sky but the sun through it, so the town keeps its shadows
+        /// (owner, 27 Nov 2026: "proper shadows... hard and soft shadows bnd hain"). 1 = off.</summary>
+        public static float OvercastCap = 1f;
 
         ParticleSystem rain;
         float nextChange, flash, nextFlash;
@@ -93,6 +96,27 @@ namespace Nainital
         }
 
         public void Next() => Set((Kind)(((int)current + 1) % 5));
+
+        /// <summary>The weather at once (a story scene's look): no toast, no slow blend, no change for 15 minutes.</summary>
+        public void SetNow(Kind k)
+        {
+            current = k;
+            nextChange = Time.time + 900f;
+            snap = 3;
+            // straight to its values (the world may be frozen: no frames to blend in)
+            float tc = 0.35f, tf = 0f, tr = 0f;
+            switch (k)
+            {
+                case Kind.Cloudy: tc = 0.8f; tf = 0.12f; break;
+                case Kind.Fog: tc = 0.65f; tf = 1f; break;
+                case Kind.Rain: tc = 0.98f; tf = 0.45f; tr = 1f; break;
+                case Kind.RainFog: tc = 1f; tf = 1f; tr = 1f; break;
+            }
+            Cloud = tc; Fog = tf; Rain = tr;
+            heavy = k == Kind.RainFog ? 1f : 0f;
+            Overcast = Mathf.Min(OvercastCap, k == Kind.Cloudy ? 0.55f : k == Kind.Fog ? 0.8f : k == Kind.Rain || k == Kind.RainFog ? 1f : 0f);
+        }
+        int snap;
         float heavy;   // 0..1: how far the fog has thickened past the Fog kind's (RainFog)
 
         void Update()
@@ -111,12 +135,14 @@ namespace Nainital
                 case Kind.Rain: tc = 0.98f; tf = 0.45f; tr = 1f; break;
                 case Kind.RainFog: tc = 1f; tf = 1f; tr = 1f; break;
             }
-            Cloud = Mathf.MoveTowards(Cloud, tc, dt * 0.05f);
-            Fog = Mathf.MoveTowards(Fog, tf, dt * 0.06f);
-            Rain = Mathf.MoveTowards(Rain, tr, dt * 0.08f);
-            heavy = Mathf.MoveTowards(heavy, current == Kind.RainFog ? 1f : 0f, dt * 0.06f);
-            float to = current == Kind.Cloudy ? 0.55f : current == Kind.Fog ? 0.8f : current == Kind.Rain || current == Kind.RainFog ? 1f : 0f;
-            Overcast = Mathf.MoveTowards(Overcast, to, dt * 0.06f);
+            float sk = snap > 0 ? 10000f : 1f;   // SetNow: straight there
+            if (snap > 0) snap--;
+            Cloud = Mathf.MoveTowards(Cloud, tc, dt * 0.05f * sk);
+            Fog = Mathf.MoveTowards(Fog, tf, dt * 0.06f * sk);
+            Rain = Mathf.MoveTowards(Rain, tr, dt * 0.08f * sk);
+            heavy = Mathf.MoveTowards(heavy, current == Kind.RainFog ? 1f : 0f, dt * 0.06f * sk);
+            float to = Mathf.Min(OvercastCap, current == Kind.Cloudy ? 0.55f : current == Kind.Fog ? 0.8f : current == Kind.Rain || current == Kind.RainFog ? 1f : 0f);
+            Overcast = Mathf.MoveTowards(Overcast, to, dt * 0.06f * sk);
             Shader.SetGlobalFloat(CloudId, Cloud);
             // the wind on trees, grass and cloth (Shaders/NtWind.hlsl): a breeze in fair weather, stronger with cloud, rain,
             // the storm; gusts come and go

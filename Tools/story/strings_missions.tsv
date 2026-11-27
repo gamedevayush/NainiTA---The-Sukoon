@@ -1,0 +1,20 @@
+# Story mission titles, intros and objectives (Runtime/Story/Chapter*.cs): key <TAB> English <TAB> Hindi. Merged into
+# Tools/loc/strings_story.tsv by Tools/story/build_story.py. No '#' or tabs inside a field.
+The Last Trip	The Last Trip	आख़िरी सफ़र
+Sirens	Sirens	सायरन
+Waking Up	Waking Up	होश
+A New Start	A New Start	नई शुरुआत
+A Roof Over My Head	A Roof Over My Head	सिर पर छत
+Naya shehar, nayi shuruaat. Chalna-phirna seekho aur jheel ke kinare jaao.	A new town, a new start. Learn to get about and head to the lakeside.	नया शहर, नई शुरुआत। चलना-फिरना सीखो और झील के किनारे जाओ।
+Chalo: W A S D (ya joystick)	Walk: W A S D (or the joystick)	चलो: W A S D (या जॉयस्टिक)
+Daudo: Shift dabaake rakho	Run: hold Shift	दौड़ो: Shift दबाकर रखो
+Camera ghumao: mouse (ya screen pe ungli)	Look around: the mouse (or a finger on the screen)	कैमरा घुमाओ: माउस (या स्क्रीन पर उँगली)
+Naksha kholo aur band karo: M	Open the map and close it: M	नक्शा खोलो और बंद करो: M
+Phone kholo aur band karo: T	Open the phone and close it: T	फ़ोन खोलो और बंद करो: T
+Jheel ke kinare jaao	Go to the lakeside	झील के किनारे जाओ
+Uncle ke peeche-peeche chalo	Follow Uncle	अंकल के पीछे-पीछे चलो
+Uncle peeche chhoot gaye	You lost Uncle	अंकल पीछे छूट गए
+(Paas raho!)	(Keep up!)	(पास रहो!)
+Ghar ke andar bistar pe so jao (save)	Go inside and sleep in the bed (save)	घर के अंदर बिस्तर पर सो जाओ (सेव)
+Ghar mil gaya - bistar pe sone se game save hota hai	You have a home - sleeping in the bed saves the game	घर मिल गया - बिस्तर पर सोने से गेम सेव होता है
+Shabash! Agla kaam: 	Nice! Next: 	शाबाश! अगला काम:

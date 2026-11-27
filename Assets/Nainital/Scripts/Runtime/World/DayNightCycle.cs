@@ -14,6 +14,8 @@ namespace Nainital
         public float minutesPerDay = 24f;
         public bool paused;
         public Light sun;
+        /// <summary>The cinema camera (CinemaRunner): the sun's / moon's shadows at least this dark. 0 = off.</summary>
+        public static float ShadowMin;
         public Material skyMaterial;
         public Material[] emissiveMaterials;   // atlas materials whose emission glows at night
         public Color emissionColor = new Color(1f, 0.82f, 0.55f);
@@ -87,7 +89,9 @@ namespace Nainital
                 if (lightFrom.y < 0.08f) lightFrom.y = 0.08f;
                 // the light turns in steps of 0.2 degrees, not a little every frame: a shadow map redrawn from a slightly
                 // new angle each frame makes every shadow edge crawl and flicker (user, 2026-11-12)
-                if (useMoon != lastUseMoon || Vector3.Angle(lastLightFrom, lightFrom) > 0.2f)
+                // (the first time always: Vector3.Angle with the zero vector is 0, so a game started by day kept the scene's
+                // sun - 30 degrees up in the north-east - all day, Mall Road in the hill's shade; found 27 Nov 2026)
+                if (lastLightFrom == Vector3.zero || useMoon != lastUseMoon || Vector3.Angle(lastLightFrom, lightFrom) > 0.2f)
                 {
                     lastLightFrom = lightFrom;
                     lastUseMoon = useMoon;
@@ -104,7 +108,7 @@ namespace Nainital
                 sun.color = Color.Lerp(sun.color, new Color(0.8f, 0.82f, 0.85f), oc);   // what gets through cloud is grey
                 if (flash > 0f) sun.color = Color.Lerp(sun.color, new Color(0.8f, 0.85f, 1f), flash);
                 // skylight still fills the shade (0.85 left shaded streets near black); under cloud no hard shadow at all
-                sun.shadowStrength = Mathf.Lerp(useMoon ? 0.55f : 0.72f, 0.08f, oc);
+                sun.shadowStrength = Mathf.Max(ShadowMin, Mathf.Lerp(useMoon ? 0.55f : 0.72f, 0.08f, oc));
             }
 
             // Ambient (trilight): at night a moonlit blue - the lamps, windows and headlights still carry the town, but a street

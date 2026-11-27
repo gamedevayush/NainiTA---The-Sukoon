@@ -22,6 +22,10 @@ namespace Nainital
         public Vector3 templePosition;
         /// <summary>The Jama Masjid (Mallital): the azaan at prayer times, when Resources/Audio/azaan is there.</summary>
         public Vector3 mosquePosition;
+        /// <summary>A story scene plays (StoryDirector): no town beds, no vendors / boatmen / far horns / air horns - the
+        /// scene brings its own sounds (owner, 27 Nov 2026: "cutscene me traffic nhi hai to itne horn kyun").</summary>
+        public static bool StoryQuiet;
+
         /// <summary>How much the listener is in town (bazaar, street, traffic, bus stand), 0..1: AmbientLife thins the leaves.</summary>
         public float Town { get; private set; }
         [UnityEngine.Serialization.FormerlySerializedAs("masterVolume")] public float baseVolume = 0.8f;
@@ -242,7 +246,7 @@ namespace Nainital
 
         void Update()
         {
-            float dt = Time.deltaTime;
+            float dt = StoryQuiet ? Time.unscaledDeltaTime : Time.deltaTime;
             var cam = Camera.main;
             var p = PlayerController.Instance;
             var dn = DayNightCycle.Instance;
@@ -263,6 +267,7 @@ namespace Nainital
 
             float market = zoneNear[(int)Zone.Market], street = zoneNear[(int)Zone.Street], cafe = zoneNear[(int)Zone.Cafe];
             float kids = zoneNear[(int)Zone.Kids], bus = zoneNear[(int)Zone.BusStand], traffic = zoneNear[(int)Zone.Traffic];
+            if (StoryQuiet) market = street = cafe = kids = bus = traffic = 0f;
             float town = Mathf.Max(Mathf.Max(market, street), Mathf.Max(traffic * 0.8f, bus));
             Town = town;
             float elevation = LakeArea.Instance ? Mathf.Clamp01((listener.y - LakeArea.WaterY) / 400f) : 0f;
@@ -390,21 +395,21 @@ namespace Nainital
             }
             float busy = Mathf.Max(market, street * 0.8f);
             // vendors calling out in the bazaar and on the Mall (when their clips are there)
-            vendorTimer -= dt;
+            vendorTimer -= StoryQuiet ? 0f : dt;
             if (vendorTimer <= 0f)
             {
                 vendorTimer = Random.Range(7f, 16f);
                 if (busy > 0.25f && open > 0.5f && rain < 0.6f) PlayAt(One("vendor"), Around(8f, 26f), 0.45f * busy, Random.Range(0.96f, 1.04f), 45f);
             }
             // boatmen along the shore by day
-            boatmanTimer -= dt;
+            boatmanTimer -= StoryQuiet ? 0f : dt;
             if (boatmanTimer <= 0f)
             {
                 boatmanTimer = Random.Range(10f, 22f);
                 if (lakeDist < 35f && hour > 8f && hour < 18.5f && rain < 0.4f) PlayAt(One("boatman"), Around(6f, 20f), 0.5f, Random.Range(0.96f, 1.04f), 50f);
             }
             // far horns over the town (a hill town never quite stops honking), quieter late at night
-            farHornTimer -= dt;
+            farHornTimer -= StoryQuiet ? 0f : dt;
             if (farHornTimer <= 0f)
             {
                 farHornTimer = Random.Range(9f, 28f) * (night > 0.7f ? 2.5f : 1f);
@@ -412,7 +417,7 @@ namespace Nainital
                 if (near > 0.1f || Random.value < 0.3f) PlayAt(One("horn"), Around(70f, 170f) + Vector3.up * 6f, 0.22f + 0.15f * near, Random.Range(0.9f, 1.08f), 260f);
             }
             // the bus stand: an air horn now and then
-            airHornTimer -= dt;
+            airHornTimer -= StoryQuiet ? 0f : dt;
             if (airHornTimer <= 0f)
             {
                 airHornTimer = Random.Range(20f, 50f);

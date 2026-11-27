@@ -189,10 +189,13 @@ namespace Nainital
             rb = GetComponent<Rigidbody>();
         }
 
+        /// <summary>A story vehicle: its wheels turn on the real clock while the world is frozen (StoryDirector).</summary>
+        [System.NonSerialized] public bool storyTime;
+
         void LateUpdate()
         {
             if (!ready) return;
-            float dt = Time.deltaTime;
+            float dt = storyTime ? Time.unscaledDeltaTime : Time.deltaTime;
             if (car) { steer = car.SteerAngle; speed = car.ForwardSpeed; }
             else if (bike) { steer = bike.Steer; speed = bike.Speed; }
             else if (rb && !rb.isKinematic) speed = Vector3.Dot(rb.linearVelocity, transform.forward);

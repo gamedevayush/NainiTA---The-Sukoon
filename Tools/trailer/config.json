@@ -1,0 +1,443 @@
+{
+  "_about": "NainiVerse - First Glimpse (owner, 27 Nov 2026). Every tunable of the edit lives here; build.py reads it. Times in seconds, sizes in 4K pixels. Output 1080p60 (owner: \"1080 60 fps me hi output dedena\"); pixel sizes below are in 4K units, scaled by width/3840.",
+  "fps": 60,
+  "width": 1920,
+  "height": 1080,
+  "source_dir": "D:/NainiTA---The-Sukoon/Cinematics",
+  "audio_dir": "D:/NainiTA---The-Sukoon/Assets/Resources/Audio",
+  "sunrise": {
+    "file": "MorningShot_morning_shot01_4k60.mp4",
+    "from": 6.0,
+    "seconds": 4.0,
+    "title": "Naini Lake",
+    "suffix": "(Sunrise)"
+  },
+  "shots": [
+    {
+      "n": 1,
+      "title": "Nainital Bus Stand",
+      "window": "start"
+    },
+    {
+      "n": 2,
+      "title": "Mall Road",
+      "window": "mid"
+    },
+    {
+      "n": 3,
+      "title": "Capitol Cinema",
+      "window": "start"
+    },
+    {
+      "n": 4,
+      "title": "Capitol Cinema",
+      "window": "start"
+    },
+    {
+      "n": 5,
+      "title": "Naina Devi Mandir",
+      "window": "start"
+    },
+    {
+      "n": 6,
+      "title": "Jama Masjid",
+      "window": "start"
+    },
+    {
+      "n": 7,
+      "title": "St. Francis Church",
+      "window": "mid"
+    },
+    {
+      "n": 8,
+      "title": "Lover's Point",
+      "window": "start"
+    },
+    {
+      "n": 9,
+      "title": "Naina Peak (China Peak)",
+      "window": "mid"
+    },
+    {
+      "n": 10,
+      "title": "",
+      "window": "none"
+    }
+  ],
+  "strobe": {
+    "_about": "each shot: day for its first half, then this strobe (frame runs, night first, then day, night...), then night",
+    "pattern": [
+      2,
+      3,
+      3,
+      2,
+      4,
+      2,
+      5,
+      1
+    ],
+    "flash": [
+      0.6,
+      0.32
+    ]
+  },
+  "text": {
+    "hook": [
+      "YOUR LAKE CITY",
+      "IS NOW A GAME."
+    ],
+    "title_small": "FIRST GLIMPSE OF",
+    "title_big": "NAINIVERSE",
+    "title_sub": "The Story of Lake City",
+    "clue_words": [
+      "Love.",
+      "Respect.",
+      "Joy.",
+      "Sorrow.",
+      "Friendship."
+    ],
+    "clue_line": "You'll find it all here.",
+    "credit_small": "DIRECTED BY",
+    "credit_name": "@gamedevayush",
+    "cta_a": "Which part did you love the most?",
+    "cta_b": [
+      "Share it with a friend",
+      "who'll fall in love with this game."
+    ],
+    "end_sub": "The Story of Lake City"
+  },
+  "colors": {
+    "white": [
+      255,
+      255,
+      255
+    ],
+    "day": [
+      255,
+      214,
+      150
+    ],
+    "night": [
+      168,
+      198,
+      255
+    ],
+    "sunrise": [
+      255,
+      178,
+      160
+    ],
+    "gold_top": [
+      255,
+      244,
+      218
+    ],
+    "gold_bottom": [
+      228,
+      178,
+      98
+    ]
+  },
+  "end_card_seconds": 3.2,
+  "progress_bar": {
+    "height": 10,
+    "track_alpha": 0.18,
+    "bar_rgba": "0xFFF1DCE6"
+  },
+  "grade": {
+    "day": {
+      "target": 0.4,
+      "gamma": [
+        0.88,
+        1.22
+      ],
+      "contrast": 1.06,
+      "saturation": 1.12,
+      "curve": 0.22,
+      "du": -2,
+      "dv": 2,
+      "black": 0.65
+    },
+    "night": {
+      "target": 0.19,
+      "gamma": [
+        0.95,
+        1.5
+      ],
+      "contrast": 1.05,
+      "saturation": 1.22,
+      "curve": 0.14,
+      "du": 2,
+      "dv": -1,
+      "black": "low-5"
+    },
+    "morning": {
+      "target": 0.3,
+      "gamma": [
+        0.92,
+        1.18
+      ],
+      "contrast": 1.05,
+      "saturation": 1.1,
+      "curve": 0.18,
+      "du": -1,
+      "dv": 3,
+      "black": 0.65
+    },
+    "vignette": "PI/6.5",
+    "_about": "black: how far the black point moves to the footage's 10th percentile (0..1) or \"low-N\" = N below it; then gamma towards target (mean after levels, 0..1), contrast, saturation, S curve, tint du/dv"
+  },
+  "encode": {
+    "crf": 16,
+    "preset": "slow",
+    "audio_kbps": 320,
+    "loudness": -15
+  },
+  "ambience": {
+    "sunrise": {
+      "day": [
+        [
+          "amb_birds_morning",
+          0.9
+        ],
+        [
+          "amb_lake",
+          0.5
+        ]
+      ]
+    },
+    "1": {
+      "day": [
+        [
+          "amb_busstand",
+          0.9
+        ]
+      ],
+      "night": [
+        [
+          "amb_night",
+          0.8
+        ],
+        [
+          "amb_busstand",
+          0.3
+        ]
+      ]
+    },
+    "2": {
+      "day": [
+        [
+          "amb_lake",
+          0.7
+        ],
+        [
+          "amb_birds_day",
+          0.5
+        ],
+        [
+          "amb_traffic",
+          0.25
+        ]
+      ],
+      "night": [
+        [
+          "amb_lake",
+          0.55
+        ],
+        [
+          "amb_night",
+          0.8
+        ]
+      ]
+    },
+    "3": {
+      "day": [
+        [
+          "amb_street",
+          0.8
+        ]
+      ],
+      "night": [
+        [
+          "amb_night",
+          0.8
+        ],
+        [
+          "amb_street",
+          0.3
+        ]
+      ]
+    },
+    "4": {
+      "day": [
+        [
+          "amb_street",
+          0.8
+        ]
+      ],
+      "night": [
+        [
+          "amb_night",
+          0.8
+        ],
+        [
+          "amb_street",
+          0.3
+        ]
+      ]
+    },
+    "5": {
+      "day": [
+        [
+          "amb_fair",
+          0.55
+        ],
+        [
+          "amb_birds_day",
+          0.4
+        ]
+      ],
+      "night": [
+        [
+          "amb_night",
+          0.8
+        ]
+      ]
+    },
+    "6": {
+      "day": [
+        [
+          "amb_market",
+          0.65
+        ]
+      ],
+      "night": [
+        [
+          "amb_night",
+          0.8
+        ],
+        [
+          "amb_street",
+          0.25
+        ]
+      ]
+    },
+    "7": {
+      "day": [
+        [
+          "amb_wind",
+          0.45
+        ],
+        [
+          "amb_birds_day",
+          0.55
+        ]
+      ],
+      "night": [
+        [
+          "amb_night_forest",
+          0.8
+        ],
+        [
+          "amb_wind",
+          0.35
+        ]
+      ]
+    },
+    "8": {
+      "day": [
+        [
+          "amb_wind",
+          0.7
+        ],
+        [
+          "amb_forest",
+          0.45
+        ]
+      ],
+      "night": [
+        [
+          "amb_wind",
+          0.6
+        ],
+        [
+          "amb_night_forest",
+          0.7
+        ]
+      ]
+    },
+    "9": {
+      "day": [
+        [
+          "amb_wind_high",
+          0.75
+        ],
+        [
+          "amb_birds_day",
+          0.35
+        ]
+      ],
+      "night": [
+        [
+          "amb_wind_high",
+          0.7
+        ],
+        [
+          "amb_night_forest",
+          0.6
+        ]
+      ]
+    },
+    "10": {
+      "day": [
+        [
+          "amb_lake",
+          0.7
+        ],
+        [
+          "amb_birds_day",
+          0.45
+        ]
+      ],
+      "night": [
+        [
+          "amb_lake",
+          0.55
+        ],
+        [
+          "amb_night",
+          0.8
+        ]
+      ]
+    }
+  },
+  "spot_sounds": [
+    {
+      "where": "sunrise",
+      "at": 1.3,
+      "file": "rooster",
+      "gain": 0.22
+    },
+    {
+      "where": "1",
+      "at": 1.0,
+      "file": "horn_bus_1",
+      "gain": 0.3,
+      "kind": "day"
+    },
+    {
+      "where": "5",
+      "at": 0.5,
+      "file": "temple_bell",
+      "gain": 0.55,
+      "kind": "day"
+    },
+    {
+      "where": "5",
+      "at": "mid+0.5",
+      "file": "temple_bell",
+      "gain": 0.4,
+      "kind": "night"
+    }
+  ]
+}

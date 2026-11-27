@@ -114,7 +114,34 @@ The quick way: close Unity and run `Tools/pipeline/make_ipa.ps1` (see the helper
 - Sounds in 3D at places: done in code + Build World (below); not yet heard in Play / on the phone. Check: Play at dawn
   (hour 6) in the woods (birds + rooster near) and on Mall Road (no rooster, birds faint).
 
-- The barricades of the Mallital one-way are still OFF (24 Nov) - put back later.
+- The barricades of the Mallital one-way are BACK (26 Nov, below).
+
+### 27 Nov 2026 - Timeline cutscenes, the sun fix, cinematics and the trailer (CLAUDE.md "Cinematics")
+
+| What | Where | File |
+|---|---|---|
+| Chapter 0's cutscenes are Unity Timelines the owner can edit (vehicles, cameras, body animations, lines, QTE cues); the rest of the world freezes during a scene (time, traffic, sounds, loops) | scene `Story_C0.unity`; `call StoryTimelineBaker.BakeChapter0` (arg `force [id]`) | `Editor/StoryTimelineBaker.cs`, `Runtime/Story/Timeline/`, `Assets/Nainital/Story/Chapter0/` |
+| The crash: the car flips onto its roof ON the road, Nikhil is dragged out through the window; a real car interior (seats, dashboard, wheel) | Haldwani road bend | `StoryTimelineBaker.cs`, `StorySets.cs` |
+| A curvy highway tail before the trip's start (the car comes from behind) | south of (150, -3240) | `Data/world.json` |
+| **Sun fix**: a game started by day kept the scene's sun (30 degrees up, north-east) all day - Mall Road always in the hill's shade, no shadows | - | `Runtime/World/DayNightCycle.cs` |
+| Cinematic renders of the owner's timelines (4K stills / 4K60 shots, best shadows, lamp + headlight shadows), the MorningShot timeline (lake water to Naina Peak at 6:15) | `call CinemaReel.Timeline` / `MakeMorningShot` | `Editor/CinemaReel.cs`, `Runtime/Dev/CinemaRunner.cs`, `Assets/Nainital/Cinematics/` |
+| The trailer "First Glimpse of NainiVerse : The Story of Lake City" (1080p60, day -> strobe -> night per shot, titles, sound) | `python Tools/trailer/build.py all` | `Tools/trailer/` |
+
+### 26 Nov 2026 - story missions: Chapter 0 (prologue) built and played through (docs/STORY.md)
+
+| What | Where | File |
+|---|---|---|
+| The 8 old demo missions are gone; MissionManager runs the story's chain (only the next mission open, ones that follow start by themselves, a failed one retries from its checkpoint) | - | `Runtime/Missions/MissionManager.cs`, `StorySteps.cs`, `Runtime/Story/StoryMissions.cs` |
+| 0.0 the crash on the Haldwani highway (QTE out of the burning car), 0.0b the ambulance, 0.0c the hospital, 0.1 Mall Road tutorial, 0.2 Uncle -> follow -> the Zoo Road house -> sleep = save | bend (267, -3034); Lower Mall (833, -896), Uncle (804, -743) | `Runtime/Story/Chapter0.cs`, `Tools/story/scenes/c0_*.json` |
+| Every line in Hindi + English, voiced (edge-tts, a voice per character); `python Tools/story/build_story.py` writes the scenes, the voices and the loc rows | - | `Tools/story/`, `Resources/Voices/Story/` |
+| Cutscene: set pieces in code (`call`), seats (`sit`), the viewer's look round, shake, sounds, a camera riding a car (`follow` rigid) | - | `Runtime/Story/Cutscene.cs` |
+
+### 26 Nov 2026 - one-way barricades back, each one movable (owner: "single mesh me poora barricade taaki main move krsku..har barricade ko invidually join krdo")
+
+| What | Where | File |
+|---|---|---|
+| The "One-way barricades" step is on again, same places as 24 Nov | Mall end of the Bada Bazar road; SBM tiraha on the Jama Masjid road | `Editor/WorldBuilder.cs` |
+| Each barricade = ONE object, ONE mesh (rails, legs, stripes, red board, NO ENTRY letters), pivot on the ground at its middle: `Barricade 1`, `Barricade 2`; each ONE WAY board = its own object (`One way board 1/2`, pivot at the pole's foot). Under `One-way barricades (Mallital)`. Move one, then Nainital > Keep my move so Build World keeps it | Mallital | `Editor/WorldBuilder.OneWay.cs` (`Letters()` writes 3D letters into the same mesh) |
 
 ### 25 Nov 2026 (day) - birds and roosters only at places, heard from there (owner: "chidiya ka sound 3d space pe ho... har jagah murga, chidiya sunaai dera.. kuch places pe set rkdo")
 

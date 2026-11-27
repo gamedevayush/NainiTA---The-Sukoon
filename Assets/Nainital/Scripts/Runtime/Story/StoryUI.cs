@@ -183,7 +183,20 @@ namespace Nainital
             Talking = false;
         }
 
-        public void HideTalk() { talkGroup.alpha = 0f; screenTap.gameObject.SetActive(false); }
+        public void HideTalk() { talkGroup.alpha = 0f; screenTap.gameObject.SetActive(false); Talking = false; }
+
+        /// <summary>A line driven by a timeline (StoryDirector): the name, the text typed out to `typed` (0..1); no tap.</summary>
+        public void LineShow(string who, string line, Color nameColor, float typed)
+        {
+            Talking = true;
+            nameText.text = who ?? "";
+            nameText.color = nameColor;
+            string text = line ?? "";
+            int n = Mathf.Clamp(Mathf.CeilToInt(text.Length * Mathf.Clamp01(typed)), 0, text.Length);
+            bodyText.text = n >= text.Length ? text : text.Substring(0, n);
+            nextMark.enabled = false;
+            talkGroup.alpha = 1f;
+        }
 
         bool Advance()
         {

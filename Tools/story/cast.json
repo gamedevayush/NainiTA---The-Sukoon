@@ -1,0 +1,10 @@
+{
+  "_about": "One voice per character for the story's lines (Tools/story/build_story.py, edge-tts Microsoft neural voices; owner 26 Nov 2026: Hindi text + AI voice). Only two Hindi neural voices exist (Madhur, Swara): pitch and rate make each character his own. 'player' speaks with nikhil's voice.",
+  "nikhil":   { "voice": "hi-IN-MadhurNeural", "pitch": "+8Hz",  "rate": "+0%" },
+  "papa":     { "voice": "hi-IN-MadhurNeural", "pitch": "-14Hz", "rate": "-6%" },
+  "mummy":    { "voice": "hi-IN-SwaraNeural",  "pitch": "-6Hz",  "rate": "-6%" },
+  "nurse":    { "voice": "hi-IN-SwaraNeural",  "pitch": "+6Hz",  "rate": "+2%" },
+  "doctor":   { "voice": "hi-IN-MadhurNeural", "pitch": "-6Hz",  "rate": "-8%" },
+  "uncle":    { "voice": "hi-IN-MadhurNeural", "pitch": "-24Hz", "rate": "-14%" },
+  "landlord": { "voice": "hi-IN-MadhurNeural", "pitch": "-18Hz", "rate": "+4%" }
+}

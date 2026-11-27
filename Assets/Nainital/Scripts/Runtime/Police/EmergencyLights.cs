@@ -103,9 +103,12 @@ namespace Nainital
             return r;
         }
 
+        /// <summary>A story vehicle's bar: flashes on the real clock while the world is frozen (StoryDirector).</summary>
+        [System.NonSerialized] public bool storyTime;
+
         void Update()
         {
-            float dt = Time.deltaTime;
+            float dt = storyTime ? Time.unscaledDeltaTime : Time.deltaTime;
             checkTimer -= dt;
             if (checkTimer <= 0f)
             {

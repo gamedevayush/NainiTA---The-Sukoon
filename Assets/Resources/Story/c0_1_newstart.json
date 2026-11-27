@@ -1,0 +1,93 @@
+{
+  "id": "c0_1_newstart",
+  "title": "0.1 A New Start",
+  "skippable": true,
+  "playerKey": "Nikhil",
+  "playerEn": "Nikhil",
+  "actors": [],
+  "steps": [
+    {
+      "op": "fade",
+      "v": "1"
+    },
+    {
+      "op": "bars",
+      "v": "1"
+    },
+    {
+      "op": "call",
+      "name": "c0.newday"
+    },
+    {
+      "op": "wait",
+      "t": 0.3
+    },
+    {
+      "op": "cam",
+      "of": "player",
+      "pos": [
+        -9,
+        7,
+        -18
+      ],
+      "look": [
+        0,
+        1.5,
+        10
+      ],
+      "fov": 50
+    },
+    {
+      "op": "fade",
+      "v": "0",
+      "t": 2.5
+    },
+    {
+      "op": "objective",
+      "key": "Kuch din baad...",
+      "en": "A few days later...",
+      "t": 5
+    },
+    {
+      "op": "cam",
+      "of": "player",
+      "pos": [
+        -3.5,
+        2.6,
+        -7.5
+      ],
+      "look": [
+        0,
+        1.6,
+        4
+      ],
+      "fov": 48,
+      "t": 4.5
+    },
+    {
+      "op": "cam",
+      "of": "player",
+      "pos": [
+        0.6,
+        1.7,
+        2.0
+      ],
+      "fov": 40,
+      "t": 1.6
+    },
+    {
+      "op": "say",
+      "who": "player",
+      "key": "Naya shehar... aur main akela.",
+      "en": "A new town... and I'm all alone.",
+      "voice": "Voices/Story/c0_1_newstart/01"
+    },
+    {
+      "op": "bars",
+      "v": "0"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}

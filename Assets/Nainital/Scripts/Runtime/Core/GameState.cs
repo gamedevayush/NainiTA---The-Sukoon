@@ -53,6 +53,13 @@ namespace Nainital
             Save();
         }
 
+        /// <summary>A mission not done again (a story test's clean run).</summary>
+        public static void UnmarkDone(string id)
+        {
+            Load();
+            if (done.Remove(id)) Save();
+        }
+
         public static void ResetProgress()
         {
             PlayerPrefs.DeleteKey("nt_money");

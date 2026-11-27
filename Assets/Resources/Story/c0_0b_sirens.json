@@ -1,0 +1,112 @@
+{
+  "id": "c0_0b_sirens",
+  "title": "0.0b Sirens",
+  "skippable": true,
+  "playerKey": "Nikhil",
+  "playerEn": "Nikhil",
+  "actors": [
+    {
+      "name": "nikhil",
+      "nameKey": "Nikhil",
+      "nameEn": "Nikhil",
+      "look": "m_player",
+      "color": "#5fe0d0",
+      "hidden": true
+    }
+  ],
+  "steps": [
+    {
+      "op": "fade",
+      "v": "1"
+    },
+    {
+      "op": "bars",
+      "v": "1"
+    },
+    {
+      "op": "blur",
+      "v": "0.75"
+    },
+    {
+      "op": "call",
+      "name": "c0.ride",
+      "wait": false
+    },
+    {
+      "op": "follow",
+      "of": "amb",
+      "pos": [
+        0.15,
+        1.42,
+        0.2
+      ],
+      "look": [
+        0.05,
+        1.38,
+        -8
+      ],
+      "ease": "rigid",
+      "wait": false,
+      "fov": 56
+    },
+    {
+      "op": "fade",
+      "v": "0",
+      "t": 2.5
+    },
+    {
+      "op": "wait",
+      "t": 1.2
+    },
+    {
+      "op": "say",
+      "who": "nikhil",
+      "key": "Maa... maa...",
+      "en": "Mum... mum...",
+      "voice": "Voices/Story/c0_0b_sirens/01"
+    },
+    {
+      "op": "look",
+      "t": 7,
+      "r": 55,
+      "h": 22
+    },
+    {
+      "op": "say",
+      "who": "nikhil",
+      "key": "Papa...",
+      "en": "Dad...",
+      "voice": "Voices/Story/c0_0b_sirens/02"
+    },
+    {
+      "op": "say",
+      "who": "",
+      "key": "(Vo phoot-phoot kar rone lagta hai)",
+      "en": "(He breaks down, sobbing)",
+      "t": 3.5
+    },
+    {
+      "op": "look",
+      "t": 5,
+      "r": 55,
+      "h": 22
+    },
+    {
+      "op": "blur",
+      "v": "1",
+      "t": 1
+    },
+    {
+      "op": "fade",
+      "v": "1",
+      "t": 3
+    },
+    {
+      "op": "call",
+      "name": "c0.cleanup"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}

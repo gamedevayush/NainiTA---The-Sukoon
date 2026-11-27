@@ -20,7 +20,18 @@ namespace Nainital
     ///   choice flag key en opts t def - asks (opts: key en v go); the answer's v (or its index) goes into flag, its go jumps
     ///   if flag v go | label name | goto go | set flag v | end
     ///   walk who to|at speed wait | face who at|yaw | place who pos yaw | show who | hide who | anim who anim t
-    ///   mash key en per decay limit flag go - the QTE: flag "1" passed / "0" failed (then go, if given)
+    ///   mash key en per decay limit flag go name - the QTE: flag "1" passed / "0" failed (then go, if given); name = a
+    ///                                  ProgressHooks entry that gets 0..1 every frame (an escape scrubbed by the presses)
+    /// Story missions (26 Nov 2026, docs/STORY.md):
+    ///   call name wait             - a set piece in code (Hooks[name], Chapter0.cs ...); wait false: it runs on beside
+    ///   sit who at v | unsit who   - an actor into seat v of a vehicle prop (VehicleParts.Sit) / out of it, standing
+    ///   look t r h                 - the viewer looks round himself for t s (mouse / stick / drag), r deg left-right,
+    ///                                h deg up-down round the shot's direction
+    ///   shake v t                  - the camera shakes, v metres, easing out over t s
+    ///   sound voice v pos at       - a clip from Resources (voice = its path), v volume; at a prop / [x,y,z]: 3D there
+    ///   lie who v | knock who v    - an actor lies still (v "0" up again) / falls down (v "0" gets up)
+    ///   player v pos yaw           - v "hide" / "show" the player's body, "place" him at pos facing yaw
+    /// Props: Props[name] = a Transform a set piece registers (a car, a stretcher); "of", "at" and "who" find them too.
     /// Text: key = the Hinglish (Loc's key, Hindi shaped from Tools/loc/strings_story.tsv), en = the English. Positions:
     /// [x, z] stand on the ground there, [x, y, z] exact (world metres). Hold Esc to skip: the shots and lines fly past
     /// up to the next choice or QTE, which still ask.
@@ -79,6 +90,21 @@ namespace Nainital
         // ------------------------------------------------------------------ running one
         public static Cutscene Current { get; private set; }
         public static bool Playing => Current;
+
+        /// <summary>Set pieces in code a script calls by name ("call"): the scene and the step in, a coroutine out.</summary>
+        public static readonly Dictionary<string, Func<Cutscene, Step, IEnumerator>> Hooks = new Dictionary<string, Func<Cutscene, Step, IEnumerator>>();
+        /// <summary>A QTE's progress (0..1 every frame) to the code that scrubs by it ("mash" name).</summary>
+        public static readonly Dictionary<string, Action<float>> ProgressHooks = new Dictionary<string, Action<float>>();
+        /// <summary>Named things of a set piece (vehicles, a stretcher) the steps can point the camera at or seat actors in.</summary>
+        public static readonly Dictionary<string, Transform> Props = new Dictionary<string, Transform>();
+
+        /// <summary>The hold-to-skip is on: a set piece jumps to its end state.</summary>
+        public bool Skipping => skipping;
+        public StoryScript Script => script;
+        /// <summary>An actor's root (or a prop's) by its name in the script; null if there is none.</summary>
+        public Transform ActorRoot(string who) { var a = Get(who); return a != null && a.go ? a.go.transform : null; }
+        public HumanoidRig ActorRig(string who) { var a = Get(who); return a?.rig; }
+        public Camera Cam => cam;
         /// <summary>The last scene that ended, and how ("done" / "skipped" / "failed").</summary>
         public static string LastId, LastEnd;
 
@@ -189,6 +215,23 @@ namespace Nainital
                 case "hide": { var a = Get(s.who); if (a != null && a.go && a.def != null) a.go.SetActive(false); break; }
                 case "anim": { var a = Get(s.who); if (a != null && a.rig) a.rig.PlayGesture(s.anim, s.t); break; }
                 case "mash": return Mash(s);
+                case "call":
+                    {
+                        if (string.IsNullOrEmpty(s.name) || !Hooks.TryGetValue(s.name, out var h)) { Debug.LogWarning($"[Nainital] story {script.id}: no hook '{s.name}'"); break; }
+                        var e = h(this, s);
+                        if (e == null) break;
+                        if (s.wait) return e;
+                        StartCoroutine(e);
+                        break;
+                    }
+                case "sit": Sit(s); break;
+                case "unsit": Unsit(Get(s.who)); break;
+                case "look": return LookRound(s);
+                case "shake": shakeAmp = Mathf.Max(shakeAmp, F(s.v, 0.15f)); shakeFade = s.t > 0f ? s.t : 0.8f; shakeLeft = shakeFade; break;
+                case "sound": Sound(s); break;
+                case "lie": { var a = Get(s.who); if (a != null && a.rig) { if (s.v == "0") a.rig.Revive(); else a.rig.LieDead(); } break; }
+                case "knock": { var a = Get(s.who); if (a != null && a.rig) a.rig.knocked = s.v != "0"; break; }
+                case "player": PlayerOp(s); break;
                 default: Debug.LogWarning($"[Nainital] story {script.id}: unknown op '{s.op}' at step {pc}"); break;
             }
             return null;
@@ -217,26 +260,41 @@ namespace Nainital
         }
 
         // ------------------------------------------------------------------ actors
-        void MakeActor(ActorDef d)
+        /// <summary>A person of the character library (look id, else picked by kind) with a HumanoidRig under its root:
+        /// what a scene's actors are made of, and the story's people outside a scene (StoryWalker).</summary>
+        public static GameObject MakePerson(string name, string lookId, bool female, bool elder, bool child, out HumanoidRig rig)
         {
-            if (d == null || string.IsNullOrEmpty(d.name)) return;
-            var go = new GameObject("Actor " + d.name) { layer = 9 };
+            var go = new GameObject(name) { layer = 9 };
             var cc = go.AddComponent<CharacterController>();
             var rigGo = new GameObject("Rig") { layer = 9 };
             rigGo.transform.SetParent(go.transform, false);
             rigGo.SetActive(false);
-            var rig = rigGo.AddComponent<HumanoidRig>();
-            rig.female = d.female;
-            rig.bodyType = d.child ? (d.female ? HumanoidRig.BodyType.Girl : HumanoidRig.BodyType.Boy)
-                         : d.elder ? (d.female ? HumanoidRig.BodyType.OldWoman : HumanoidRig.BodyType.OldMan)
-                         : (d.female ? HumanoidRig.BodyType.Woman : HumanoidRig.BodyType.Man);
+            rig = rigGo.AddComponent<HumanoidRig>();
+            rig.female = female;
+            rig.bodyType = child ? (female ? HumanoidRig.BodyType.Girl : HumanoidRig.BodyType.Boy)
+                         : elder ? (female ? HumanoidRig.BodyType.OldWoman : HumanoidRig.BodyType.OldMan)
+                         : (female ? HumanoidRig.BodyType.Woman : HumanoidRig.BodyType.Man);
             var pm = PedestrianManager.Instance;
             if (pm) rig.material = pm.material;
             var lib = CharacterLibrary.Instance;
-            var look = lib ? (!string.IsNullOrEmpty(d.look) ? lib.Find(d.look) : null) ?? lib.Pick(d.female, d.child, d.elder) : null;
+            var look = lib ? (!string.IsNullOrEmpty(lookId) ? lib.Find(lookId) : null) ?? lib.Pick(female, child, elder) : null;
             if (look != null) CharacterLibrary.Apply(look, rig, cc);
             rigGo.SetActive(true);
-            cc.enabled = false;   // a story actor goes where the script puts it, through nothing
+            cc.enabled = false;   // a story person goes where the story puts it, through nothing
+            return go;
+        }
+
+        /// <summary>Seat an actor in a vehicle prop from code (a set piece), as the "sit" step does.</summary>
+        public void SitActor(string who, string vehicle, int seat) =>
+            Sit(new Step { op = "sit", who = who, at = vehicle, v = seat.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        public void UnsitActor(string who) { var a = Get(who); Unsit(a); seated.Remove(a); }
+        /// <summary>Shake the camera from code (a set piece's hit), as the "shake" step does.</summary>
+        public void Shake(float metres, float seconds) { shakeAmp = Mathf.Max(shakeAmp, metres); shakeFade = seconds > 0f ? seconds : 0.8f; shakeLeft = shakeFade; }
+
+        void MakeActor(ActorDef d)
+        {
+            if (d == null || string.IsNullOrEmpty(d.name)) return;
+            var go = MakePerson("Actor " + d.name, d.look, d.female, d.elder, d.child, out var rig);
             var a = new Actor { def = d, go = go, rig = rig };
             actors[d.name] = a;
             if (d.pos != null && d.pos.Length >= 2) { go.transform.SetPositionAndRotation(At(d.pos), Quaternion.Euler(0f, Yaw(d.yaw), 0f)); }
@@ -254,7 +312,119 @@ namespace Nainital
                 if (playerActor == null || !playerActor.go) playerActor = new Actor { go = p.gameObject, rig = p.Rig };
                 return playerActor;
             }
-            return actors.TryGetValue(who, out var a) ? a : null;
+            if (actors.TryGetValue(who, out var a)) return a;
+            if (Props.TryGetValue(who, out var t) && t)
+            {
+                if (!propActors.TryGetValue(who, out var pa) || pa.go != t.gameObject) propActors[who] = pa = new Actor { go = t.gameObject };
+                return pa;
+            }
+            return null;
+        }
+
+        readonly Dictionary<string, Actor> propActors = new Dictionary<string, Actor>();
+
+        // ------------------------------------------------------------------ seats, the viewer's look, sounds, the player
+        void Sit(Step s)
+        {
+            var a = Get(s.who);
+            var veh = Get(s.at);
+            if (a == null || !a.go || veh == null || !veh.go) { Debug.LogWarning($"[Nainital] story {script.id}: sit {s.who} in {s.at}: not found"); return; }
+            var vp = veh.go.GetComponentInChildren<VehicleParts>();
+            if (!vp || !vp.HasSetup) { Debug.LogWarning($"[Nainital] story {script.id}: {s.at} has no seats"); return; }
+            if (!a.go.activeSelf) a.go.SetActive(true);
+            int seat = Mathf.Clamp(Mathf.RoundToInt(F(s.v, 0f)), 0, vp.SeatCount - 1);
+            if (a.walk != null) { StopCoroutine(a.walk); a.walk = null; }
+            vp.Sit(a.go.transform, a.rig, seat);
+            seated.Add(a);
+        }
+
+        readonly List<Actor> seated = new List<Actor>();
+
+        static void Unsit(Actor a)
+        {
+            if (a == null || !a.go) return;
+            var tr = a.go.transform;
+            Vector3 p = tr.position; float yaw = tr.eulerAngles.y;
+            RideSway.Off(tr);
+            var ik = a.go.GetComponent<HandIK>();
+            if (ik) { ik.enabled = false; ik.left = ik.right = ik.footLeft = ik.footRight = null; }
+            tr.SetParent(null, true);
+            tr.SetPositionAndRotation(p, Quaternion.Euler(0f, yaw, 0f));
+            if (a.rig) { a.rig.seated = a.rig.driving = a.rig.riding = a.rig.pillion = false; a.rig.seatRoof = float.NaN; }
+        }
+
+        float shakeAmp, shakeFade, shakeLeft;
+        Vector3 shakeOff, shakeBase;
+
+        Quaternion lookOff = Quaternion.identity, rotBase = Quaternion.identity, rotPut = Quaternion.identity;
+
+        /// <summary>The viewer turns his head round the shot's direction (applied in LateUpdate on top of wherever the
+        /// shots or a ride put the camera); drifts back to the middle when the hand rests, back to it at the end.</summary>
+        IEnumerator LookRound(Step s)
+        {
+            if (!cam || skipping) yield break;
+            float t = s.t > 0f ? s.t : 6f, rx = s.r > 0f ? s.r : 70f, ry = s.h > 0f ? s.h : 30f;
+            float yaw = 0f, pitch = 0f;
+            for (float k = 0f; k < t; k += Time.unscaledDeltaTime)
+            {
+                CheckSkip();
+                if (skipping) break;
+                Vector2 d = Vector2.zero;
+                var mouse = UnityEngine.InputSystem.Mouse.current;
+                var pad = UnityEngine.InputSystem.Gamepad.current;
+                var touch = UnityEngine.InputSystem.Touchscreen.current;
+                if (mouse != null) d += mouse.delta.ReadValue() * 0.11f;
+                if (pad != null) d += pad.rightStick.ReadValue() * 120f * Time.unscaledDeltaTime;
+                if (touch != null && touch.primaryTouch.press.isPressed) d += touch.primaryTouch.delta.ReadValue() * 0.16f;
+                yaw = Mathf.Clamp(yaw + d.x, -rx, rx);
+                pitch = Mathf.Clamp(pitch + d.y, -ry, ry);
+                if (d.sqrMagnitude < 0.0001f) { yaw = Mathf.MoveTowards(yaw, 0f, Time.unscaledDeltaTime * 6f); pitch = Mathf.MoveTowards(pitch, 0f, Time.unscaledDeltaTime * 4f); }
+                lookOff = Quaternion.Euler(-pitch, yaw, 0f);
+                yield return null;
+            }
+            Quaternion from = lookOff;
+            for (float k = 0f; k < 0.6f && !skipping; k += Time.unscaledDeltaTime) { lookOff = Quaternion.Slerp(from, Quaternion.identity, UiKit.EaseInOut(k / 0.6f)); yield return null; }
+            lookOff = Quaternion.identity;
+        }
+
+        void Sound(Step s)
+        {
+            if (skipping || string.IsNullOrEmpty(s.voice)) return;
+            var clip = Resources.Load<AudioClip>(s.voice);
+            if (!clip) { Debug.LogWarning($"[Nainital] story {script.id}: no sound {s.voice}"); return; }
+            float vol = F(s.v, 1f) * GameSettings.Master;
+            Vector3? at = null;
+            var p = Get(s.at);
+            if (p != null && p.go) at = p.go.transform.position;
+            else if (s.pos != null && s.pos.Length >= 2) at = At(s.pos);
+            if (at.HasValue) AudioSource.PlayClipAtPoint(clip, at.Value, vol);
+            else
+            {
+                var src = gameObject.AddComponent<AudioSource>();
+                src.spatialBlend = 0f; src.playOnAwake = false; src.clip = clip; src.volume = vol; src.Play();
+                Destroy(src, clip.length + 0.2f);
+            }
+        }
+
+        bool playerHidden;
+        void PlayerOp(Step s)
+        {
+            var p = PlayerController.Instance;
+            if (!p) return;
+            switch (s.v)
+            {
+                case "hide": SetPlayerShown(p, false); break;
+                case "show": SetPlayerShown(p, true); break;
+                case "place":
+                    if (s.pos != null && s.pos.Length >= 2) SaveGame.Place(p, At(s.pos), float.IsNaN(s.yaw) ? p.transform.eulerAngles.y : Yaw(s.yaw));
+                    break;
+            }
+        }
+
+        void SetPlayerShown(PlayerController p, bool on)
+        {
+            foreach (var r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = on;
+            playerHidden = !on;
         }
 
         Transform Head(Actor a)
@@ -392,6 +562,26 @@ namespace Nainital
         {
             // the library rigs read their speed every frame: keep an idle actor still
             foreach (var a in actors.Values) if (a.rig && a.walk == null) { a.rig.speed = 0f; a.rig.grounded = true; }
+            // the shake: on top of wherever the shots put the camera this frame
+            if (cam)
+            {
+                Vector3 now = cam.transform.position;
+                if ((now - (shakeBase + shakeOff)).sqrMagnitude > 1e-8f) shakeBase = now;   // a shot moved it: that is the new base
+                if (shakeLeft > 0f)
+                {
+                    shakeLeft -= Time.unscaledDeltaTime;
+                    float k = Mathf.Clamp01(shakeLeft / Mathf.Max(0.01f, shakeFade)) * shakeAmp, tt = Time.unscaledTime * 31f;
+                    shakeOff = new Vector3(Mathf.PerlinNoise(tt, 0.3f) - 0.5f, Mathf.PerlinNoise(0.7f, tt) - 0.5f, Mathf.PerlinNoise(tt, tt * 0.5f) - 0.5f) * 2f * k;
+                    if (shakeLeft <= 0f) { shakeOff = Vector3.zero; shakeAmp = 0f; }
+                }
+                else shakeOff = Vector3.zero;
+                cam.transform.position = shakeBase + shakeOff;
+                // the viewer's own look (LookRound) on top of the shot's direction
+                Quaternion r = cam.transform.rotation;
+                if (Quaternion.Angle(r, rotPut) > 0.01f) rotBase = r;   // a shot turned it: the new base
+                rotPut = rotBase * lookOff;
+                cam.transform.rotation = rotPut;
+            }
         }
 
         // ------------------------------------------------------------------ the camera
@@ -453,6 +643,7 @@ namespace Nainital
 
         IEnumerator Orbit(Step s)
         {
+            if (camMove != null) { StopCoroutine(camMove); camMove = null; }
             var of = Get(s.of);
             if (!cam || of == null || !of.go) yield break;
             float r = s.r > 0f ? s.r : 3f, h = s.h != 0f ? s.h : 1.6f, t = s.t > 0f ? s.t : 4f;
@@ -470,22 +661,33 @@ namespace Nainital
             }
         }
 
+        /// <summary>The camera rides with an actor or a prop: t seconds (wait), or, with wait false, on beside the steps until
+        /// the next camera step (t 0 = no end). ease "rigid": fixed to it (inside a moving car), else a soft follow.</summary>
         IEnumerator Follow(Step s)
+        {
+            if (camMove != null) { StopCoroutine(camMove); camMove = null; }
+            if (!s.wait) { camMove = StartCoroutine(FollowRun(s, s.t > 0f ? s.t : float.MaxValue)); return null; }
+            return FollowRun(s, s.t > 0f ? s.t : 3f);
+        }
+
+        IEnumerator FollowRun(Step s, float t)
         {
             var of = Get(s.of);
             if (!cam || of == null || !of.go) yield break;
             if (s.fov > 0f) cam.fieldOfView = s.fov;
-            float t = s.t > 0f ? s.t : 3f;
+            bool rigid = s.ease == "rigid";
             Vector3 vel = Vector3.zero;
             for (float k = 0f; k < t; k += Time.unscaledDeltaTime)
             {
-                if (skipping) break;
-                CheckSkip();
+                if (skipping && s.wait) break;
+                if (s.wait) CheckSkip();
+                if (!of.go) break;
                 Frame(s, s.pos ?? new[] { 0.9f, 1.7f, -3.2f }, s.look, out var pos, out var look);
-                Vector3 p = Vector3.SmoothDamp(cam.transform.position, pos, ref vel, 0.25f, 50f, Time.unscaledDeltaTime);
+                Vector3 p = rigid ? pos : Vector3.SmoothDamp(cam.transform.position, pos, ref vel, 0.25f, 50f, Time.unscaledDeltaTime);
                 Put(p, look, cam.fieldOfView);
                 yield return null;
             }
+            if (!s.wait) camMove = null;
         }
 
         // ------------------------------------------------------------------ talk, choices, QTE
@@ -538,7 +740,9 @@ namespace Nainital
         {
             skipping = false;
             bool ok = false;
-            yield return ui.Mash(Text(s), r => ok = r, s.per > 0f ? s.per : 7f, s.decay > 0f ? s.decay : 14f, s.limit > 0f ? s.limit : 20f);
+            Action<float> prog = null;
+            if (!string.IsNullOrEmpty(s.name)) ProgressHooks.TryGetValue(s.name, out prog);
+            yield return ui.Mash(Text(s), r => ok = r, s.per > 0f ? s.per : 7f, s.decay > 0f ? s.decay : 14f, s.limit > 0f ? s.limit : 20f, prog);
             if (!string.IsNullOrEmpty(s.flag)) StoryFlags.Set(s.flag, ok ? "1" : "0");
             Debug.Log($"[Nainital] story {script.id}: QTE {(ok ? "passed" : "failed")}");
             if (!ok && !string.IsNullOrEmpty(s.go)) Jump(s.go);
@@ -552,11 +756,17 @@ namespace Nainital
             StopAllCoroutines();
             LastId = script.id;
             LastEnd = how;
+            foreach (var a in seated) if (a.go) RideSway.Off(a.go.transform);
+            seated.Clear();
             foreach (var a in actors.Values) if (a.go) Destroy(a.go);
             actors.Clear();
+            propActors.Clear();
+            if (playerHidden && PlayerController.Instance) SetPlayerShown(PlayerController.Instance, true);
+            if (cam && shakeOff != Vector3.zero) cam.transform.position -= shakeOff;   // no shake left in
+            shakeOff = Vector3.zero; shakeLeft = 0f;
             if (ui) { ui.Clear(); ui.FadeNow(0f); }
             if (cam) { cam.fieldOfView = gameFov > 1f ? gameFov : 60f; }
-            if (gameCam) { gameCam.enabled = true; gameCam.SnapBehind(); }
+            if (gameCam) { gameCam.enabled = true; gameCam.SnapBehind(); gameCam.pitch = 12f; }   // level behind him, not at the sky
             GameInput.StoryLock = false;
             GameInput.UiBlocking = FrontEnd.MenuOpen;
             if (HUD.Instance) HUD.Instance.SetAlpha(1f);

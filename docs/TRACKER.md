@@ -1095,3 +1095,96 @@ bike_commuter100.json / bus_roadways.json (20:38) kept.
   rooster zone 156/234/444 m (reach 200 m). Zone loop ~5.5k entries every 0.25 s.
 - Dogs bark from real dogs (`Animal.Live`, 70 m) or far at night only; cows only from real cows.
 - compile_check: runtime + editor OK. Build World run in batch (zones count in the `[Nainital] sound zones` line).
+
+## 26 Nov 2026 (main PC, after the Windows reinstall) - one-way barricades back, movable
+
+- Owner: "barricades jahan tumne lgaaye the wahin rkhdo but single mesh me poora barricade taaki main move krsku..har
+  barricade ko invidually join krdo..taaki main ek ek ko set krsku". The step is on again; before, both barricades and
+  both boards were ONE combined mesh in world space plus separate "Text ..." objects. Now each barricade and each board
+  is built in its own local space into one mesh (letters too, `Letters()`), and the object is placed at the spot.
+- Unity was not installed after the reinstall (only Unity Hub 4.0.2 from the Store, which has no headless install):
+  editor 6000.4.1f1 + iOS module installed from Unity's own installers.
+
+## 26 Nov 2026 (evening, main PC) - story missions, Chapter 0
+
+- Owner: "doc waale missions bnaane shuru kro" - answers: the bible's section B exactly (no merges), the 8 old missions
+  out, Hindi text + AI voice (edge-tts Microsoft neural), names Nikhil / Jassi / Himanshi / Shreya (docs/STORY.md).
+  "crash haldwani nainital road pe krna": the bend at (267, -3034), ~300 m from the map's edge.
+- Built: StoryMissions + story steps on MissionManager; Cutscene ops call / sit / look / shake / sound / lie / player and
+  a riding camera; Chapter0.cs (the highway route from RoadRoute - its Nearest counts height, so the ends are grounded
+  first; cars fitted to the ground under their four tyres; the crash end at the real edge, found by marching left till
+  the ground is 1.4 m under the road); Tools/story/build_story.py (scenes, 27 voices, 60 loc rows, build_loc).
+- Played in the editor (captures Shots/play_c0*): the whole chain 0.0 -> 0.0b -> 0.0c -> 0.1 -> 0.2 -> MISSION PASSED, the
+  QTE fail -> retry path, the tutorial checks, the follow, sleep; Hindi subtitles shaped right.
+- Fixed on the way: in-car shots were inside the dashboard / showed the hollow doors (now framed on the measured heads,
+  the parents through the side windows); the car floated (pivot not at the tyres); the escape gesture threw Nikhil out
+  before the QTE; the game camera looked at the sky after a scene (pitch 12); the walk to the house was 1.3 km by the
+  road network (the house is reached only from the Snow View Road) - now a baked ~300 m walk, then a cut.
+
+## 26-27 Nov 2026 (night, main PC) - story scenes moved to Unity Timeline; the highway's start extended
+
+- Owner: "timeline pe shift krdo" - Chapter 0's six scenes are Timelines in Assets/Nainital/Scenes/Story_C0.unity (additive;
+  Build World does not touch it), assets in Assets/Nainital/Story/Chapter0/. Runtime: Runtime/Story/Timeline/ (StoryDirector
+  plays one; StoryActor / StoryVehicle / StorySet are saved as names + places and show the real models in the editor;
+  custom tracks: Lines, Pose, Screen, Cue = press / choice / QTE (scrubs the timeline) / look). Missions use TimelineStep.
+  First version made by Editor/StoryTimelineBaker (call StoryTimelineBaker.BakeChapter0; it never remakes an existing
+  timeline unless arg "force" / "force <id>"). Not yet played through in Play mode in its Timeline form.
+- Owner: the car starts where the highway started - "aisa lgna chahiye ki peeche se aaya": world.json's Nainital - Haldwani
+  Highway got a 45 m curving tail in front of its first point, along the slope's contour to the map's edge
+  (114,-3296 / 119,-3288 / 125.5,-3279.5 / 133,-3271); Build World (776 s, in the open editor); shots Shots/hwt_sheet2.jpg.
+  The Timeline's car keys are unchanged (it still starts at the old start; the road now runs on behind it).
+
+## 27 Nov 2026 (night) - story timelines: what the owner saw, fixed
+
+- Owner (watching the Timeline in the editor): horns in a scene with no traffic; time must stop; cloudy; Nikhil poking out of
+  the car; Mummy too low; side close-ups of Papa and Mummy; the white car body filling a shot; "baaki world freeze krdo
+  with all loops"; the car is empty inside. Then the cause: I had looked only at Play-mode captures, never at the Timeline
+  as he sees it.
+- Fixed: a story scene freezes the world (Time.timeScale 0; the timeline, its wheels, light bars, fire and sounds on the
+  real clock), AudioManager.StoryQuiet (no town beds, far horns, vendors), the weather set at once (WeatherSystem.SetNow;
+  trip + ambulance cloudy). The people are the characters' own models saved in Story_C0, their bodies on Timeline "Body"
+  tracks with the game's humanoid clips (driving, sitting_idle, car_passenger_jostled, car_pulled_out, knocked_down,
+  death_back, talking, idle, gestures) - the prefab's Animator is on its child "Model" (binding the root gave T-poses).
+  StorySet CarInside: seats, dashboard, wheel, console, door panels, floor, roof lining fitted to the model and its seats.
+  Clips running past a scene's end are cut to it ("show to the end" clips had made the trip 9999 s long). Uncle stands
+  by the railing on the road's side; the ambulance view is at its back window.
+- Checking now: Editor/StoryTimelineShots (call StoryTimelineShots.Render, arg "c0_0_trip 13 27 62") renders the
+  timeline in animation mode from its Story Camera - the editor's view. Shots/tlx_all_*.jpg, tlx_fix.jpg.
+- Not yet checked in Play mode after these changes (the frozen world, sounds, the QTE).
+- Later the same night (owner): "seat kyun nhi bnaayi", "gaadi plta do", "ldka seeshe me se bhaar aaye", then "gravity bhi
+  hoti hai... road pe hi plta do". Now: shaped beige seats (bolsters, stitching, headrests on posts), the instruments and
+  vents, a low floor and an underbody plate (an upturned car showed the sitters' feet). The hit spins the car and it rolls
+  onto its roof ON the road across its lane; the black SUV (car_suv_muscular) spins and stops down the road on the hill's
+  side; Nikhil lies on the roof lining inside, the QTE drags him out head first through the road-side window, he tries to
+  get up and falls; his eyes look up the road at the 108 (car_van) and the police (car_suv_boxy). Baker fixes: models made
+  again after their names are set (AddComponent had built a default sedan / a hospital room first), the PoliceKit loaded
+  in the editor. Shots/road_g.jpg, road_h.jpg, flip_a.jpg (seats).
+- 27 Nov 2026, the CinematicAnimation timeline at 4K (owner: "proper shadows and every best thing on... 2-3 frames").
+  Found a game bug: DayNightCycle turned the sun only when it moved > 0.2 degrees from the last direction, which started
+  as the zero vector (Vector3.Angle with zero = 0), so a game started by day kept the scene's sun (30 degrees up in the
+  north-east) all day and Mall Road sat in the hill's shade. Fixed: the first Apply always turns it. Cinema mode
+  (Runtime/Dev/CinemaRunner, Editor/CinemaReel.Timeline): the PC render pipeline (the editor on Android runs Mobile: hard
+  shadows, one cascade), 4096 x 4 cascades over 300 m, cloud in the sky with the sun through it
+  (WeatherSystem.OvercastCap 0.15, DayNightCycle.ShadowMin 0.85), at night the 8 nearest street lamps
+  (LampManager.ShadowLamps) and 8 headlights cast soft shadows (8192 atlas). Frames: call CinemaReel.Timeline, arg
+  "frames 12 55 h10.5 h13 h15.5 h21" -> Cinematics/CinematicAnimation_[day|night]_HHMM_TTTs_4k.png; Shots/ca_shadow_samples.jpg.
+- 27 Nov 2026, the owner's 10 shots (owner: "jo timeline me bnaaye hain..unke 10 day or 10 night"): CinemaReel finds the
+  camera's cuts in the timeline (two keys < 0.05 s apart, > 2 m or 15 degrees apart: 0 | 5.02 | 14.98 | 20.38 | 23.70 |
+  30.12 | 37.25 | 65.60 | 81.55 | 110.68 | 121.20) and CinemaRunner records each shot on its own after the town settles
+  12 s round its start (the director set frame by frame, three still frames first so the motion blur starts clean), by day
+  15:30 and night 21:00, then joins them. call CinemaReel.Timeline, arg "shots [day|night] [n ...] [test]" ->
+  Cinematics/CinematicAnimation_[day|night]_shotNN_4k60.mp4 and CinematicAnimation_[day|night]_4k60.mp4 (~8 fps capture).
+- 27 Nov 2026, the morning shot (owner: "6:30 ke paas... lake ke water se upr naina peak tk... sky... morning shot"):
+  call CinemaReel.MakeMorningShot (edit mode; arg "force" remakes over edits) builds Timeline
+  Assets/Nainital/Cinematics/MorningShot.playable on a "MorningShot" director in Nainital.unity (not played on awake):
+  5 smooth keys on position / euler / field-of-view, 14 s, from 1 m over open water mid-lake (418, -556; 8 m deep)
+  rising 42 m up the lake while tilting up to Naina Peak and the sky. 6:15 had the best sky (6:30 paler, 6:45 white
+  clouds). Render: call CinemaReel.Timeline, arg "shots h6.25 tl:morningshot clear" ->
+  Cinematics/MorningShot_morning_shot01_4k60.mp4. The runner stops any other playing director (CinematicAnimation plays
+  on awake) and keeps the player at The Flats for this one.
+- 27 Nov 2026, the trailer "First Glimpse of NainiVerse": an edit project outside the repo,
+  C:\Users\Ayush Singh\video-edits\nainiverse-first-glimpse (config.json = every text / timing / grade / sound;
+  build.py = grade, strobes, titles, sound, encode). out\NainiVerse_First_Glimpse_1080p60.mp4: 1080p60, 2:08, the
+  sunrise (MorningShot 6-10 s), then the 10 timeline shots each day -> strobe -> night at its midpoint, place titles
+  "Name (Day/Night)" flipping with the strobe, hook / title / clue / "Directed by @gamedevayush" / CTA / end card,
+  progress bar, game ambience + synth SFX. The day / night films: python build.py films (not made yet).

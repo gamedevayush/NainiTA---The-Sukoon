@@ -26,7 +26,100 @@ namespace Nainital.EditorTools
             Debug.Log(c ? "[Nainital] story test: playing " + id : "[Nainital] story test: could not play " + id);
         }
 
-        public static void Stop() { Cutscene.StopAll(); Debug.Log("[Nainital] story test: stopped"); }
+        public static void Stop() { Cutscene.StopAll(); if (StoryDirector.Current) StoryDirector.Current.StopNow(); Debug.Log("[Nainital] story test: stopped"); }
+
+        /// <summary>Play mode: play the story scene selected in the Hierarchy (a root of Story_C0 with a StoryDirector), as
+        /// the game would - for the owner trying his Timeline edits (26 Nov 2026).</summary>
+        [MenuItem("Nainital/Story/Play selected timeline scene (Play mode)")]
+        public static void PlaySelected()
+        {
+            if (!Application.isPlaying) { EditorUtility.DisplayDialog("Story", "Pehle Play dabao, phir scene select karke ye menu.", "OK"); return; }
+            var go = Selection.activeGameObject;
+            var d = go ? go.GetComponentInParent<StoryDirector>() : null;
+            if (!d) { EditorUtility.DisplayDialog("Story", "Hierarchy me Story_C0 ka koi scene (jaise c0_0_trip) select karo.", "OK"); return; }
+            var mm = MissionManager.Instance;
+            if (mm && mm.Active != null) mm.Abort();
+            if (StoryDirector.Current) StoryDirector.Current.StopNow();
+            Debug.Log(d.Play(null) ? "[Nainital] story test: playing " + d.id : "[Nainital] story test: could not play " + d.id);
+        }
+
+        [MenuItem("Nainital/Story/Stop the story scene (Play mode)")]
+        public static void StopMenu() => Stop();
+
+        /// <summary>Begin a story mission by id (arg.txt: s0_0, s0_0b ...; optional " step" after it), whatever is running.</summary>
+        public static void Mission()
+        {
+            if (!Application.isPlaying) { Debug.Log("[Nainital] story test: not in Play mode"); return; }
+            var mm = MissionManager.Instance;
+            if (!mm) { Debug.Log("[Nainital] story test: no MissionManager"); return; }
+            string[] a = Arg().Split(' ');
+            string id = a[0];
+            int step = a.Length > 1 && int.TryParse(a[1], out int k) ? k : 0;
+            if (mm.Active != null) mm.Abort();
+            Cutscene.StopAll();
+            foreach (var m in mm.missions)
+                if (m.id == id) { mm.Begin(m, step); Debug.Log($"[Nainital] story test: mission {id} from step {step}"); return; }
+            Debug.Log("[Nainital] story test: no mission " + id + " (" + mm.missions.Count + " missions)");
+        }
+
+        /// <summary>Where the story is: the mission and its step, the scene playing, the UI's state.</summary>
+        public static void MissionState()
+        {
+            var mm = MissionManager.Instance;
+            var ui = StoryUI.Instance;
+            var p = PlayerController.Instance;
+            string act = mm && mm.Active != null ? $"{mm.Active.id} step '{mm.Step?.text}' ({mm.Step?.GetType().Name}) target {mm.CurrentTarget}" : "none";
+            Debug.Log($"[Nainital] story mission: {act}; next {(StoryMissions.Next != null ? StoryMissions.Next.id : "-")}; scene {(Cutscene.Current ? Cutscene.Current.Script.id : "-")} " +
+                      $"talking={(ui && ui.Talking)} choosing={(ui && ui.Choosing)} last={Cutscene.LastId}/{Cutscene.LastEnd} qte={StoryFlags.Get("c0_qte")} " +
+                      $"player {(p ? p.transform.position.ToString("F1") : "-")} cam {(Camera.main ? Camera.main.transform.position.ToString("F1") : "-")}");
+        }
+
+        /// <summary>The playing scene's actors (arg.txt: names, comma separated; and a prop to measure against, after a
+        /// "|"): each head's place in its own root's frame and in the prop's (to frame the camera shots).</summary>
+        public static void Heads()
+        {
+            var c = Cutscene.Current;
+            if (!c) { Debug.Log("[Nainital] heads: no scene"); return; }
+            string[] a = Arg().Split('|');
+            var prop = a.Length > 1 ? c.ActorRoot(a[1].Trim()) : null;
+            foreach (var who in a[0].Split(','))
+            {
+                var root = c.ActorRoot(who.Trim()); var rig = c.ActorRig(who.Trim());
+                if (!root || !rig || !rig.Head) { Debug.Log($"[Nainital] heads: {who}: none"); continue; }
+                Debug.Log($"[Nainital] heads: {who} root {root.position:F2} head {root.InverseTransformPoint(rig.Head.position):F2} of root" +
+                          (prop ? $", {prop.InverseTransformPoint(rig.Head.position):F2} of {a[1]}; root {prop.InverseTransformPoint(root.position):F2} of {a[1]}" : ""));
+            }
+        }
+
+        /// <summary>Tutorial inputs for a test (0.1): hold sprint (arg "1"/"0"), a look swipe, the phone open / shut.</summary>
+        public static void Sprint() { GameInput.TouchSprint = Arg() != "0"; GameInput.TouchMove = GameInput.TouchSprint ? new Vector2(0f, 1f) : Vector2.zero; }
+        public static void LookSwipe() { GameInput.TouchLookPixels = new Vector2(900f, 60f); }
+        public static void PhoneToggle() { Phone.Toggle(); }
+        /// <summary>The game's language for a test shot (arg "hi" / "en"; the save snapshot of PlayTest puts it back).</summary>
+        public static void Lang() { Loc.Set(Arg() == "hi" ? Loc.Lang.Hindi : Loc.Lang.English); Debug.Log("[Nainital] story test: language " + Loc.Current); }
+        /// <summary>Uncle's walk faster (arg: the factor) and the player put 4 m behind him (a follow test).</summary>
+        public static void FastWalk() { float.TryParse(Arg(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float k); StoryWalker.TestSpeedScale = k > 0f ? k : 1f; }
+        public static void BehindUncle()
+        {
+            var w = Object.FindAnyObjectByType<StoryWalker>();
+            var p = PlayerController.Instance;
+            if (!w || !p) { Debug.Log("[Nainital] story test: no walker / player"); return; }
+            Vector3 back = w.transform.position - w.transform.forward * 4f;
+            SaveGame.Place(p, StoryWalker.Ground(back) + Vector3.up * 0.1f, w.transform.eulerAngles.y);
+            Debug.Log($"[Nainital] story test: player behind Uncle at {back:F1}, arrived={w.Arrived} waiting={w.Waiting}");
+        }
+
+        /// <summary>Forget the story's progress (missions s0_* not done) for a clean test run.</summary>
+        public static void ResetStory()
+        {
+            var mm = MissionManager.Instance;
+            if (mm && mm.Active != null) mm.Abort();
+            Cutscene.StopAll();
+            int n = 0;
+            if (mm) foreach (var m in mm.missions) if (GameState.IsDone(m.id)) { GameState.UnmarkDone(m.id); n++; }
+            StoryFlags.ResetAll();
+            Debug.Log($"[Nainital] story test: {n} missions forgotten");
+        }
         public static void Next() { StoryUI.TestAdvance = true; }
         public static void Pick() { int.TryParse(Arg(), out int i); StoryUI.TestPick = Mathf.Max(0, i - 1); }
         public static void Mash() { StoryUI.TestPresses = 40; }

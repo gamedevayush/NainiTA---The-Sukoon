@@ -663,6 +663,7 @@ namespace Nainital
             if (newGame)
             {
                 SaveGame.Clear();
+                StoryMissions.NewGame();   // the story's prologue begins once the menu has gone (26 Nov 2026)
                 if (p)
                 {
                     if (p.CurrentMode == PlayerController.Mode.Vehicle) p.ExitVehicle(defaultSpawn);
